@@ -1,21 +1,27 @@
-import { ArrowRight, Filter, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { ArrowRight, Filter, GripVertical, Search, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import { chronicles, getAllTags } from '../content/chronicles'
+import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
-import { readJson, readString, writeString } from '../lib/storage'
+import { readString, writeString } from '../lib/storage'
 
 export function ChroniclesPage() {
+  const navigate = useNavigate()
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const tags = useMemo(() => ['全部', ...getAllTags()], [])
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
-  const [bookmarks] = useState<string[]>(() => readJson<string[]>(STORAGE_KEYS.bookmarks, []))
+  const [bookmarks, setBookmarks] = useLocalStorageState<string[]>(STORAGE_KEYS.bookmarks, [])
 
   const onlyBookmarks = useMemo(() => searchParams.get('only') === 'bookmarks', [searchParams])
 
@@ -30,22 +36,33 @@ export function ChroniclesPage() {
     if (selectedTag && selectedTag !== '全部') writeString(STORAGE_KEYS.tagFilter, selectedTag)
   }, [selectedTag])
 
+  const chronicleMap = useMemo(() => {
+    return new Map(chronicles.map((c) => [c.slug, c] as const))
+  }, [])
+
+  const bookmarkedChronicles = useMemo(() => {
+    return bookmarks
+      .map((s) => chronicleMap.get(s))
+      .filter((c): c is (typeof chronicles)[number] => Boolean(c))
+  }, [bookmarks, chronicleMap])
+
   const filtered = useMemo(() => {
     const q = query.trim()
-    return chronicles.filter((c) => {
-      if (onlyBookmarks && !bookmarks.includes(c.slug)) return false
+    const source = onlyBookmarks ? bookmarkedChronicles : chronicles
+
+    return source.filter((c) => {
       const tagOk = selectedTag === '全部' ? true : c.tags.includes(selectedTag)
       if (!tagOk) return false
       if (!q) return true
       const hay = `${c.title} ${c.excerpt} ${c.tags.join(' ')} ${c.dateText}`
       return hay.includes(q)
     })
-  }, [bookmarks, onlyBookmarks, query, selectedTag])
+  }, [bookmarkedChronicles, onlyBookmarks, query, selectedTag])
 
-  const bookmarkedChronicles = useMemo(() => {
-    const map = new Map(chronicles.map((c) => [c.slug, c] as const))
-    return bookmarks.map((s) => map.get(s)).filter(Boolean)
-  }, [bookmarks])
+  const visibleBookmarkIds = useMemo(() => {
+    if (!onlyBookmarks) return []
+    return filtered.map((c) => c.slug)
+  }, [filtered, onlyBookmarks])
 
   return (
     <div className="space-y-6">
@@ -172,37 +189,98 @@ export function ChroniclesPage() {
             </div>
           ) : null}
 
-          <div className="grid gap-2">
-            {filtered.map((c) => (
-              <Link
-                key={c.slug}
-                to={`/chronicles/${c.slug}`}
-                className={cn(
-                  'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-5 py-5',
-                  'hover:bg-white/7',
-                )}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-fg">{c.title}</div>
-                    <div className="mt-1 text-xs text-muted/70">{c.dateText}</div>
-                    <div className="mt-3 text-sm leading-7 text-muted/85">{c.excerpt}</div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {c.tags.map((t) => (
-                        <span
-                          key={t}
-                          className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-xs text-muted/80"
-                        >
-                          {t}
-                        </span>
+          {onlyBookmarks ? (
+            bookmarks.length === 0 ? (
+              <div className="rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
+                <div className="text-sm font-semibold text-fg">暂无收藏</div>
+                <div className="mt-2 text-xs leading-6 text-muted/80">
+                  在任意篇章点“收藏”，这里就会出现你的标记；并支持拖拽排序与一键取消。
+                </div>
+                <div className="mt-5 flex justify-center">
+                  <ButtonLink to="/chronicles" variant="ghost" className="px-4 py-2">
+                    去看全部纪事 <ArrowRight className="h-4 w-4" />
+                  </ButtonLink>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs leading-6 text-muted/80">
+                  提示：拖拽左侧把手可调整收藏顺序；点右侧 <span className="text-fg/90">×</span>{' '}
+                  可取消收藏。排序与收藏都保存在本地。
+                </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => {
+                    const { active, over } = event
+                    if (!over) return
+                    if (active.id === over.id) return
+                    const activeId = String(active.id)
+                    const overId = String(over.id)
+                    const oldIndex = visibleBookmarkIds.indexOf(activeId)
+                    const newIndex = visibleBookmarkIds.indexOf(overId)
+                    if (oldIndex < 0 || newIndex < 0) return
+
+                    const moved = arrayMove(visibleBookmarkIds, oldIndex, newIndex)
+                    const set = new Set(visibleBookmarkIds)
+
+                    setBookmarks((prev) => {
+                      const queue = [...moved]
+                      return prev.map((id) => (set.has(id) ? (queue.shift() ?? id) : id))
+                    })
+                  }}
+                >
+                  <SortableContext items={visibleBookmarkIds} strategy={verticalListSortingStrategy}>
+                    <div className="grid gap-2">
+                      {filtered.map((c) => (
+                        <SortableBookmarkRow
+                          key={c.slug}
+                          slug={c.slug}
+                          title={c.title}
+                          dateText={c.dateText}
+                          tags={c.tags}
+                          onOpen={() => navigate(`/chronicles/${c.slug}`)}
+                          onRemove={() => setBookmarks((prev) => prev.filter((s) => s !== c.slug))}
+                        />
                       ))}
                     </div>
+                  </SortableContext>
+                </DndContext>
+              </>
+            )
+          ) : (
+            <div className="grid gap-2">
+              {filtered.map((c) => (
+                <Link
+                  key={c.slug}
+                  to={`/chronicles/${c.slug}`}
+                  className={cn(
+                    'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-5 py-5',
+                    'hover:bg-white/7',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-fg">{c.title}</div>
+                      <div className="mt-1 text-xs text-muted/70">{c.dateText}</div>
+                      <div className="mt-3 text-sm leading-7 text-muted/85">{c.excerpt}</div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {c.tags.map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-xs text-muted/80"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted/70 transition-transform group-hover:translate-x-0.5" />
                   </div>
-                  <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted/70 transition-transform group-hover:translate-x-0.5" />
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs text-muted/70">
@@ -213,6 +291,104 @@ export function ChroniclesPage() {
             </ButtonLink>
           </div>
         </Card>
+      </div>
+    </div>
+  )
+}
+
+function SortableBookmarkRow({
+  slug,
+  title,
+  dateText,
+  tags,
+  onOpen,
+  onRemove,
+}: {
+  slug: string
+  title: string
+  dateText: string
+  tags: string[]
+  onOpen: () => void
+  onRemove: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: slug,
+  })
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-70')}>
+      <div
+        className={cn(
+          'focus-ring tap flex w-full items-start gap-3 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-left',
+          'hover:bg-white/7',
+        )}
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onOpen()
+          }
+        }}
+      >
+        <button
+          type="button"
+          className={cn(
+            'focus-ring tap mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-muted/80',
+            'hover:bg-white/10 hover:text-fg/90',
+          )}
+          aria-label="拖拽排序"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-fg line-clamp-2">{title}</div>
+              <div className="mt-1 text-xs text-muted/70">{dateText}</div>
+            </div>
+            <button
+              type="button"
+              className={cn(
+                'focus-ring tap inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-muted/70',
+                'hover:bg-white/10 hover:text-fg/90',
+              )}
+              aria-label="取消收藏"
+              title="取消收藏"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onRemove()
+              }}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {tags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-xs text-muted/80"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

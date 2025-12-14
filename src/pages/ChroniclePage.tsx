@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import { getChronicleBySlug } from '../content/chronicles'
+import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
@@ -16,8 +17,10 @@ type ReadingLast = {
   slug: string
   title: string
   dateText: string
+  sectionId?: string
   anchorId?: string
   anchorHeading?: string
+  anchorSnippet?: string
   progress: number
   updatedAt: number
 }
@@ -29,21 +32,36 @@ export function ChroniclePage() {
 
   const [progress, setProgress] = useState(0)
   const [copied, setCopied] = useState(false)
-  const [activeAnchorId, setActiveAnchorId] = useState('h-1')
+  const [activeSectionId, setActiveSectionId] = useState('h-1')
+  const [activeParagraphId, setActiveParagraphId] = useState('p-1-1')
   const [resumeFrom] = useState<ReadingLast | null>(() =>
     readJson<ReadingLast | null>(STORAGE_KEYS.readingLast, null),
   )
   const [resumeDismissed, setResumeDismissed] = useState(false)
 
-  const [bookmarks, setBookmarks] = useState<string[]>(() =>
-    readJson<string[]>(STORAGE_KEYS.bookmarks, []),
-  )
-
-  useEffect(() => {
-    writeJson(STORAGE_KEYS.bookmarks, bookmarks)
-  }, [bookmarks])
+  const [bookmarks, setBookmarks] = useLocalStorageState<string[]>(STORAGE_KEYS.bookmarks, [])
 
   const isBookmarked = chronicle ? bookmarks.includes(chronicle.slug) : false
+
+  const toc = useMemo(() => {
+    if (!chronicle) return []
+    return chronicle.sections.map((s, idx) => ({ id: `h-${idx + 1}`, heading: s.heading }))
+  }, [chronicle])
+
+  const paragraphIndex = useMemo(() => {
+    const map = new Map<string, { heading: string; snippet: string; sectionId: string }>()
+    if (!chronicle) return map
+    chronicle.sections.forEach((s, si) => {
+      const sectionId = `h-${si + 1}`
+      s.paragraphs.forEach((p, pi) => {
+        const id = `p-${si + 1}-${pi + 1}`
+        const compact = p.replace(/\s+/g, ' ').trim()
+        const snippet = compact.length > 28 ? `${compact.slice(0, 28)}…` : compact
+        map.set(id, { heading: s.heading, snippet, sectionId })
+      })
+    })
+    return map
+  }, [chronicle])
 
   useEffect(() => {
     const onScroll = () => {
@@ -58,10 +76,15 @@ export function ChroniclePage() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const toc = useMemo(() => {
-    if (!chronicle) return []
-    return chronicle.sections.map((s, idx) => ({ id: `h-${idx + 1}`, heading: s.heading }))
-  }, [chronicle])
+  useEffect(() => {
+    if (!chronicle) return
+    const t = window.setTimeout(() => {
+      setResumeDismissed(false)
+      setActiveSectionId('h-1')
+      setActiveParagraphId('p-1-1')
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [slug, chronicle])
 
   useEffect(() => {
     if (!chronicle) return
@@ -79,7 +102,7 @@ export function ChroniclePage() {
         if (visible.length === 0) return
         visible.sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))
         const top = visible[0]
-        setActiveAnchorId(top.target.id)
+        setActiveSectionId(top.target.id)
       },
       {
         threshold: [0, 0.12, 0.25, 0.35, 0.5, 0.75, 1],
@@ -93,21 +116,54 @@ export function ChroniclePage() {
 
   useEffect(() => {
     if (!chronicle) return
+    const ids = chronicle.sections.flatMap((s, si) =>
+      s.paragraphs.map((_, pi) => `p-${si + 1}-${pi + 1}`),
+    )
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[]
+
+    if (elements.length === 0) return
+    if (!('IntersectionObserver' in window)) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting)
+        if (visible.length === 0) return
+        visible.sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))
+        const top = visible[0]
+        setActiveParagraphId(top.target.id)
+      },
+      {
+        threshold: [0, 0.08, 0.16, 0.24, 0.35, 0.5, 0.75, 1],
+        rootMargin: '-18% 0px -72% 0px',
+      },
+    )
+
+    for (const el of elements) observer.observe(el)
+    return () => observer.disconnect()
+  }, [chronicle])
+
+  useEffect(() => {
+    if (!chronicle) return
     const t = window.setTimeout(() => {
-      const activeHeading = toc.find((t) => t.id === activeAnchorId)?.heading
+      const p = paragraphIndex.get(activeParagraphId)
+      const activeHeading = p?.heading ?? toc.find((t) => t.id === activeSectionId)?.heading
       const payload: ReadingLast = {
         slug: chronicle.slug,
         title: chronicle.title,
         dateText: chronicle.dateText,
-        anchorId: activeAnchorId,
+        sectionId: activeSectionId,
+        anchorId: p ? activeParagraphId : activeSectionId,
         anchorHeading: activeHeading,
+        anchorSnippet: p?.snippet,
         progress: Math.round(progress),
         updatedAt: Date.now(),
       }
       writeJson(STORAGE_KEYS.readingLast, payload)
     }, 350)
     return () => window.clearTimeout(t)
-  }, [activeAnchorId, chronicle, progress, toc])
+  }, [activeParagraphId, activeSectionId, chronicle, paragraphIndex, progress, toc])
 
   const resumeHint =
     chronicle && resumeFrom?.slug === chronicle.slug && resumeFrom.anchorId && !resumeDismissed
@@ -242,7 +298,11 @@ export function ChroniclePage() {
                   <h2 className="text-lg font-semibold text-fg">{s.heading}</h2>
                   <div className="mt-3 grid gap-3">
                     {s.paragraphs.map((p, pi) => (
-                      <p key={pi} className="text-sm leading-7 text-muted/85">
+                      <p
+                        key={pi}
+                        id={`p-${idx + 1}-${pi + 1}`}
+                        className="scroll-mt-28 text-sm leading-7 text-muted/85"
+                      >
                         {p}
                       </p>
                     ))}
@@ -266,14 +326,17 @@ export function ChroniclePage() {
                   subtitle={`${Math.max(0, Math.min(100, resumeHint.progress))}% · ${resumeHint.anchorHeading ?? '上次位置'}`}
                 />
                 <div className="text-xs leading-6 text-muted/80">
-                  上次停在《{resumeHint.title}》的某一节。要不要直接回到那里？
+                  上次停在《{resumeHint.title}》的某一处。
+                  {resumeHint.anchorSnippet ? (
+                    <span className="mt-2 block text-muted/70">“{resumeHint.anchorSnippet}”</span>
+                  ) : null}
                 </div>
                 <div className="mt-3 grid gap-2">
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={() => {
-                      scrollToAnchor(resumeHint.anchorId ?? 'h-1')
+                      scrollToAnchor(resumeHint.anchorId ?? resumeHint.sectionId ?? 'h-1')
                       setResumeDismissed(true)
                     }}
                     className="w-full justify-start"
@@ -305,7 +368,7 @@ export function ChroniclePage() {
                     href={`#${t.id}`}
                     className={cn(
                       'focus-ring tap rounded-xl border border-border/60 px-3 py-2 text-sm',
-                      t.id === activeAnchorId
+                      t.id === activeSectionId
                         ? 'bg-white/10 text-fg ring-1 ring-white/10'
                         : 'bg-white/4 text-fg/90 hover:bg-white/7',
                     )}

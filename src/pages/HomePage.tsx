@@ -19,6 +19,7 @@ type ReadingLast = {
   title: string
   dateText: string
   anchorHeading?: string
+  anchorSnippet?: string
   progress: number
   updatedAt: number
 }
@@ -200,6 +201,11 @@ export function HomePage() {
                       {readingLast.anchorHeading ? (
                         <div className="mt-1 text-xs text-muted/70">
                           上次停在：{readingLast.anchorHeading}
+                        </div>
+                      ) : null}
+                      {readingLast.anchorSnippet ? (
+                        <div className="mt-1 line-clamp-2 text-xs text-muted/70">
+                          “{readingLast.anchorSnippet}”
                         </div>
                       ) : null}
                       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/6">
