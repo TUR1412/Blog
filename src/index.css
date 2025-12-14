@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 231 38% 7%;
+  --fg: 210 40% 98%;
+  --muted: 225 22% 70%;
+  --card: 230 35% 10%;
+  --border: 225 18% 20%;
+  --ring: 196 94% 54%;
+  --accent: 196 94% 54%;
+  --accent2: 284 88% 68%;
+  --good: 145 70% 44%;
+  --warn: 42 92% 55%;
+  --bad: 0 78% 58%;
+
+  --radius: 18px;
+  --glass: rgba(255, 255, 255, 0.08);
+  --glass2: rgba(255, 255, 255, 0.04);
+  --stroke: rgba(255, 255, 255, 0.10);
+}
+
+html.theme-light {
+  --bg: 46 86% 96%;
+  --fg: 231 30% 12%;
+  --muted: 230 14% 38%;
+  --card: 0 0% 100%;
+  --border: 230 20% 86%;
+  --ring: 196 94% 40%;
+  --accent: 196 94% 40%;
+  --accent2: 284 70% 48%;
+  --good: 145 58% 34%;
+  --warn: 42 88% 46%;
+  --bad: 0 74% 44%;
+
+  --glass: rgba(0, 0, 0, 0.04);
+  --glass2: rgba(0, 0, 0, 0.02);
+  --stroke: rgba(0, 0, 0, 0.08);
+}
+
+@layer base {
+  html {
+    height: 100%;
+    color-scheme: dark;
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html.theme-light {
+    color-scheme: light;
+  }
+
+  body {
+    min-height: 100%;
+    margin: 0;
+    background: hsl(var(--bg));
+    color: hsl(var(--fg));
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+      'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+      'WenQuanYi Micro Hei', Arial, sans-serif;
+    overflow-x: hidden;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  ::selection {
+    background: hsl(var(--accent) / 0.28);
+  }
+}
+
+@layer components {
+  .glass {
+    background: linear-gradient(180deg, var(--glass), var(--glass2));
+    border: 1px solid var(--stroke);
+    box-shadow: theme('boxShadow.glass');
+    backdrop-filter: blur(theme('backdropBlur.xl2'));
+  }
+
+  .focus-ring {
+    outline: none;
+  }
+
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 4px hsl(var(--ring) / 0.25);
+  }
+
+  .tap {
+    transform: translateZ(0);
+    transition:
+      transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      filter 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .tap:hover {
+    transform: translateY(-2px);
+  }
+
+  .tap:active {
+    transform: translateY(0px) scale(0.97);
+  }
+}

@@ -1,0 +1,320 @@
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { BookOpen, Gem, Home, NotebookPen, Search, User } from 'lucide-react'
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
+import { chronicles } from '../../content/chronicles'
+import { cn } from '../../lib/cn'
+
+type CommandItem = {
+  id: string
+  title: string
+  subtitle?: string
+  keywords: string[]
+  icon?: React.ReactNode
+  run: () => void
+}
+
+type CommandPaletteContextValue = {
+  isOpen: boolean
+  open: () => void
+  close: () => void
+  toggle: () => void
+}
+
+const CommandPaletteContext = createContext<CommandPaletteContextValue | null>(null)
+
+function isTypingTarget(target: EventTarget | null) {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  if (el.isContentEditable) return true
+  const tag = el.tagName?.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || tag === 'select'
+}
+
+export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const value = useMemo<CommandPaletteContextValue>(() => {
+    return {
+      isOpen,
+      open: () => setIsOpen(true),
+      close: () => setIsOpen(false),
+      toggle: () => setIsOpen((v) => !v),
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase()
+      const isCmdK = (e.ctrlKey || e.metaKey) && k === 'k'
+      if (isCmdK) {
+        e.preventDefault()
+        setIsOpen(true)
+        return
+      }
+
+      if (k === 'escape') {
+        setIsOpen(false)
+        return
+      }
+
+      if (k === '/' && !isTypingTarget(e.target)) {
+        e.preventDefault()
+        setIsOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  return (
+    <CommandPaletteContext.Provider value={value}>
+      {children}
+      {isOpen ? <CommandPaletteModal onClose={() => setIsOpen(false)} /> : null}
+    </CommandPaletteContext.Provider>
+  )
+}
+
+export function useCommandPalette() {
+  const ctx = useContext(CommandPaletteContext)
+  if (!ctx) throw new Error('useCommandPalette 必须在 CommandPaletteProvider 内使用')
+  return ctx
+}
+
+function CommandPaletteModal({
+  onClose,
+}: {
+  onClose: () => void
+}) {
+  const navigate = useNavigate()
+  const reduceMotion = useReducedMotion()
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const [query, setQuery] = useState('')
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const items = useMemo<CommandItem[]>(() => {
+    const routes: CommandItem[] = [
+      {
+        id: 'route-home',
+        title: '洞天首页',
+        subtitle: '回到卷首',
+        keywords: ['首页', '洞天', '卷首'],
+        icon: <Home className="h-4 w-4" />,
+        run: () => navigate('/'),
+      },
+      {
+        id: 'route-chronicles',
+        title: '纪事',
+        subtitle: '按章入卷',
+        keywords: ['纪事', '卷', '章', '故事', '纪要'],
+        icon: <BookOpen className="h-4 w-4" />,
+        run: () => navigate('/chronicles'),
+      },
+      {
+        id: 'route-about',
+        title: '人物志',
+        subtitle: '轩少其人',
+        keywords: ['人物', '人物志', '轩少', '轩天帝', '其人'],
+        icon: <User className="h-4 w-4" />,
+        run: () => navigate('/about'),
+      },
+      {
+        id: 'route-treasury',
+        title: '藏品',
+        subtitle: '法宝与旧物（可拖拽排序）',
+        keywords: ['藏品', '法宝', '旧物', '排序', '拖拽'],
+        icon: <Gem className="h-4 w-4" />,
+        run: () => navigate('/treasury'),
+      },
+      {
+        id: 'route-notes',
+        title: '札记',
+        subtitle: '写下当日心法（自动保存）',
+        keywords: ['札记', '笔记', '心法', '记录', '保存'],
+        icon: <NotebookPen className="h-4 w-4" />,
+        run: () => navigate('/notes'),
+      },
+    ]
+
+    const chapters: CommandItem[] = chronicles.map((c) => ({
+      id: `chronicle-${c.slug}`,
+      title: c.title,
+      subtitle: c.dateText,
+      keywords: [c.title, c.excerpt, c.dateText, ...c.tags],
+      icon: <BookOpen className="h-4 w-4" />,
+      run: () => navigate(`/chronicles/${c.slug}`),
+    }))
+
+    return [...routes, ...chapters]
+  }, [navigate])
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return items
+
+    return items
+      .map((it) => {
+        const hay = [it.title, it.subtitle ?? '', ...it.keywords].join(' ').toLowerCase()
+        const score = hay.includes(q) ? 2 : it.keywords.some((k) => k.toLowerCase().includes(q)) ? 1 : 0
+        return { it, score }
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.it)
+  }, [items, query])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => inputRef.current?.focus(), 0)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    const el = listRef.current
+    const active = el?.querySelector(`[data-cmd-index="${activeIndex}"]`) as HTMLElement | null
+    active?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex])
+
+  const runActive = () => {
+    const it = filtered[activeIndex]
+    if (!it) return
+    it.run()
+    onClose()
+  }
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.min(filtered.length - 1, i + 1))
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.max(0, i - 1))
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      runActive()
+    }
+  }
+
+  const node =
+    (
+      <AnimatePresence>
+        <motion.div
+          className="fixed inset-0 z-[70] flex items-start justify-center px-4 pb-10 pt-24"
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
+        >
+          <button
+            type="button"
+            aria-label="关闭"
+            className="absolute inset-0 bg-black/40"
+            onClick={onClose}
+          />
+
+          <motion.div
+            className={cn(
+              'glass relative w-full max-w-[820px] overflow-hidden rounded-xl2',
+              'shadow-lift',
+            )}
+            initial={reduceMotion ? false : { y: 18, scale: 0.98, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { y: 12, scale: 0.98, opacity: 0 }}
+            transition={{
+              type: 'spring',
+              stiffness: 380,
+              damping: 30,
+              mass: 0.7,
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="灵镜检索"
+          >
+            <div className="flex items-center gap-3 border-b border-border/70 px-4 py-4">
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-fg/90">
+                <Search className="h-4 w-4" />
+              </div>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setActiveIndex(0)
+                }}
+                onKeyDown={onKeyDown}
+                placeholder="搜一章、搜一事、搜一处去处……（Ctrl/⌘ + K 或 /）"
+                className={cn(
+                  'focus-ring w-full bg-transparent text-[15px] text-fg placeholder:text-muted/70',
+                )}
+              />
+              <div className="hidden shrink-0 items-center gap-2 text-xs text-muted/80 sm:flex">
+                <span className="rounded-lg border border-border/70 bg-white/5 px-2 py-1">Esc</span>
+                <span>收镜</span>
+              </div>
+            </div>
+
+            <div
+              ref={listRef}
+              className="max-h-[56vh] overflow-auto p-2 [scrollbar-width:thin]"
+            >
+              {filtered.length === 0 ? (
+                <div className="px-4 py-10 text-sm text-muted/80">
+                  没搜到相符条目。换个词试试：例如“问剑 / 霜月 / 洞府 / 札记”。
+                </div>
+              ) : (
+                <div className="grid gap-1">
+                  {filtered.map((it, idx) => (
+                    <button
+                      key={it.id}
+                      data-cmd-index={idx}
+                      type="button"
+                      className={cn(
+                        'tap focus-ring flex w-full items-center justify-between gap-4 rounded-xl px-3 py-3 text-left',
+                        idx === activeIndex
+                          ? 'bg-white/10 ring-1 ring-white/10'
+                          : 'bg-transparent hover:bg-white/5',
+                      )}
+                      onMouseEnter={() => setActiveIndex(idx)}
+                      onClick={() => {
+                        it.run()
+                        onClose()
+                      }}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className={cn(
+                            'grid h-9 w-9 place-items-center rounded-xl border border-border/70',
+                            idx === activeIndex ? 'bg-white/10' : 'bg-white/5',
+                          )}
+                        >
+                          {it.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-[14px] font-medium text-fg">{it.title}</div>
+                          {it.subtitle ? (
+                            <div className="truncate text-xs text-muted/80">{it.subtitle}</div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="hidden shrink-0 items-center gap-2 text-xs text-muted/70 sm:flex">
+                        <span className="rounded-lg border border-border/70 bg-white/5 px-2 py-1">
+                          Enter
+                        </span>
+                        <span>入</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    )
+
+  return node ? createPortal(node, document.body) : null
+}

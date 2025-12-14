@@ -1,0 +1,26 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(40 32) rotate(48) scale(120)">
+      <stop stop-color="#2DD4FF"/>
+      <stop offset="0.55" stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#0B1020"/>
+    </radialGradient>
+    <linearGradient id="g2" x1="18" y1="18" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="white" stop-opacity="0.02"/>
+    </linearGradient>
+    <filter id="blur" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <rect x="10" y="10" width="108" height="108" rx="28" fill="url(#g1)"/>
+  <rect x="10" y="10" width="108" height="108" rx="28" fill="url(#g2)"/>
+  <path d="M26 72C38 58 55 49 80 45" stroke="white" stroke-opacity="0.25" stroke-width="10" stroke-linecap="round" filter="url(#blur)"/>
+
+  <path d="M36 46H92" stroke="white" stroke-opacity="0.92" stroke-width="6" stroke-linecap="round"/>
+  <path d="M44 60H84" stroke="white" stroke-opacity="0.88" stroke-width="6" stroke-linecap="round"/>
+  <path d="M52 74H76" stroke="white" stroke-opacity="0.84" stroke-width="6" stroke-linecap="round"/>
+  <path d="M40 90C52 84 64 82 88 82" stroke="white" stroke-opacity="0.78" stroke-width="6" stroke-linecap="round"/>
+</svg>
+
