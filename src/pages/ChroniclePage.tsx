@@ -12,6 +12,13 @@ import { STORAGE_KEYS } from '../lib/constants'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
+type ReadingLast = {
+  slug: string
+  title: string
+  dateText: string
+  progress: number
+  updatedAt: number
+}
 
 export function ChroniclePage() {
   const { slug } = useParams()
@@ -43,6 +50,21 @@ export function ChroniclePage() {
     onScroll()
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    if (!chronicle) return
+    const t = window.setTimeout(() => {
+      const payload: ReadingLast = {
+        slug: chronicle.slug,
+        title: chronicle.title,
+        dateText: chronicle.dateText,
+        progress: Math.round(progress),
+        updatedAt: Date.now(),
+      }
+      writeJson(STORAGE_KEYS.readingLast, payload)
+    }, 350)
+    return () => window.clearTimeout(t)
+  }, [chronicle, progress])
 
   if (!chronicle) {
     return (

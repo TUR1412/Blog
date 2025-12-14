@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { BookOpen, Gem, Home, NotebookPen, Search, User } from 'lucide-react'
+import { BookOpen, BookmarkCheck, Gem, Home, NotebookPen, Search, User } from 'lucide-react'
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -112,6 +112,14 @@ function CommandPaletteModal({
         keywords: ['纪事', '卷', '章', '故事', '纪要'],
         icon: <BookOpen className="h-4 w-4" />,
         run: () => navigate('/chronicles'),
+      },
+      {
+        id: 'route-bookmarks',
+        title: '收藏的纪事',
+        subtitle: '只看你标记过的篇章',
+        keywords: ['收藏', '书签', '标记', '纪事', '篇章'],
+        icon: <BookmarkCheck className="h-4 w-4" />,
+        run: () => navigate('/chronicles?only=bookmarks'),
       },
       {
         id: 'route-about',

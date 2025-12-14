@@ -9,12 +9,15 @@ import { SectionHeading } from '../components/ui/SectionHeading'
 import { chronicles, getAllTags } from '../content/chronicles'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
-import { readString, writeString } from '../lib/storage'
+import { readJson, readString, writeString } from '../lib/storage'
 
 export function ChroniclesPage() {
   const tags = useMemo(() => ['全部', ...getAllTags()], [])
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
+  const [bookmarks] = useState<string[]>(() => readJson<string[]>(STORAGE_KEYS.bookmarks, []))
+
+  const onlyBookmarks = useMemo(() => searchParams.get('only') === 'bookmarks', [searchParams])
 
   const selectedTag = useMemo(() => {
     const fromUrl = searchParams.get('tag')
@@ -30,13 +33,19 @@ export function ChroniclesPage() {
   const filtered = useMemo(() => {
     const q = query.trim()
     return chronicles.filter((c) => {
+      if (onlyBookmarks && !bookmarks.includes(c.slug)) return false
       const tagOk = selectedTag === '全部' ? true : c.tags.includes(selectedTag)
       if (!tagOk) return false
       if (!q) return true
       const hay = `${c.title} ${c.excerpt} ${c.tags.join(' ')} ${c.dateText}`
       return hay.includes(q)
     })
-  }, [query, selectedTag])
+  }, [bookmarks, onlyBookmarks, query, selectedTag])
+
+  const bookmarkedChronicles = useMemo(() => {
+    const map = new Map(chronicles.map((c) => [c.slug, c] as const))
+    return bookmarks.map((s) => map.get(s)).filter(Boolean)
+  }, [bookmarks])
 
   return (
     <div className="space-y-6">
@@ -63,6 +72,34 @@ export function ChroniclesPage() {
           </div>
 
           <div className="mt-4 flex items-center gap-2 text-xs text-muted/70">
+            <Filter className="h-4 w-4" />
+            <span>范围</span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Chip
+              selected={!onlyBookmarks}
+              onClick={() => {
+                const next = new URLSearchParams(searchParams)
+                next.delete('only')
+                setSearchParams(next, { replace: true })
+              }}
+            >
+              全部
+            </Chip>
+            <Chip
+              selected={onlyBookmarks}
+              onClick={() => {
+                const next = new URLSearchParams(searchParams)
+                next.set('only', 'bookmarks')
+                setSearchParams(next, { replace: true })
+              }}
+            >
+              收藏（{bookmarks.length}）
+            </Chip>
+          </div>
+
+          <div className="mt-5 flex items-center gap-2 text-xs text-muted/70">
             <Filter className="h-4 w-4" />
             <span>标签</span>
           </div>
@@ -93,8 +130,47 @@ export function ChroniclesPage() {
         <Card className="lg:col-span-8">
           <SectionHeading
             title={`共 ${filtered.length} 篇`}
-            subtitle={selectedTag === '全部' ? '按时间顺序陈列。' : `当前标签：${selectedTag}`}
+            subtitle={
+              onlyBookmarks
+                ? '仅显示你收藏的篇章（本地保存）。'
+                : selectedTag === '全部'
+                  ? '按时间顺序陈列。'
+                  : `当前标签：${selectedTag}`
+            }
           />
+
+          {bookmarks.length > 0 && !onlyBookmarks ? (
+            <div className="mb-4 rounded-xl border border-border/60 bg-white/4 px-5 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-fg">我的收藏</div>
+                <ButtonLink to="/chronicles?only=bookmarks" variant="ghost" className="px-3 py-1.5">
+                  只看收藏 <ArrowRight className="h-4 w-4" />
+                </ButtonLink>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {bookmarkedChronicles.slice(0, 4).map((c) =>
+                  c ? (
+                    <Link
+                      key={c.slug}
+                      to={`/chronicles/${c.slug}`}
+                      className={cn(
+                        'focus-ring tap rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-left',
+                        'hover:bg-white/7',
+                      )}
+                    >
+                      <div className="text-sm font-semibold text-fg line-clamp-2">{c.title}</div>
+                      <div className="mt-1 text-xs text-muted/70">{c.dateText}</div>
+                    </Link>
+                  ) : null,
+                )}
+              </div>
+              {bookmarkedChronicles.length > 4 ? (
+                <div className="mt-3 text-xs text-muted/70">
+                  还有 {bookmarkedChronicles.length - 4} 篇收藏未展开显示。
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid gap-2">
             {filtered.map((c) => (
@@ -141,4 +217,3 @@ export function ChroniclesPage() {
     </div>
   )
 }
-

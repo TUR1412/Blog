@@ -139,8 +139,9 @@ export function AboutPage() {
                   >
                     <div className={cn('mt-3 rounded-xl bg-gradient-to-r px-4 py-3', tone)}>
                       <div className="text-xs leading-6 text-muted/85">
-                        {t.title}之后，轩少并未“立刻变得更高”。他的变化往往发生在细处：对誓词的对照、
-                        对病人的回访、对争端的边界书写。凡能写成章法的，他都尽量写清。
+                        {t.long
+                          ? t.long
+                          : `${t.title}之后，轩少并未“立刻变得更高”。他的变化往往发生在细处：对誓词的对照、对病人的回访、对争端的边界书写。凡能写成章法的，他都尽量写清。`}
                       </div>
                     </div>
                   </motion.div>
