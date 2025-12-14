@@ -1,11 +1,11 @@
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowRight, Filter, GripVertical, Search, X } from 'lucide-react'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { ArrowRight, Download, Filter, GripVertical, Search, Trash2, Upload, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
-import { ButtonLink } from '../components/ui/Button'
+import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
@@ -18,6 +18,7 @@ import { readString, writeString } from '../lib/storage'
 export function ChroniclesPage() {
   const navigate = useNavigate()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const importFileRef = useRef<HTMLInputElement | null>(null)
   const tags = useMemo(() => ['全部', ...getAllTags()], [])
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
@@ -63,6 +64,82 @@ export function ChroniclesPage() {
     if (!onlyBookmarks) return []
     return filtered.map((c) => c.slug)
   }, [filtered, onlyBookmarks])
+
+  const exportBookmarks = () => {
+    const canonical = bookmarks.filter((s) => chronicleMap.has(s))
+    const payload = {
+      kind: 'xuantian.bookmarks',
+      v: 1,
+      exportedAt: Date.now(),
+      count: canonical.length,
+      bookmarks: canonical,
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-bookmarks-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const applyImportedBookmarks = (nextBookmarks: string[]) => {
+    const known = nextBookmarks.filter((s) => chronicleMap.has(s))
+    const unique: string[] = []
+    const seen = new Set<string>()
+    for (const s of known) {
+      if (seen.has(s)) continue
+      seen.add(s)
+      unique.push(s)
+    }
+
+    if (unique.length === 0) {
+      window.alert('导入失败：文件里没有可识别的收藏条目。')
+      return
+    }
+
+    const replace = window.confirm('导入方式：确定=覆盖现有收藏；取消=合并到现有收藏末尾。')
+    if (replace) {
+      setBookmarks(unique)
+      window.alert(`已覆盖收藏：${unique.length} 篇。`)
+      return
+    }
+
+    setBookmarks((prev) => {
+      const merged = [...prev]
+      const set = new Set(prev)
+      for (const s of unique) {
+        if (set.has(s)) continue
+        set.add(s)
+        merged.push(s)
+      }
+      return merged
+    })
+    window.alert(`已合并导入：${unique.length} 篇（重复项自动忽略）。`)
+  }
+
+  const importBookmarks = async (file: File) => {
+    try {
+      const raw = await file.text()
+      const data = JSON.parse(raw) as unknown
+      const list =
+        Array.isArray(data) ? data :
+        data && typeof data === 'object' && Array.isArray((data as { bookmarks?: unknown }).bookmarks)
+          ? (data as { bookmarks: unknown }).bookmarks
+          : null
+
+      if (!list) {
+        window.alert('导入失败：文件格式不支持。请导入本站导出的收藏文件。')
+        return
+      }
+
+      const nextBookmarks = (list as unknown[]).filter((x): x is string => typeof x === 'string')
+      applyImportedBookmarks(nextBookmarks)
+    } catch {
+      window.alert('导入失败：无法读取文件内容。')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -204,6 +281,48 @@ export function ChroniclesPage() {
               </div>
             ) : (
               <>
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept="application/json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.currentTarget.files?.[0]
+                    e.currentTarget.value = ''
+                    if (!file) return
+                    void importBookmarks(file)
+                  }}
+                />
+
+                <div className="mb-3 grid gap-2 sm:grid-cols-3">
+                  <Button type="button" variant="ghost" onClick={exportBookmarks} className="justify-start">
+                    <Download className="h-4 w-4" />
+                    导出收藏
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => importFileRef.current?.click()}
+                    className="justify-start"
+                  >
+                    <Upload className="h-4 w-4" />
+                    导入收藏
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      const ok = window.confirm('确认清空所有收藏？此操作会清除本地保存的收藏列表。')
+                      if (!ok) return
+                      setBookmarks([])
+                    }}
+                    className="justify-start"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    清空
+                  </Button>
+                </div>
+
                 <div className="mb-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs leading-6 text-muted/80">
                   提示：拖拽左侧把手可调整收藏顺序；点右侧 <span className="text-fg/90">×</span>{' '}
                   可取消收藏。排序与收藏都保存在本地。

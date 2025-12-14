@@ -71,6 +71,23 @@ html.theme-light {
   ::selection {
     background: hsl(var(--accent) / 0.28);
   }
+
+  html.reading-immersive header {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-12px);
+    transition:
+      opacity 180ms ease,
+      transform 220ms ease;
+  }
+
+  html.reading-immersive footer {
+    display: none;
+  }
+
+  html.reading-immersive main#content {
+    padding-top: 1.25rem;
+  }
 }
 
 @layer components {
