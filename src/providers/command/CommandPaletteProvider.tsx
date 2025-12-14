@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { BookOpen, BookmarkCheck, Gem, Home, NotebookPen, Search, User } from 'lucide-react'
+import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, Search, User } from 'lucide-react'
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -120,6 +120,14 @@ function CommandPaletteModal({
         keywords: ['收藏', '书签', '标记', '纪事', '篇章'],
         icon: <BookmarkCheck className="h-4 w-4" />,
         run: () => navigate('/chronicles?only=bookmarks'),
+      },
+      {
+        id: 'route-grotto',
+        title: '洞府图',
+        subtitle: '把年表写成路',
+        keywords: ['洞府', '地图', '年表', '路标', '灵脉', '关口'],
+        icon: <Map className="h-4 w-4" />,
+        run: () => navigate('/grotto'),
       },
       {
         id: 'route-about',

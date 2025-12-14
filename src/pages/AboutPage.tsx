@@ -55,6 +55,9 @@ export function AboutPage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <ButtonLink to="/chronicles">去读纪事</ButtonLink>
+            <ButtonLink to="/grotto" variant="ghost">
+              去看洞府图
+            </ButtonLink>
             <ButtonLink to="/notes" variant="ghost">
               抄下自己的札记
             </ButtonLink>
@@ -113,23 +116,30 @@ export function AboutPage() {
                     : 'from-white/8 to-transparent'
 
               return (
-                <button
+                <div
                   key={t.id}
-                  type="button"
-                  onClick={() => setOpenIds((prev) => ({ ...prev, [t.id]: !open }))}
                   className={cn(
-                    'focus-ring tap w-full rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-left',
-                    'hover:bg-white/7',
+                    'rounded-xl border border-border/60 bg-white/4 text-left',
                   )}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs text-muted/70">{t.when}</div>
-                      <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
-                      <div className="mt-1 text-xs leading-6 text-muted/80">{t.detail}</div>
+                  <button
+                    type="button"
+                    onClick={() => setOpenIds((prev) => ({ ...prev, [t.id]: !open }))}
+                    className={cn(
+                      'focus-ring tap w-full rounded-xl px-4 py-3 text-left',
+                      'hover:bg-white/7',
+                    )}
+                    aria-expanded={open}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-xs text-muted/70">{t.when}</div>
+                        <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
+                        <div className="mt-1 text-xs leading-6 text-muted/80">{t.detail}</div>
+                      </div>
+                      <div className="mt-1 shrink-0 text-xs text-muted/70">{open ? '收' : '展'}</div>
                     </div>
-                    <div className="mt-1 shrink-0 text-xs text-muted/70">{open ? '收' : '展'}</div>
-                  </div>
+                  </button>
 
                   <motion.div
                     initial={false}
@@ -137,15 +147,30 @@ export function AboutPage() {
                     transition={{ type: 'spring', stiffness: 420, damping: 36 }}
                     className="overflow-hidden"
                   >
-                    <div className={cn('mt-3 rounded-xl bg-gradient-to-r px-4 py-3', tone)}>
+                    <div className={cn('mx-4 mb-4 mt-3 rounded-xl bg-gradient-to-r px-4 py-3', tone)}>
                       <div className="text-xs leading-6 text-muted/85">
                         {t.long
                           ? t.long
                           : `${t.title}之后，轩少并未“立刻变得更高”。他的变化往往发生在细处：对誓词的对照、对病人的回访、对争端的边界书写。凡能写成章法的，他都尽量写清。`}
                       </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <ButtonLink to={`/grotto?id=${t.id}`} variant="ghost" className="px-3 py-1.5 text-xs">
+                          在洞府图定位
+                        </ButtonLink>
+                        {t.chronicleSlug ? (
+                          <ButtonLink
+                            to={`/chronicles/${t.chronicleSlug}`}
+                            variant="ghost"
+                            className="px-3 py-1.5 text-xs"
+                          >
+                            去读对应纪事
+                          </ButtonLink>
+                        ) : null}
+                      </div>
                     </div>
                   </motion.div>
-                </button>
+                </div>
               )
             })}
           </div>

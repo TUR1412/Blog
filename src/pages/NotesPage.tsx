@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Download, Eraser, Sparkles, Clipboard } from 'lucide-react'
+import { Download, Eraser, Sparkles, Clipboard, Upload } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -10,6 +10,13 @@ import { STORAGE_KEYS } from '../lib/constants'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
+type NotesExportPayload = {
+  kind: 'xuantian.notes'
+  v: 1
+  exportedAt: number
+  meta: NotesMeta
+  text: string
+}
 
 function formatTime(ts: number) {
   if (!ts) return '未保存'
@@ -21,11 +28,25 @@ function formatTime(ts: number) {
 export function NotesPage() {
   const reduceMotion = useReducedMotion()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const importFileRef = useRef<HTMLInputElement | null>(null)
+  const flashTimerRef = useRef<number | null>(null)
   const [text, setText] = useState(() => readString(STORAGE_KEYS.notes, ''))
   const [meta, setMeta] = useState<NotesMeta>(() =>
     readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 }),
   )
-  const [justSaved, setJustSaved] = useState(false)
+  const [flash, setFlash] = useState<string | null>(null)
+
+  const flashMessage = (msg: string) => {
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    setFlash(msg)
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 900)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    }
+  }, [])
 
   const wordCount = useMemo(() => {
     const s = text.trim()
@@ -41,8 +62,7 @@ export function NotesPage() {
         writeJson(STORAGE_KEYS.notesMeta, next)
         return next
       })
-      setJustSaved(true)
-      window.setTimeout(() => setJustSaved(false), 700)
+      flashMessage('已落笔。')
     }, 260)
 
     return () => window.clearTimeout(t)
@@ -77,11 +97,83 @@ export function NotesPage() {
     URL.revokeObjectURL(url)
   }
 
+  const exportNotesJson = () => {
+    const payload: NotesExportPayload = {
+      kind: 'xuantian.notes',
+      v: 1,
+      exportedAt: Date.now(),
+      meta,
+      text,
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-notes-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const applyImportedText = (incoming: string) => {
+    if (!incoming.trim()) {
+      window.alert('导入失败：文件内容为空。')
+      return
+    }
+    const replace = window.confirm('导入方式：确定=覆盖现有札记；取消=追加到现有札记末尾。')
+    if (replace) {
+      setText(incoming)
+      setMeta((prev) => {
+        const next: NotesMeta = { ...prev, updatedAt: Date.now() }
+        writeJson(STORAGE_KEYS.notesMeta, next)
+        return next
+      })
+      return
+    }
+
+    setText((prev) => (prev.trim() ? `${prev}\n\n${incoming}` : incoming))
+  }
+
+  const importNotes = async (file: File) => {
+    try {
+      const raw = await file.text()
+      const looksJson = file.name.toLowerCase().endsWith('.json') || raw.trim().startsWith('{')
+      if (looksJson) {
+        const data = JSON.parse(raw) as Partial<NotesExportPayload> & { text?: unknown; meta?: unknown }
+        const incomingText = typeof data.text === 'string' ? data.text : ''
+        const incomingMeta = data.meta && typeof data.meta === 'object' ? (data.meta as NotesMeta) : null
+        setMeta((prev) => {
+          const next: NotesMeta = {
+            ...prev,
+            ...(incomingMeta ?? {}),
+            lastSource: `导入：${file.name}`,
+            updatedAt: Date.now(),
+          }
+          writeJson(STORAGE_KEYS.notesMeta, next)
+          return next
+        })
+        applyImportedText(incomingText)
+        flashMessage('已导入。')
+        return
+      }
+
+      setMeta((prev) => {
+        const next: NotesMeta = { ...prev, lastSource: `导入：${file.name}`, updatedAt: Date.now() }
+        writeJson(STORAGE_KEYS.notesMeta, next)
+        return next
+      })
+      applyImportedText(raw)
+      flashMessage('已导入。')
+    } catch {
+      window.alert('导入失败：无法读取文件内容。')
+    }
+  }
+
   const copyAll = async () => {
     try {
       await navigator.clipboard.writeText(text)
-      setJustSaved(true)
-      window.setTimeout(() => setJustSaved(false), 700)
+      flashMessage('已复制。')
     } catch {
       // clipboard 可能被禁用：不强求
     }
@@ -97,6 +189,7 @@ export function NotesPage() {
       writeJson(STORAGE_KEYS.notesMeta, next)
       return next
     })
+    flashMessage('已清空。')
   }
 
   const empty = !text.trim()
@@ -160,6 +253,19 @@ export function NotesPage() {
         <Card className="lg:col-span-4">
           <SectionHeading title="工具" subtitle="小动作要有反馈，手感要 Q。" />
 
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="text/plain,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.currentTarget.files?.[0]
+              e.currentTarget.value = ''
+              if (!file) return
+              void importNotes(file)
+            }}
+          />
+
           <div className="grid gap-2">
             <Button type="button" variant="ghost" onClick={insertTemplate} className="w-full justify-start">
               <Sparkles className="h-4 w-4" />
@@ -169,9 +275,28 @@ export function NotesPage() {
               <Clipboard className="h-4 w-4" />
               复制全文
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => importFileRef.current?.click()}
+              className="w-full justify-start"
+            >
+              <Upload className="h-4 w-4" />
+              导入（TXT/JSON）
+            </Button>
             <Button type="button" variant="ghost" onClick={exportNotes} className="w-full justify-start" disabled={!text.trim()}>
               <Download className="h-4 w-4" />
               导出 TXT
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={exportNotesJson}
+              className="w-full justify-start"
+              disabled={!text.trim()}
+            >
+              <Download className="h-4 w-4" />
+              导出 JSON
             </Button>
             <Button type="button" variant="ghost" onClick={clearAll} className="w-full justify-start">
               <Eraser className="h-4 w-4" />
@@ -196,14 +321,14 @@ export function NotesPage() {
           </div>
 
           <AnimatePresence>
-            {justSaved ? (
+            {flash ? (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 6 }}
                 className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
               >
-                已落笔。
+                {flash}
               </motion.div>
             ) : null}
           </AnimatePresence>

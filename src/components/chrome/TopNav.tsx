@@ -8,6 +8,7 @@ import { useTheme } from '../../providers/theme/ThemeProvider'
 const NAV = [
   { to: '/', label: '洞天' },
   { to: '/chronicles', label: '纪事' },
+  { to: '/grotto', label: '洞府图' },
   { to: '/about', label: '人物志' },
   { to: '/treasury', label: '藏品' },
   { to: '/notes', label: '札记' },
@@ -109,4 +110,3 @@ export function TopNav() {
     </header>
   )
 }
-

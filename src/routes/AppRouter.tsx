@@ -3,6 +3,7 @@ import { Route, Routes, useLocation } from 'react-router-dom'
 import { AboutPage } from '../pages/AboutPage'
 import { ChroniclePage } from '../pages/ChroniclePage'
 import { ChroniclesPage } from '../pages/ChroniclesPage'
+import { GrottoMapPage } from '../pages/GrottoMapPage'
 import { HomePage } from '../pages/HomePage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { NotesPage } from '../pages/NotesPage'
@@ -58,6 +59,14 @@ export function AppRouter() {
           }
         />
         <Route
+          path="/grotto"
+          element={
+            <Page>
+              <GrottoMapPage />
+            </Page>
+          }
+        />
+        <Route
           path="/about"
           element={
             <Page>
@@ -93,4 +102,3 @@ export function AppRouter() {
     </AnimatePresence>
   )
 }
-

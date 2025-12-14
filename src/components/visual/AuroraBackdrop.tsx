@@ -1,6 +1,7 @@
 import { ASSET_VERSION } from '../../lib/constants'
 
 export function AuroraBackdrop() {
+  const noiseUrl = `${import.meta.env.BASE_URL}noise.svg?v=${ASSET_VERSION}`
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 bg-bg" />
@@ -14,7 +15,7 @@ export function AuroraBackdrop() {
       <div
         className="absolute inset-0 opacity-[0.12] mix-blend-overlay"
         style={{
-          backgroundImage: `url(/noise.svg?v=${ASSET_VERSION})`,
+          backgroundImage: `url(${noiseUrl})`,
           backgroundRepeat: 'repeat',
         }}
       />
@@ -23,4 +24,3 @@ export function AuroraBackdrop() {
     </div>
   )
 }
-

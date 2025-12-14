@@ -299,10 +299,15 @@ export function HomePage() {
               ))}
             </div>
             <div className="mt-4 flex items-center justify-between">
-              <div className="text-xs text-muted/70">年表详录在“人物志”。</div>
-              <ButtonLink to="/about" variant="ghost" className="px-3 py-1.5">
-                去看人物志 <ArrowRight className="h-4 w-4" />
-              </ButtonLink>
+              <div className="text-xs text-muted/70">年表可看“人物志”，也可走“洞府图”。</div>
+              <div className="flex items-center gap-2">
+                <ButtonLink to="/grotto" variant="ghost" className="px-3 py-1.5">
+                  去看洞府图 <ArrowRight className="h-4 w-4" />
+                </ButtonLink>
+                <ButtonLink to="/about" variant="ghost" className="px-3 py-1.5">
+                  人物志 <ArrowRight className="h-4 w-4" />
+                </ButtonLink>
+              </div>
             </div>
           </Card>
 

@@ -1,5 +1,5 @@
-export const APP_VERSION = '2025.12.15.5'
-export const ASSET_VERSION = '20251215-5'
+export const APP_VERSION = '2025.12.14.6'
+export const ASSET_VERSION = '20251214-6'
 
 export const STORAGE_KEYS = {
   theme: 'xuantian.theme',
@@ -10,4 +10,6 @@ export const STORAGE_KEYS = {
   bookmarks: 'xuantian.bookmarks.v1',
   readingLast: 'xuantian.reading.last.v1',
   readingImmersive: 'xuantian.reading.immersive.v1',
+  grottoSelected: 'xuantian.grotto.selected.v1',
+  notesImportHint: 'xuantian.notes.importHint.v1',
 } as const
