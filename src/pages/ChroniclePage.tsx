@@ -16,6 +16,8 @@ type ReadingLast = {
   slug: string
   title: string
   dateText: string
+  anchorId?: string
+  anchorHeading?: string
   progress: number
   updatedAt: number
 }
@@ -27,6 +29,11 @@ export function ChroniclePage() {
 
   const [progress, setProgress] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [activeAnchorId, setActiveAnchorId] = useState('h-1')
+  const [resumeFrom] = useState<ReadingLast | null>(() =>
+    readJson<ReadingLast | null>(STORAGE_KEYS.readingLast, null),
+  )
+  const [resumeDismissed, setResumeDismissed] = useState(false)
 
   const [bookmarks, setBookmarks] = useState<string[]>(() =>
     readJson<string[]>(STORAGE_KEYS.bookmarks, []),
@@ -51,20 +58,61 @@ export function ChroniclePage() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const toc = useMemo(() => {
+    if (!chronicle) return []
+    return chronicle.sections.map((s, idx) => ({ id: `h-${idx + 1}`, heading: s.heading }))
+  }, [chronicle])
+
+  useEffect(() => {
+    if (!chronicle) return
+    const ids = chronicle.sections.map((_, idx) => `h-${idx + 1}`)
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[]
+
+    if (elements.length === 0) return
+    if (!('IntersectionObserver' in window)) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting)
+        if (visible.length === 0) return
+        visible.sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))
+        const top = visible[0]
+        setActiveAnchorId(top.target.id)
+      },
+      {
+        threshold: [0, 0.12, 0.25, 0.35, 0.5, 0.75, 1],
+        rootMargin: '-20% 0px -68% 0px',
+      },
+    )
+
+    for (const el of elements) observer.observe(el)
+    return () => observer.disconnect()
+  }, [chronicle])
+
   useEffect(() => {
     if (!chronicle) return
     const t = window.setTimeout(() => {
+      const activeHeading = toc.find((t) => t.id === activeAnchorId)?.heading
       const payload: ReadingLast = {
         slug: chronicle.slug,
         title: chronicle.title,
         dateText: chronicle.dateText,
+        anchorId: activeAnchorId,
+        anchorHeading: activeHeading,
         progress: Math.round(progress),
         updatedAt: Date.now(),
       }
       writeJson(STORAGE_KEYS.readingLast, payload)
     }, 350)
     return () => window.clearTimeout(t)
-  }, [chronicle, progress])
+  }, [activeAnchorId, chronicle, progress, toc])
+
+  const resumeHint =
+    chronicle && resumeFrom?.slug === chronicle.slug && resumeFrom.anchorId && !resumeDismissed
+      ? resumeFrom
+      : null
 
   if (!chronicle) {
     return (
@@ -81,8 +129,6 @@ export function ChroniclePage() {
       </div>
     )
   }
-
-  const toc = chronicle.sections.map((s, idx) => ({ id: `h-${idx + 1}`, heading: s.heading }))
 
   const copyOutline = async () => {
     const outline =
@@ -115,6 +161,12 @@ export function ChroniclePage() {
     writeString(STORAGE_KEYS.notes, next)
     const meta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
     writeJson<NotesMeta>(STORAGE_KEYS.notesMeta, { ...meta, updatedAt: now, lastSource: chronicle.slug })
+  }
+
+  const scrollToAnchor = (id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
   return (
@@ -207,6 +259,43 @@ export function ChroniclePage() {
 
         <aside className="lg:col-span-4">
           <div className="sticky top-24 space-y-4">
+            {resumeHint ? (
+              <Card className="p-5">
+                <SectionHeading
+                  title="续读提示"
+                  subtitle={`${Math.max(0, Math.min(100, resumeHint.progress))}% · ${resumeHint.anchorHeading ?? '上次位置'}`}
+                />
+                <div className="text-xs leading-6 text-muted/80">
+                  上次停在《{resumeHint.title}》的某一节。要不要直接回到那里？
+                </div>
+                <div className="mt-3 grid gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      scrollToAnchor(resumeHint.anchorId ?? 'h-1')
+                      setResumeDismissed(true)
+                    }}
+                    className="w-full justify-start"
+                  >
+                    跳到上次位置
+                    <span className="ml-auto text-muted/70">↘</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      window.scrollTo({ top: 0, left: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
+                      setResumeDismissed(true)
+                    }}
+                    className="w-full justify-start"
+                  >
+                    从头读
+                    <span className="ml-auto text-muted/70">↑</span>
+                  </Button>
+                </div>
+              </Card>
+            ) : null}
             <Card className="p-5">
               <SectionHeading title="提纲" subtitle="跟着章法走，读起来更稳。" />
               <div className="grid gap-2">
@@ -215,9 +304,15 @@ export function ChroniclePage() {
                     key={t.id}
                     href={`#${t.id}`}
                     className={cn(
-                      'focus-ring tap rounded-xl border border-border/60 bg-white/4 px-3 py-2 text-sm text-fg/90',
-                      'hover:bg-white/7',
+                      'focus-ring tap rounded-xl border border-border/60 px-3 py-2 text-sm',
+                      t.id === activeAnchorId
+                        ? 'bg-white/10 text-fg ring-1 ring-white/10'
+                        : 'bg-white/4 text-fg/90 hover:bg-white/7',
                     )}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      scrollToAnchor(t.id)
+                    }}
                   >
                     {t.heading}
                   </a>

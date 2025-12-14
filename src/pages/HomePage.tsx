@@ -18,6 +18,7 @@ type ReadingLast = {
   slug: string
   title: string
   dateText: string
+  anchorHeading?: string
   progress: number
   updatedAt: number
 }
@@ -196,6 +197,11 @@ export function HomePage() {
                         {readingLast.title}
                       </div>
                       <div className="mt-1 text-xs text-muted/70">{readingLast.dateText}</div>
+                      {readingLast.anchorHeading ? (
+                        <div className="mt-1 text-xs text-muted/70">
+                          上次停在：{readingLast.anchorHeading}
+                        </div>
+                      ) : null}
                       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/6">
                         <div
                           className="h-full bg-[linear-gradient(90deg,hsl(var(--accent)),hsl(var(--accent2)))]"
