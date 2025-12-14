@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, BookOpen, Compass } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { ArrowRight, BookOpen, Compass, NotebookPen, Search, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
@@ -10,6 +10,9 @@ import { timeline, type TimelineEvent } from '../content/timeline'
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
+import { readJson, readString, writeJson, writeString } from '../lib/storage'
+
+type NotesMeta = { updatedAt: number; lastSource?: string }
 
 function toneClass(tone: TimelineEvent['tone']) {
   if (tone === 'bright') return 'from-[hsl(var(--accent)/.22)] via-white/8 to-transparent'
@@ -24,8 +27,20 @@ export function GrottoMapPage() {
     STORAGE_KEYS.grottoSelected,
     '',
   )
+  const [query, setQuery] = useState('')
+  const flashTimerRef = useRef<number | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
 
   const byId = useMemo(() => new Map(timeline.map((t) => [t.id, t] as const)), [])
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return timeline
+    return timeline.filter((t) => {
+      const hay = `${t.when} ${t.title} ${t.detail} ${t.long ?? ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+  }, [query])
 
   const selectedId = useMemo(() => {
     const fromUrl = searchParams.get('id')
@@ -35,6 +50,20 @@ export function GrottoMapPage() {
   }, [byId, searchParams, storedSelectedId])
 
   const selected = selectedId ? byId.get(selectedId) ?? null : null
+
+  const flashMessage = (msg: string) => {
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    setFlash(msg)
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1000)
+  }
+
+  const selectId = useCallback(
+    (id: string) => {
+      if (!id) return
+      setSearchParams({ id }, { replace: true })
+    },
+    [setSearchParams],
+  )
 
   useEffect(() => {
     if (!selectedId) return
@@ -49,6 +78,44 @@ export function GrottoMapPage() {
     next.set('id', selectedId)
     setSearchParams(next, { replace: true })
   }, [searchParams, selectedId, setSearchParams])
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    const q = query.trim()
+    if (!q) return
+    const first = filtered[0]?.id
+    if (!first) return
+    if (first === selectedId) return
+    if (filtered.some((t) => t.id === selectedId)) return
+    selectId(first)
+  }, [filtered, query, selectedId, selectId])
+
+  const addSelectedToNotes = () => {
+    if (!selected) return
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const block = [
+      `【${stamp} · 洞府图摘记】`,
+      `${selected.when} · ${selected.title}`,
+      selected.long ?? selected.detail,
+    ].join('\n')
+
+    const prev = readString(STORAGE_KEYS.notes, '')
+    const next = prev.trim() ? `${prev}\n\n${block}` : block
+    writeString(STORAGE_KEYS.notes, next)
+
+    const prevMeta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
+    const nextMeta: NotesMeta = { ...prevMeta, updatedAt: Date.now(), lastSource: `洞府图：${selected.title}` }
+    writeJson(STORAGE_KEYS.notesMeta, nextMeta)
+
+    flashMessage('已收入札记。')
+  }
 
   return (
     <div className="space-y-6">
@@ -76,11 +143,63 @@ export function GrottoMapPage() {
         <Card className="lg:col-span-7">
           <SectionHeading title="灵脉路标" subtitle="点任一节点，右侧会展开细节与去处。" />
 
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div
+              className={cn(
+                'focus-within:ring-1 focus-within:ring-white/10',
+                'flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+              )}
+            >
+              <Search className="h-4 w-4 text-muted/70" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setQuery('')
+                    return
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    const idx = filtered.findIndex((t) => t.id === selectedId)
+                    const base = idx >= 0 ? idx : -1
+                    const next = filtered[Math.min(filtered.length - 1, base + 1)]
+                    if (next) selectId(next.id)
+                  }
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    const idx = filtered.findIndex((t) => t.id === selectedId)
+                    const base = idx >= 0 ? idx : filtered.length
+                    const next = filtered[Math.max(0, base - 1)]
+                    if (next) selectId(next.id)
+                  }
+                }}
+                placeholder="搜路标：霜月 / 断桥 / 北境 / 立界……（↑↓ 走位，Esc 清空）"
+                className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+              />
+              {query.trim() ? (
+                <button
+                  type="button"
+                  className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                  onClick={() => setQuery('')}
+                  aria-label="清空搜索"
+                  title="清空"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="text-xs text-muted/70 sm:shrink-0">
+              显示 {filtered.length} / {timeline.length}
+            </div>
+          </div>
+
           <div className="relative">
             <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/10" />
 
             <div className="grid gap-3">
-              {timeline.map((t, idx) => {
+              {filtered.map((t, idx) => {
                 const left = idx % 2 === 0
                 const active = t.id === selectedId
                 return (
@@ -95,9 +214,7 @@ export function GrottoMapPage() {
                       type="button"
                       aria-pressed={active}
                       onClick={() => {
-                        const next = new URLSearchParams(searchParams)
-                        next.set('id', t.id)
-                        setSearchParams(next, { replace: true })
+                        selectId(t.id)
                       }}
                       className={cn(
                         'focus-ring tap relative w-full max-w-[520px] rounded-xl border bg-white/4 px-5 py-4 text-left',
@@ -189,6 +306,17 @@ export function GrottoMapPage() {
                       <Button
                         type="button"
                         variant="ghost"
+                        onClick={addSelectedToNotes}
+                        className="justify-start"
+                      >
+                        <NotebookPen className="h-4 w-4" />
+                        收入札记
+                        <span className="ml-auto text-muted/70">＋</span>
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
                         onClick={() => window.scrollTo({ top: 0, left: 0, behavior: reduceMotion ? 'auto' : 'smooth' })}
                         className="justify-start"
                       >
@@ -200,6 +328,19 @@ export function GrottoMapPage() {
                     <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
                       读法建议：先看“节点详记”，再去读对应纪事，最后把你自己的分寸写进札记——久了就成心法。
                     </div>
+
+                    <AnimatePresence>
+                      {flash ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
+                        >
+                          {flash}
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
                   </div>
                 </div>
               </motion.div>

@@ -1,13 +1,26 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Route, Routes, useLocation } from 'react-router-dom'
-import { AboutPage } from '../pages/AboutPage'
-import { ChroniclePage } from '../pages/ChroniclePage'
-import { ChroniclesPage } from '../pages/ChroniclesPage'
-import { GrottoMapPage } from '../pages/GrottoMapPage'
+import { Suspense, lazy } from 'react'
+import { Card } from '../components/ui/Card'
 import { HomePage } from '../pages/HomePage'
-import { NotFoundPage } from '../pages/NotFoundPage'
-import { NotesPage } from '../pages/NotesPage'
-import { TreasuryPage } from '../pages/TreasuryPage'
+
+const ChroniclesPage = lazy(() =>
+  import('../pages/ChroniclesPage').then((m) => ({ default: m.ChroniclesPage })),
+)
+const ChroniclePage = lazy(() =>
+  import('../pages/ChroniclePage').then((m) => ({ default: m.ChroniclePage })),
+)
+const GrottoMapPage = lazy(() =>
+  import('../pages/GrottoMapPage').then((m) => ({ default: m.GrottoMapPage })),
+)
+const AboutPage = lazy(() => import('../pages/AboutPage').then((m) => ({ default: m.AboutPage })))
+const TreasuryPage = lazy(() =>
+  import('../pages/TreasuryPage').then((m) => ({ default: m.TreasuryPage })),
+)
+const NotesPage = lazy(() => import('../pages/NotesPage').then((m) => ({ default: m.NotesPage })))
+const NotFoundPage = lazy(() =>
+  import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
+)
 
 function Page({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion()
@@ -25,6 +38,27 @@ function Page({ children }: { children: React.ReactNode }) {
     >
       {children}
     </motion.div>
+  )
+}
+
+function PageFallback() {
+  return (
+    <div className="space-y-6">
+      <Card className="relative overflow-hidden p-7 md:p-10">
+        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.28),transparent_62%)] blur-3xl" />
+        <div className="absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.26),transparent_62%)] blur-3xl" />
+        <div className="relative">
+          <div className="h-4 w-28 rounded-lg bg-white/10 animate-pulse" />
+          <div className="mt-4 h-7 w-64 rounded-xl bg-white/8 animate-pulse" />
+          <div className="mt-4 grid gap-2">
+            <div className="h-4 w-full rounded-lg bg-white/6 animate-pulse" />
+            <div className="h-4 w-[92%] rounded-lg bg-white/6 animate-pulse" />
+            <div className="h-4 w-[78%] rounded-lg bg-white/6 animate-pulse" />
+          </div>
+          <div className="mt-6 text-xs text-muted/70">灵息聚合中……</div>
+        </div>
+      </Card>
+    </div>
   )
 }
 
@@ -46,7 +80,9 @@ export function AppRouter() {
           path="/chronicles"
           element={
             <Page>
-              <ChroniclesPage />
+              <Suspense fallback={<PageFallback />}>
+                <ChroniclesPage />
+              </Suspense>
             </Page>
           }
         />
@@ -54,7 +90,9 @@ export function AppRouter() {
           path="/chronicles/:slug"
           element={
             <Page>
-              <ChroniclePage />
+              <Suspense fallback={<PageFallback />}>
+                <ChroniclePage />
+              </Suspense>
             </Page>
           }
         />
@@ -62,7 +100,9 @@ export function AppRouter() {
           path="/grotto"
           element={
             <Page>
-              <GrottoMapPage />
+              <Suspense fallback={<PageFallback />}>
+                <GrottoMapPage />
+              </Suspense>
             </Page>
           }
         />
@@ -70,7 +110,9 @@ export function AppRouter() {
           path="/about"
           element={
             <Page>
-              <AboutPage />
+              <Suspense fallback={<PageFallback />}>
+                <AboutPage />
+              </Suspense>
             </Page>
           }
         />
@@ -78,7 +120,9 @@ export function AppRouter() {
           path="/treasury"
           element={
             <Page>
-              <TreasuryPage />
+              <Suspense fallback={<PageFallback />}>
+                <TreasuryPage />
+              </Suspense>
             </Page>
           }
         />
@@ -86,7 +130,9 @@ export function AppRouter() {
           path="/notes"
           element={
             <Page>
-              <NotesPage />
+              <Suspense fallback={<PageFallback />}>
+                <NotesPage />
+              </Suspense>
             </Page>
           }
         />
@@ -94,7 +140,9 @@ export function AppRouter() {
           path="*"
           element={
             <Page>
-              <NotFoundPage />
+              <Suspense fallback={<PageFallback />}>
+                <NotFoundPage />
+              </Suspense>
             </Page>
           }
         />
