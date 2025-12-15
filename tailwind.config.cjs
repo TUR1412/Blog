@@ -103,6 +103,22 @@ module.exports = {
             'code::before': { content: 'none' },
             'code::after': { content: 'none' },
 
+            mark: {
+              color: 'hsl(var(--fg) / 0.96)',
+              background:
+                'linear-gradient(120deg, hsl(var(--accent) / 0.26), hsl(var(--accent2) / 0.20))',
+              borderRadius: '12px',
+              padding: '0.12em 0.38em',
+              border: '1px solid hsl(var(--border) / 0.65)',
+              boxShadow: '0 16px 48px rgba(0,0,0,.18)',
+            },
+            'mark[data-x-active="1"]': {
+              background:
+                'linear-gradient(120deg, hsl(var(--accent) / 0.36), hsl(var(--accent2) / 0.28))',
+              borderColor: 'hsl(var(--ring) / 0.55)',
+              boxShadow: '0 0 0 4px hsl(var(--ring) / 0.18), 0 18px 60px rgba(0,0,0,.22)',
+            },
+
             pre: {
               borderRadius: '18px',
               border: '1px solid hsl(var(--border) / 0.7)',

@@ -35,6 +35,7 @@ export function NotesPage() {
   const reduceMotion = useReducedMotion()
   const [searchParams, setSearchParams] = useSearchParams()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const flashTimerRef = useRef<number | null>(null)
   const [text, setText] = useState(() => readString(STORAGE_KEYS.notes, ''))
@@ -45,6 +46,9 @@ export function NotesPage() {
   const [view, setView] = useLocalStorageState<NotesView>(STORAGE_KEYS.notesView, 'edit')
   const [tocFolded, setTocFolded] = useLocalStorageState<boolean>(STORAGE_KEYS.notesTocFold, false)
   const [tocQuery, setTocQuery] = useState('')
+  const [findQuery, setFindQuery] = useState('')
+  const [hitCount, setHitCount] = useState(0)
+  const [activeHitIndex, setActiveHitIndex] = useState(0)
   const [handledAnchor, setHandledAnchor] = useState('')
   const [activeHeadingId, setActiveHeadingId] = useState('')
 
@@ -83,6 +87,26 @@ export function NotesPage() {
     el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
+  const jumpToHit = (idx: number) => {
+    const q = findQuery.trim()
+    if (view !== 'scroll') return
+    if (!q) return
+    if (!hitCount) return
+
+    const next = ((idx % hitCount) + hitCount) % hitCount
+    setActiveHitIndex(next)
+
+    window.setTimeout(() => {
+      const root = scrollRef.current
+      if (!root) return
+      const el = root.querySelector(
+        `mark[data-x-hit="notes"][data-x-idx="${next}"]`,
+      ) as HTMLElement | null
+      if (!el) return
+      el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+    }, 0)
+  }
+
   const copyLocation = async () => {
     const id = activeHeadingId || toc[0]?.id || ''
     if (!id) {
@@ -101,6 +125,31 @@ export function NotesPage() {
       hapticTap()
     }
   }
+
+  useEffect(() => {
+    if (view !== 'scroll') return
+    const t = window.setTimeout(() => {
+      setActiveHitIndex(0)
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [findQuery, view])
+
+  useEffect(() => {
+    if (view !== 'scroll') return
+    const q = findQuery.trim()
+    const t = window.setTimeout(() => {
+      const root = scrollRef.current
+      if (!root || !q) {
+        setHitCount(0)
+        return
+      }
+      const hits = root.querySelectorAll('mark[data-x-hit="notes"]')
+      const nextCount = hits.length
+      setHitCount(nextCount)
+      setActiveHitIndex((prev) => (nextCount ? Math.min(prev, nextCount - 1) : 0))
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [findQuery, text, view])
 
   useEffect(() => {
     const fromUrl = searchParams.get('view')
@@ -431,7 +480,16 @@ export function NotesPage() {
           ) : (
             <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-5">
               {text.trim() ? (
-                <Markdown text={text} idPrefix="notes-" />
+                <div ref={scrollRef}>
+                  <Markdown
+                    text={text}
+                    idPrefix="notes-"
+                    highlightQuery={findQuery}
+                    highlightScope="notes"
+                    highlightIdPrefix="notes-hit-"
+                    activeHighlightIndex={activeHitIndex}
+                  />
+                </div>
               ) : (
                 <div className="text-sm leading-7 text-muted/85">此卷尚空。切回“执笔”，先落一句。</div>
               )}
@@ -499,6 +557,80 @@ export function NotesPage() {
 
           {view === 'scroll' && toc.length ? (
             <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+              <div className="rounded-xl border border-border/60 bg-white/4 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-fg">卷内检索</div>
+                  {findQuery.trim() ? (
+                    <div className="text-xs text-muted/70">
+                      {hitCount ? `${Math.min(activeHitIndex + 1, hitCount)}/${hitCount}` : '未命中'}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted/70">输入即点亮</div>
+                  )}
+                </div>
+                <div
+                  className={cn(
+                    'mt-2 flex items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+                    'focus-within:ring-1 focus-within:ring-white/10',
+                  )}
+                >
+                  <Search className="h-4 w-4 text-muted/70" />
+                  <input
+                    value={findQuery}
+                    onChange={(e) => setFindQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setFindQuery('')
+                      if (e.key === 'Enter') jumpToHit(0)
+                    }}
+                    placeholder="搜卷内：分寸 / 规矩 / 断桥……（Enter 跳首处，Esc 清空）"
+                    className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+                    disabled={view !== 'scroll'}
+                  />
+                  {findQuery.trim() ? (
+                    <button
+                      type="button"
+                      className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                      onClick={() => setFindQuery('')}
+                      aria-label="清空卷内检索"
+                      title="清空"
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={cn(
+                      'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                      hitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                    )}
+                    onClick={() => jumpToHit(activeHitIndex - 1)}
+                    disabled={!hitCount}
+                  >
+                    上一处
+                    <span className="text-muted/70">↑</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                      hitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                    )}
+                    onClick={() => jumpToHit(activeHitIndex + 1)}
+                    disabled={!hitCount}
+                  >
+                    下一处
+                    <span className="text-muted/70">↓</span>
+                  </button>
+                </div>
+
+                <div className="mt-2 text-xs leading-6 text-muted/75">
+                  命中会以“金光”标出，便于对照与复盘。
+                </div>
+              </div>
+
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-semibold text-fg">经卷目录</div>
                 <div className="flex items-center gap-2">

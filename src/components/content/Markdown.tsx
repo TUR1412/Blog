@@ -14,6 +14,14 @@ type MarkdownProps = {
   linkifyLocations?: boolean
   /** 生成标题定位 ID 的前缀；用于避免同页多份经卷时出现重复 ID。 */
   idPrefix?: string
+  /** 高亮检索词（用于经卷内检索）。为空时不启用高亮。 */
+  highlightQuery?: string
+  /** 高亮命中的范围标记（便于页面内检索 DOM）。 */
+  highlightScope?: string
+  /** 高亮命中的 ID 前缀（用于滚动定位）。 */
+  highlightIdPrefix?: string
+  /** 当前激活的命中序号（用于“上一处/下一处”） */
+  activeHighlightIndex?: number
 }
 
 export type MarkdownHeading = {
@@ -123,6 +131,102 @@ export function extractMarkdownHeadings(
   return out
 }
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function buildRehypeHighlight(opts: {
+  query: string
+  scope: string
+  idPrefix: string
+  activeIndex: number
+}) {
+  const raw = opts.query.trim()
+  if (!raw) return null
+
+  const re = new RegExp(escapeRegExp(raw), 'gi')
+  const skipTags = new Set(['pre', 'code', 'script', 'style'])
+
+  return function rehypeXuantianHighlight(tree: unknown) {
+    let hit = 0
+
+    const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
+
+    const walk = (node: unknown) => {
+      if (!isRecord(node)) return
+
+      if (node.type === 'element') {
+        const tag = typeof node.tagName === 'string' ? node.tagName : ''
+        if (skipTags.has(tag)) return
+      }
+
+      const children = Array.isArray(node.children) ? node.children : null
+      if (!children || children.length === 0) return
+
+      const nextChildren: unknown[] = []
+      for (const child of children) {
+        if (isRecord(child) && child.type === 'text' && typeof child.value === 'string') {
+          const value = child.value
+          if (!value) {
+            nextChildren.push(child)
+            continue
+          }
+
+          let last = 0
+          re.lastIndex = 0
+          let m: RegExpExecArray | null
+          let replaced = false
+          while ((m = re.exec(value))) {
+            const start = m.index ?? 0
+            const end = start + (m[0]?.length ?? 0)
+            if (end <= start) break
+
+            if (start > last) {
+              nextChildren.push({ type: 'text', value: value.slice(last, start) })
+            }
+
+            const idx = hit
+            const id = `${opts.idPrefix}${idx}`
+            const active = idx === opts.activeIndex
+            nextChildren.push({
+              type: 'element',
+              tagName: 'mark',
+              properties: {
+                id,
+                'data-x-hit': opts.scope,
+                'data-x-idx': String(idx),
+                ...(active ? { 'data-x-active': '1' } : null),
+              },
+              children: [{ type: 'text', value: value.slice(start, end) }],
+            })
+
+            hit += 1
+            last = end
+            replaced = true
+          }
+
+          if (!replaced) {
+            nextChildren.push(child)
+            continue
+          }
+
+          if (last < value.length) {
+            nextChildren.push({ type: 'text', value: value.slice(last) })
+          }
+          continue
+        }
+
+        walk(child)
+        nextChildren.push(child)
+      }
+
+      node.children = nextChildren
+    }
+
+    walk(tree)
+  }
+}
+
 function buildComponents(opts: { idPrefix: string }): Components {
   const used = new Set<string>()
 
@@ -199,13 +303,41 @@ function buildComponents(opts: { idPrefix: string }): Components {
   }
 }
 
-export function Markdown({ text, className, bracketHeadings = true, linkifyLocations = true, idPrefix = '' }: MarkdownProps) {
+export function Markdown({
+  text,
+  className,
+  bracketHeadings = true,
+  linkifyLocations = true,
+  idPrefix = '',
+  highlightQuery,
+  highlightScope = 'md',
+  highlightIdPrefix,
+  activeHighlightIndex = 0,
+}: MarkdownProps) {
   const md = normalizeXuantianMarkdown(text, { bracketHeadings, linkifyLocations })
   if (!md.trim()) return null
 
+  const q = typeof highlightQuery === 'string' ? highlightQuery.trim() : ''
+  const scope = (highlightScope || 'md').trim() || 'md'
+  const hitIdPrefix = typeof highlightIdPrefix === 'string' ? highlightIdPrefix : `${scope}-hit-`
+  const activeIdx = Number.isFinite(activeHighlightIndex) ? activeHighlightIndex : 0
+
+  const highlight = q
+    ? buildRehypeHighlight({
+        query: q,
+        scope,
+        idPrefix: hitIdPrefix,
+        activeIndex: activeIdx,
+      })
+    : null
+
   return (
     <div className={cn('prose prose-xuantian max-w-none', className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={buildComponents({ idPrefix })}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        rehypePlugins={highlight ? [highlight] : []}
+        components={buildComponents({ idPrefix })}
+      >
         {md}
       </ReactMarkdown>
     </div>
