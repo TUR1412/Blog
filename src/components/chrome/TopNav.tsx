@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
-import { Moon, Search, Sun } from 'lucide-react'
+import { Moon, Search, Sun, Zap, ZapOff } from 'lucide-react'
 import { NavLink, Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { useCommandPalette } from '../../providers/command/CommandPaletteProvider'
+import { usePerformanceMode } from '../../providers/performance/PerformanceProvider'
 import { useTheme } from '../../providers/theme/ThemeProvider'
 
 const NAV = [
@@ -47,6 +48,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
 export function TopNav() {
   const { open } = useCommandPalette()
   const { theme, toggleTheme } = useTheme()
+  const { mode: perfMode, toggle: togglePerf } = usePerformanceMode()
 
   return (
     <header className="fixed left-0 top-0 z-[60] w-full">
@@ -85,6 +87,19 @@ export function TopNav() {
             <span className="hidden rounded-lg border border-border/70 bg-white/5 px-2 py-1 text-xs text-muted/80 sm:inline">
               Ctrl/⌘ K
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={togglePerf}
+            className={cn(
+              'focus-ring tap inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90',
+              'hover:bg-white/10',
+            )}
+            aria-label={perfMode === 'lite' ? '关闭轻影模式' : '开启轻影模式'}
+            title={perfMode === 'lite' ? '轻影已启用（更顺）' : '开启轻影（更顺）'}
+          >
+            {perfMode === 'lite' ? <ZapOff className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
           </button>
 
           <button

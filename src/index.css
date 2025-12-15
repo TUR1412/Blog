@@ -51,6 +51,32 @@ html.theme-light {
   --stroke: rgba(0, 0, 0, 0.08);
 }
 
+html.perf-lite .glass {
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+html.perf-lite .backdrop-blur-xl2 {
+  backdrop-filter: none !important;
+}
+
+html.perf-lite .shadow-lift {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important;
+}
+
+html.perf-lite .aurora-glow {
+  filter: blur(22px) !important;
+  opacity: 0.55 !important;
+}
+
+html.perf-lite .aurora-glow--center {
+  display: none !important;
+}
+
+html.perf-lite .aurora-noise {
+  display: none !important;
+}
+
 @layer base {
   html {
     height: 100%;

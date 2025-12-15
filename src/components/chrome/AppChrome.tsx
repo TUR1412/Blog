@@ -9,7 +9,8 @@ function ScrollToTop() {
 
   useEffect(() => {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
-    window.scrollTo({ top: 0, left: 0, behavior: reduce ? 'auto' : 'smooth' })
+    const perfLite = document.documentElement.classList.contains('perf-lite')
+    window.scrollTo({ top: 0, left: 0, behavior: reduce || perfLite ? 'auto' : 'smooth' })
   }, [location.pathname])
 
   return null
@@ -37,4 +38,3 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
-

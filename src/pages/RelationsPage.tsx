@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Markdown } from '../components/content/Markdown'
+import { DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS, type MarkdownHighlightOptions, Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -31,11 +31,13 @@ import {
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
+import { findAllMatchRanges } from '../lib/find'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 type KindFilter = 'all' | RelationKind
+type FindOptions = Required<MarkdownHighlightOptions>
 
 type RelationAnnotation = {
   text: string
@@ -143,6 +145,12 @@ export function RelationsPage() {
   const deferredAnnoQuery = useDeferredValue(annoQuery)
   const appliedAnnoQuery = annoQuery.trim() ? deferredAnnoQuery : ''
   const [annoFindQuery, setAnnoFindQuery] = useState('')
+  const deferredAnnoFindQuery = useDeferredValue(annoFindQuery)
+  const appliedAnnoFindQuery = annoFindQuery.trim() ? deferredAnnoFindQuery : ''
+  const [findOptions, setFindOptions] = useLocalStorageState<FindOptions>(
+    STORAGE_KEYS.findOptions,
+    DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS,
+  )
   const [annoActiveHitIndex, setAnnoActiveHitIndex] = useState(0)
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -221,29 +229,16 @@ export function RelationsPage() {
   const annoDraft = selectedId ? (annoDraftById[selectedId] ?? selectedAnnotation?.text ?? '') : ''
   const annoSavedAt = selectedAnnotation?.updatedAt ?? 0
 
-  const annoFindHits = useMemo(() => {
-    const q = annoFindQuery.trim().toLowerCase()
-    if (!q) return [] as number[]
-    const s = annoDraft.toLowerCase()
-    if (!s) return [] as number[]
+  const annoFindRanges = useMemo(() => {
+    return findAllMatchRanges(annoDraft, appliedAnnoFindQuery, findOptions)
+  }, [annoDraft, appliedAnnoFindQuery, findOptions])
 
-    const hits: number[] = []
-    let idx = 0
-    while (true) {
-      const at = s.indexOf(q, idx)
-      if (at < 0) break
-      hits.push(at)
-      idx = at + Math.max(1, q.length)
-    }
-    return hits
-  }, [annoDraft, annoFindQuery])
-
-  const annoHitCount = annoFindHits.length
+  const annoHitCount = annoFindRanges.length
 
   useEffect(() => {
     const t = window.setTimeout(() => setAnnoActiveHitIndex(0), 0)
     return () => window.clearTimeout(t)
-  }, [annoFindQuery, selectedId])
+  }, [annoFindQuery, findOptions, selectedId])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -305,9 +300,15 @@ export function RelationsPage() {
   }, [])
 
   const jumpAnnoHit = (target: number) => {
-    const q = annoFindQuery.trim()
-    if (!q) {
+    const inputQ = annoFindQuery.trim()
+    const q = appliedAnnoFindQuery.trim()
+    if (!inputQ) {
       flashMessage('先写一个检索词。')
+      hapticTap()
+      return
+    }
+    if (!q) {
+      flashMessage('检索词正在点亮，稍等一息再跳。')
       hapticTap()
       return
     }
@@ -321,8 +322,10 @@ export function RelationsPage() {
     const next = ((target % annoHitCount) + annoHitCount) % annoHitCount
     setAnnoActiveHitIndex(next)
 
-    const start = annoFindHits[next]
-    const end = start + q.length
+    const range = annoFindRanges[next]
+    if (!range) return
+    const start = range.start
+    const end = range.end
     window.setTimeout(() => {
       const el = annoTextareaRef.current
       if (!el) return
@@ -330,6 +333,11 @@ export function RelationsPage() {
       el.setSelectionRange(start, end)
     }, 0)
 
+    hapticTap()
+  }
+
+  const toggleFindOption = (key: keyof FindOptions) => {
+    setFindOptions((prev) => ({ ...prev, [key]: !prev[key] }))
     hapticTap()
   }
 
@@ -998,7 +1006,11 @@ export function RelationsPage() {
                       <div className="text-sm font-semibold text-fg">卷内检索</div>
                       {annoFindQuery.trim() ? (
                         <div className="text-xs text-muted/70">
-                          {annoHitCount ? `${Math.min(annoActiveHitIndex + 1, annoHitCount)}/${annoHitCount}` : '未命中'}
+                          {annoFindQuery.trim() !== appliedAnnoFindQuery.trim()
+                            ? '点亮中…'
+                            : annoHitCount
+                              ? `${Math.min(annoActiveHitIndex + 1, annoHitCount)}/${annoHitCount}`
+                              : '未命中'}
                         </div>
                       ) : (
                         <div className="text-xs text-muted/70">输入即点亮</div>
@@ -1033,6 +1045,30 @@ export function RelationsPage() {
                           ×
                         </button>
                       ) : null}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Chip
+                        selected={findOptions.matchCase}
+                        onClick={() => toggleFindOption('matchCase')}
+                        title="区分大小写（默认不区分）"
+                      >
+                        区分大小写
+                      </Chip>
+                      <Chip
+                        selected={findOptions.wholeWord}
+                        onClick={() => toggleFindOption('wholeWord')}
+                        title="整词匹配（仅对字母/数字/下划线有效）"
+                      >
+                        整词
+                      </Chip>
+                      <Chip
+                        selected={findOptions.ignorePunctuation}
+                        onClick={() => toggleFindOption('ignorePunctuation')}
+                        title="忽略空格与标点：可跨「、·—」等符号命中"
+                      >
+                        忽略标点
+                      </Chip>
                     </div>
 
                     <div className="mt-2 grid grid-cols-2 gap-2">
