@@ -50,6 +50,15 @@ type AnnotationsHallUndoPayload = {
   relations: RelationAnnotations
 }
 
+type AnnotationsHallBackupPayload = {
+  kind: 'xuantian.annotations.hall.backup'
+  v: 1
+  savedAt: number
+  reason: string
+  grotto: GrottoAnnotations
+  relations: RelationAnnotations
+}
+
 type AnnotationEntry =
   | {
       source: 'grotto'
@@ -135,6 +144,10 @@ export function AnnotationsPage() {
     'all',
   )
   const [undo, setUndo] = useLocalStorageState<AnnotationsHallUndoPayload | null>(STORAGE_KEYS.annotationsHallUndo, null)
+  const [backup, setBackup] = useLocalStorageState<AnnotationsHallBackupPayload | null>(
+    STORAGE_KEYS.annotationsHallBackup,
+    null,
+  )
   const [query, setQuery] = useState('')
 
   const flashMessage = (msg: string) => {
@@ -497,7 +510,7 @@ export function AnnotationsPage() {
         skipped += 1
         continue
       }
-      const updatedAt = typeof it.updatedAt === 'number' ? it.updatedAt : Date.now()
+      const updatedAt = typeof it.updatedAt === 'number' ? it.updatedAt : 0
 
       if (it.source === 'grotto') {
         if (!timelineById.has(it.id)) {
@@ -558,6 +571,8 @@ export function AnnotationsPage() {
     const proceed = window.confirm(previewLines.join('\n'))
     if (!proceed) return
 
+    stashBackup('导入存档（批注馆）')
+
     const modeLines = [
       '导入方式选择',
       '',
@@ -600,6 +615,17 @@ export function AnnotationsPage() {
     } catch {
       window.alert('导入失败：存档内容有误。')
     }
+  }
+
+  const stashBackup = (reason: string) => {
+    setBackup({
+      kind: 'xuantian.annotations.hall.backup',
+      v: 1,
+      savedAt: Date.now(),
+      reason,
+      grotto: { ...grottoAnnotations },
+      relations: { ...relationAnnotations },
+    })
   }
 
   const stashUndo = (note: string) => {
@@ -654,6 +680,7 @@ export function AnnotationsPage() {
     )
     if (!ok) return
 
+    stashBackup('清心诀：剔除空批注')
     stashUndo('剔除空批注')
     setGrottoAnnotations(grotto.next)
     setRelationAnnotations(relations.next)
@@ -685,6 +712,7 @@ export function AnnotationsPage() {
     )
     if (!ok) return
 
+    stashBackup(`清心诀：清空${label}批注`)
     stashUndo(`清空${label}批注`)
     if (source === 'grotto') setGrottoAnnotations({})
     else setRelationAnnotations({})
@@ -717,6 +745,29 @@ export function AnnotationsPage() {
     setUndo(null)
     hapticSuccess()
     flashMessage('已撤销上次清心。')
+  }
+
+  const downloadBackup = () => {
+    if (!backup || backup.kind !== 'xuantian.annotations.hall.backup' || backup.v !== 1) {
+      flashMessage('暂无可下载的护卷符快照。')
+      hapticTap()
+      return
+    }
+
+    const d = new Date(backup.savedAt || Date.now())
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    const clock = `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-annotations-backup-${stamp}-${clock}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    hapticSuccess()
+    flashMessage('已下载护卷符快照。')
   }
 
   const appendEntryToNotes = (it: AnnotationEntry) => {
@@ -976,18 +1027,48 @@ export function AnnotationsPage() {
               <div className="text-xs text-muted/70">留印可撤销</div>
             </div>
             <div className="mt-2 text-xs leading-6 text-muted/80">
-              只做三件事：剔除空批注、只清某一源、必要时撤销。每次施诀都会先落下“回退印记”。
+              导入存档或施诀前会自动落下一枚“护卷符快照”，可一键下载备份；每次施诀也会留下“回退印记”，便于撤销。
             </div>
 
-            {undo && undo.kind === 'xuantian.annotations.hall.undo' && undo.v === 1 ? (
+            {backup && backup.kind === 'xuantian.annotations.hall.backup' && backup.v === 1 ? (
               <div className="mt-2 text-xs text-muted/75">
-                上次清心：{undo.note} · {formatDateTime(undo.savedAt)}
+                护卷符：{backup.reason} · {formatDateTime(backup.savedAt)}
               </div>
             ) : (
-              <div className="mt-2 text-xs text-muted/75">回退印记：暂无</div>
+              <div className="mt-2 text-xs text-muted/75">护卷符：暂无</div>
+            )}
+
+            {undo && undo.kind === 'xuantian.annotations.hall.undo' && undo.v === 1 ? (
+              <div className="mt-1 text-xs text-muted/75">
+                回退印记：{undo.note} · {formatDateTime(undo.savedAt)}
+              </div>
+            ) : (
+              <div className="mt-1 text-xs text-muted/75">回退印记：暂无</div>
             )}
 
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={downloadBackup}
+                className="justify-start"
+                disabled={!backup || backup.kind !== 'xuantian.annotations.hall.backup' || backup.v !== 1}
+              >
+                <Download className="h-4 w-4" />
+                下载护卷符快照
+                <span className="ml-auto text-muted/70">↓</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={undoLastClean}
+                className="justify-start"
+                disabled={!undo || undo.kind !== 'xuantian.annotations.hall.undo' || undo.v !== 1}
+              >
+                <RotateCcw className="h-4 w-4" />
+                撤销上次清心
+                <span className="ml-auto text-muted/70">↩</span>
+              </Button>
               <Button type="button" variant="outline" onClick={cleanEmptyAnnotations} className="justify-start">
                 <Trash2 className="h-4 w-4" />
                 剔除空批注
@@ -1012,11 +1093,6 @@ export function AnnotationsPage() {
                 <Waypoints className="h-4 w-4" />
                 清空关系批注
                 <span className="ml-auto text-muted/70">危</span>
-              </Button>
-              <Button type="button" variant="ghost" onClick={undoLastClean} className="justify-start" disabled={!undo}>
-                <RotateCcw className="h-4 w-4" />
-                撤销上次清心
-                <span className="ml-auto text-muted/70">↩</span>
               </Button>
             </div>
           </div>
