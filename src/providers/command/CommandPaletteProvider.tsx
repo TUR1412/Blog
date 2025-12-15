@@ -1,11 +1,10 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, ScrollText, Search, User, Waypoints, Zap } from 'lucide-react'
+import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, ScrollText, Search, User, Waypoints } from 'lucide-react'
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { chronicles } from '../../content/chronicles'
 import { cn } from '../../lib/cn'
-import { usePerformanceMode } from '../performance/PerformanceProvider'
 
 type CommandItem = {
   id: string
@@ -90,26 +89,13 @@ function CommandPaletteModal({
   onClose: () => void
 }) {
   const navigate = useNavigate()
-  const { mode: perfMode, toggle: togglePerf } = usePerformanceMode()
-  const prefersReduceMotion = useReducedMotion()
-  const reduceMotion = prefersReduceMotion || perfMode === 'lite'
+  const reduceMotion = useReducedMotion()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
 
   const items = useMemo<CommandItem[]>(() => {
-    const actions: CommandItem[] = [
-      {
-        id: 'toggle-perf-lite',
-        title: perfMode === 'lite' ? '关闭轻影模式' : '开启轻影模式',
-        subtitle: '减少玻璃模糊与阴影，滚动更顺。',
-        keywords: ['轻影', '顺滑', '卡顿', '性能', '护身', '模糊', '玻璃', '阴影'],
-        icon: <Zap className="h-4 w-4" />,
-        run: () => togglePerf(),
-      },
-    ]
-
     const routes: CommandItem[] = [
       {
         id: 'route-home',
@@ -194,8 +180,8 @@ function CommandPaletteModal({
       run: () => navigate(`/chronicles/${c.slug}`),
     }))
 
-    return [...actions, ...routes, ...chapters]
-  }, [navigate, perfMode, togglePerf])
+    return [...routes, ...chapters]
+  }, [navigate])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

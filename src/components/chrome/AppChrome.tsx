@@ -9,8 +9,7 @@ function ScrollToTop() {
 
   useEffect(() => {
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
-    const perfLite = document.documentElement.classList.contains('perf-lite')
-    window.scrollTo({ top: 0, left: 0, behavior: reduce || perfLite ? 'auto' : 'smooth' })
+    window.scrollTo({ top: 0, left: 0, behavior: reduce ? 'auto' : 'smooth' })
   }, [location.pathname])
 
   return null
