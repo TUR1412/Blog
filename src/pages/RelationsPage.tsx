@@ -5,6 +5,7 @@ import {
   Map as MapIcon,
   NotebookPen,
   PencilLine,
+  ScrollText,
   Search,
   Trash2,
   Waypoints,
@@ -687,6 +688,9 @@ export function RelationsPage() {
             </ButtonLink>
             <ButtonLink to="/chronicles" variant="ghost">
               去读纪事 <BookOpen className="h-4 w-4" />
+            </ButtonLink>
+            <ButtonLink to="/annotations" variant="ghost">
+              批注馆 <ScrollText className="h-4 w-4" />
             </ButtonLink>
           </div>
         </div>

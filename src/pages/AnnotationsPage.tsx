@@ -3,6 +3,7 @@ import {
   BookOpen,
   Compass,
   Download,
+  Map as MapIcon,
   NotebookPen,
   ScrollText,
   Search,
@@ -148,6 +149,20 @@ export function AnnotationsPage() {
 
   const timelineById = useMemo(() => new Map(timeline.map((t) => [t.id, t] as const)), [])
   const relationById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
+
+  const relationNodeIdForTimelineId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const n of relationNodes) {
+      if (!n.timelineId) continue
+      if (n.id === n.timelineId) map.set(n.timelineId, n.id)
+    }
+    for (const n of relationNodes) {
+      if (!n.timelineId) continue
+      if (map.has(n.timelineId)) continue
+      map.set(n.timelineId, n.id)
+    }
+    return map
+  }, [])
 
   const canonicalGrottoAnnotations = useMemo<GrottoAnnotations>(() => {
     const next: GrottoAnnotations = {}
@@ -666,6 +681,11 @@ export function AnnotationsPage() {
                       ? `${timelineLayerLabel(it.layer)} · ${it.when}`
                       : `${it.kind} · ${it.meta}`
 
+                  const relationJumpId =
+                    it.source === 'grotto' ? relationNodeIdForTimelineId.get(it.id) ?? null : null
+                  const grottoJumpId =
+                    it.source === 'relations' && it.timelineId && timelineById.has(it.timelineId) ? it.timelineId : null
+
                   return (
                     <motion.div
                       key={`${it.source}:${it.id}`}
@@ -692,11 +712,10 @@ export function AnnotationsPage() {
                         {it.text}
                       </div>
 
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <Button type="button" variant="ghost" onClick={() => locateEntry(it)} className="justify-start">
                           <Compass className="h-4 w-4" />
-                          定位
-                          <span className="ml-auto text-muted/70">→</span>
+                          {it.source === 'grotto' ? '回洞府图' : '回关系谱'}
                         </Button>
                         <Button
                           type="button"
@@ -706,11 +725,10 @@ export function AnnotationsPage() {
                         >
                           <NotebookPen className="h-4 w-4" />
                           并入札记
-                          <span className="ml-auto text-muted/70">＋</span>
                         </Button>
                       </div>
 
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {it.chronicleSlug ? (
                           <Link
                             to={`/chronicles/${it.chronicleSlug}`}
@@ -718,13 +736,38 @@ export function AnnotationsPage() {
                           >
                             <BookOpen className="h-4 w-4" />
                             去读纪事
-                            <span className="ml-auto text-muted/70">→</span>
                           </Link>
-                        ) : (
-                          <div className="rounded-xl border border-border/60 bg-white/3 px-4 py-2 text-xs text-muted/70">
-                            暂无对应纪事
-                          </div>
-                        )}
+                        ) : null}
+
+                        {relationJumpId ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              navigate(`/relations?id=${relationJumpId}`)
+                              hapticTap()
+                            }}
+                            className="justify-start"
+                          >
+                            <Waypoints className="h-4 w-4" />
+                            去关系谱
+                          </Button>
+                        ) : null}
+
+                        {grottoJumpId ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              navigate(`/grotto?id=${grottoJumpId}`)
+                              hapticTap()
+                            }}
+                            className="justify-start"
+                          >
+                            <MapIcon className="h-4 w-4" />
+                            去洞府图
+                          </Button>
+                        ) : null}
 
                         <Button type="button" variant="outline" onClick={() => clearEntry(it)} className="justify-start">
                           <Trash2 className="h-4 w-4" />

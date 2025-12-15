@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, BookOpen, Compass, Layers, NotebookPen, PencilLine, Search, Trash2, X } from 'lucide-react'
+import { ArrowRight, BookOpen, Compass, Layers, NotebookPen, PencilLine, ScrollText, Search, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
@@ -523,6 +523,9 @@ export function GrottoMapPage() {
             <ButtonLink to="/chronicles">去读纪事</ButtonLink>
             <ButtonLink to="/about" variant="ghost">
               看人物志
+            </ButtonLink>
+            <ButtonLink to="/annotations" variant="ghost">
+              批注馆 <ScrollText className="h-4 w-4" />
             </ButtonLink>
           </div>
         </div>
