@@ -114,6 +114,16 @@ export const timeline: TimelineEvent[] = [
     layer: 4,
   },
   {
+    id: 't-186-2',
+    when: '玄历一八六年 · 霜降',
+    title: '细则落地',
+    detail: '抄三份、贴三处、问三遍：把誓纸上的字变成能照着做的路。',
+    long: '公议之后最怕“字好听、人走散”。轩少做得很少：抄三份，贴三处，问三遍——让细则可见、可用、可对照。规矩不是用来显威望，是用来防走偏。',
+    chronicleSlug: 'oath-clauses-made-usable',
+    tone: 'warn',
+    layer: 4,
+  },
+  {
     id: 't-187-1',
     when: '玄历一八七年 · 立冬',
     title: '众望而后立',

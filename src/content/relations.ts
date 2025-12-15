@@ -95,6 +95,17 @@ export const relationNodes: RelationNode[] = [
     keywords: ['药单', '回访', '医馆', '救荒', '次序'],
   },
   {
+    id: 'notice-board',
+    title: '公示榜',
+    kind: '旧物',
+    summary: '字贴在墙上，才算给人看。',
+    detail:
+      '公费、轮次、期限、去向——凡是容易“含糊过去”的东西，他都更愿意写在人人看得见的地方。字不必漂亮，必须清楚；不许用含混词，不许留暗门。',
+    tone: 'warn',
+    pos: { x: 58, y: 72 },
+    keywords: ['公示', '张榜', '清楚', '可对照'],
+  },
+  {
     id: 'duanqiao',
     title: '断桥',
     kind: '地点',
@@ -254,6 +265,20 @@ export const relationNodes: RelationNode[] = [
     keywords: ['白露', '公议', '誓词', '细则'],
   },
   {
+    id: 't-186-2',
+    title: '细则落地',
+    kind: '关口',
+    summary: '把誓纸上的字变成能照着做的路。',
+    detail:
+      '公议之后最怕“字好听、人走散”。他抄三份，贴三处，问三遍：让细则可见、可用、可对照。规矩不是用来显威望，是用来防走偏。',
+    tone: 'warn',
+    layer: 4,
+    timelineId: 't-186-2',
+    chronicleSlug: 'oath-clauses-made-usable',
+    pos: { x: 78, y: 46 },
+    keywords: ['霜降', '细则', '落地', '公示', '对照'],
+  },
+  {
     id: 't-187-1',
     title: '众望而后立',
     kind: '关口',
@@ -280,6 +305,7 @@ export const relationEdges: RelationEdge[] = [
   edge('xuan', 't-184-1', '守夜于'),
   edge('xuan', 't-185-1', '回访于'),
   edge('xuan', 't-186-1', '对照于'),
+  edge('xuan', 't-186-2', '落地于'),
   edge('xuan', 't-187-1', '受职于'),
 
   edge('t-180-1', 'duanqiao', '发生于'),
@@ -288,14 +314,18 @@ export const relationEdges: RelationEdge[] = [
   edge('t-185-1', 'north-infirmary', '回到'),
 
   edge('t-186-1', 'oath-ledger', '以此为秤'),
+  edge('t-186-2', 'oath-ledger', '照此执行'),
   edge('t-187-1', 'oath-ledger', '托此立约'),
   edge('t-186-1', 'seal', '落印'),
+  edge('t-186-2', 'notice-board', '贴榜'),
 
   edge('t-183-1', 'medicine-ledger', '留册'),
   edge('t-183-1', 'oath-relief', '留次序'),
   edge('t-185-1', 'medicine-ledger', '补空'),
   edge('t-185-1', 'oath-relief', '公示'),
   edge('t-185-1', 'oath-ledger', '端秤'),
+  edge('t-185-1', 'notice-board', '张榜'),
+  edge('oath-relief', 'notice-board', '需公示'),
   edge('t-182-1', 'oath-ledger', '写成字'),
 ]
 

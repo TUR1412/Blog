@@ -32,6 +32,14 @@ type GrottoAnnotation = {
 
 type GrottoAnnotations = Record<string, GrottoAnnotation>
 
+type GrottoAnnotationsExportPayload = {
+  kind: 'xuantian.grotto.annotations'
+  v: 1
+  exportedAt: number
+  count: number
+  annotations: GrottoAnnotations
+}
+
 function formatClock(ts: number) {
   if (!ts) return '未落笔'
   const d = new Date(ts)
@@ -76,8 +84,23 @@ export function GrottoMapPage() {
   const [flash, setFlash] = useState<string | null>(null)
   const keyboardNavRef = useRef(false)
   const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
+  const annoImportRef = useRef<HTMLInputElement | null>(null)
 
   const byId = useMemo(() => new Map(timeline.map((t) => [t.id, t] as const)), [])
+  const canonicalAnnotations = useMemo<GrottoAnnotations>(() => {
+    const next: GrottoAnnotations = {}
+    for (const [id, a] of Object.entries(annotations)) {
+      if (!byId.has(id)) continue
+      if (!a || typeof a !== 'object') continue
+      const text = typeof a.text === 'string' ? a.text.trim() : ''
+      if (!text) continue
+      const updatedAt = typeof a.updatedAt === 'number' ? a.updatedAt : 0
+      next[id] = { text, updatedAt }
+    }
+    return next
+  }, [annotations, byId])
+
+  const annotationCount = useMemo(() => Object.keys(canonicalAnnotations).length, [canonicalAnnotations])
 
   const toneFilter = useMemo<ToneFilter>(() => {
     const fromUrl = parseTone(searchParams.get('tone'))
@@ -267,6 +290,108 @@ export function GrottoMapPage() {
 
     hapticSuccess()
     flashMessage('已收入札记。')
+  }
+
+  const exportAnnotations = () => {
+    if (annotationCount === 0) {
+      window.alert('当前没有可导出的路标批注。')
+      return
+    }
+
+    const payload: GrottoAnnotationsExportPayload = {
+      kind: 'xuantian.grotto.annotations',
+      v: 1,
+      exportedAt: Date.now(),
+      count: annotationCount,
+      annotations: canonicalAnnotations,
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-grotto-annotations-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    hapticTap()
+    flashMessage('已导出批注存档。')
+  }
+
+  const applyImportedAnnotations = (incoming: GrottoAnnotations) => {
+    const known: GrottoAnnotations = {}
+    for (const [id, a] of Object.entries(incoming)) {
+      if (!byId.has(id)) continue
+      const text = typeof a?.text === 'string' ? a.text.trim() : ''
+      if (!text) continue
+      const updatedAt = typeof a?.updatedAt === 'number' ? a.updatedAt : Date.now()
+      known[id] = { text, updatedAt }
+    }
+
+    const count = Object.keys(known).length
+    if (count === 0) {
+      window.alert('导入失败：存档里没有可识别的批注。')
+      return
+    }
+
+    const replace = window.confirm('导入方式：确定=覆盖现有批注；取消=合并（同一路标以导入为准）。')
+    if (replace) {
+      setAnnotations(known)
+    } else {
+      setAnnotations((prev) => ({ ...prev, ...known }))
+    }
+
+    setAnnoDraftById((prev) => {
+      const next = { ...prev }
+      for (const id of Object.keys(known)) delete next[id]
+      return next
+    })
+
+    hapticSuccess()
+    flashMessage(`已导入批注：${count} 处。`)
+  }
+
+  const importAnnotations = async (file: File) => {
+    try {
+      const raw = await file.text()
+      const data = JSON.parse(raw) as unknown
+
+      let incoming: unknown = null
+      if (data && typeof data === 'object') {
+        const maybe = data as Partial<GrottoAnnotationsExportPayload> & { annotations?: unknown }
+        if (maybe.kind === 'xuantian.grotto.annotations' && maybe.v === 1 && maybe.annotations) {
+          incoming = maybe.annotations
+        } else {
+          incoming = data
+        }
+      }
+
+      if (!incoming || typeof incoming !== 'object') {
+        window.alert('导入失败：存档格式不支持。')
+        return
+      }
+
+      const incomingMap = incoming as Record<string, unknown>
+      const normalized: GrottoAnnotations = {}
+      for (const [id, v] of Object.entries(incomingMap)) {
+        if (!v) continue
+        if (typeof v === 'string') {
+          const text = v.trim()
+          if (!text) continue
+          normalized[id] = { text, updatedAt: Date.now() }
+          continue
+        }
+        if (typeof v === 'object') {
+          const obj = v as Partial<GrottoAnnotation>
+          const text = typeof obj.text === 'string' ? obj.text.trim() : ''
+          if (!text) continue
+          normalized[id] = { text, updatedAt: typeof obj.updatedAt === 'number' ? obj.updatedAt : Date.now() }
+        }
+      }
+
+      applyImportedAnnotations(normalized)
+    } catch {
+      window.alert('导入失败：存档内容有误。')
+    }
   }
 
   const appendAnnotationToNotes = () => {
@@ -615,6 +740,50 @@ export function GrottoMapPage() {
                           <Trash2 className="h-4 w-4" />
                           清空
                         </Button>
+                      </div>
+
+                      <input
+                        ref={annoImportRef}
+                        type="file"
+                        accept="application/json,text/plain"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0]
+                          e.currentTarget.value = ''
+                          if (!file) return
+                          void importAnnotations(file)
+                        }}
+                      />
+
+                      <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-fg">批注存档</div>
+                          <div className="text-xs text-muted/70">已写 {annotationCount} 处</div>
+                        </div>
+                        <div className="mt-2 text-xs leading-6 text-muted/80">
+                          建议偶尔导出一次存档，防止设备更换或清理缓存后丢失。
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="justify-start"
+                            onClick={exportAnnotations}
+                            disabled={annotationCount === 0}
+                          >
+                            导出存档
+                            <span className="ml-auto text-muted/70">↓</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="justify-start"
+                            onClick={() => annoImportRef.current?.click()}
+                          >
+                            导入存档
+                            <span className="ml-auto text-muted/70">↑</span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
 
