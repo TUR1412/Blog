@@ -18,6 +18,9 @@ const TreasuryPage = lazy(() =>
   import('../pages/TreasuryPage').then((m) => ({ default: m.TreasuryPage })),
 )
 const NotesPage = lazy(() => import('../pages/NotesPage').then((m) => ({ default: m.NotesPage })))
+const RelationsPage = lazy(() =>
+  import('../pages/RelationsPage').then((m) => ({ default: m.RelationsPage })),
+)
 const NotFoundPage = lazy(() =>
   import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
@@ -112,6 +115,16 @@ export function AppRouter() {
             <Page>
               <Suspense fallback={<PageFallback />}>
                 <AboutPage />
+              </Suspense>
+            </Page>
+          }
+        />
+        <Route
+          path="/relations"
+          element={
+            <Page>
+              <Suspense fallback={<PageFallback />}>
+                <RelationsPage />
               </Suspense>
             </Page>
           }

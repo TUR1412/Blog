@@ -94,6 +94,16 @@ export const timeline: TimelineEvent[] = [
     layer: 3,
   },
   {
+    id: 't-185-1',
+    when: '玄历一八五年 · 谷雨',
+    title: '巡访回访',
+    detail: '救荒之后回去补空：账目公示，回访照走，不让次序断在半路。',
+    long: '他没带旗号，只带一本薄册：去医馆看药单是否还在用，去问账目是否还能给人看，去补那些“最容易被忽略的空”。他常说：救人不是一阵风，风过了，路要还在。',
+    chronicleSlug: 'followup-ledger-walk',
+    tone: 'warn',
+    layer: 4,
+  },
+  {
     id: 't-186-1',
     when: '玄历一八六年 · 白露',
     title: '诸宗公议',

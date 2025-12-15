@@ -58,6 +58,9 @@ export function AboutPage() {
             <ButtonLink to="/grotto" variant="ghost">
               去看洞府图
             </ButtonLink>
+            <ButtonLink to="/relations" variant="ghost">
+              看关系谱
+            </ButtonLink>
             <ButtonLink to="/notes" variant="ghost">
               抄下自己的札记
             </ButtonLink>

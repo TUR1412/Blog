@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, Search, User } from 'lucide-react'
+import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, Search, User, Waypoints } from 'lucide-react'
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -136,6 +136,14 @@ function CommandPaletteModal({
         keywords: ['人物', '人物志', '轩少', '轩天帝', '其人'],
         icon: <User className="h-4 w-4" />,
         run: () => navigate('/about'),
+      },
+      {
+        id: 'route-relations',
+        title: '关系谱',
+        subtitle: '把人、誓词、旧物与关口连成网',
+        keywords: ['关系', '关系谱', '牵连', '誓词', '旧物', '关口', '对照'],
+        icon: <Waypoints className="h-4 w-4" />,
+        run: () => navigate('/relations'),
       },
       {
         id: 'route-treasury',

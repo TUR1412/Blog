@@ -1,0 +1,578 @@
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { ArrowRight, BookOpen, Map as MapIcon, NotebookPen, Search, Waypoints, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Badge } from '../components/ui/Badge'
+import { Button, ButtonLink } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+import { Chip } from '../components/ui/Chip'
+import { SectionHeading } from '../components/ui/SectionHeading'
+import {
+  RELATION_KINDS,
+  getRelationEdgesFor,
+  getRelatedNodeIds,
+  relationEdges,
+  relationNodes,
+  type RelationKind,
+  type RelationTone,
+} from '../content/relations'
+import { useLocalStorageState } from '../hooks/useLocalStorageState'
+import { cn } from '../lib/cn'
+import { STORAGE_KEYS } from '../lib/constants'
+import { hapticSuccess, hapticTap } from '../lib/haptics'
+import { readJson, readString, writeJson, writeString } from '../lib/storage'
+
+type NotesMeta = { updatedAt: number; lastSource?: string }
+type KindFilter = 'all' | RelationKind
+
+function parseKind(raw: string | null): KindFilter | null {
+  if (!raw) return null
+  if (raw === 'all') return 'all'
+  if ((RELATION_KINDS as readonly string[]).includes(raw)) return raw as RelationKind
+  return null
+}
+
+function toneToken(tone?: RelationTone) {
+  if (tone === 'warn') return 'warn'
+  if (tone === 'bright') return 'bright'
+  return 'calm'
+}
+
+function nodeChrome(tone?: RelationTone, active?: boolean) {
+  const t = toneToken(tone)
+  const base = 'focus-ring tap group absolute -translate-x-1/2 -translate-y-1/2 text-left'
+  const box =
+    'w-[190px] max-w-[44vw] rounded-xl border bg-white/4 px-4 py-3 backdrop-blur-xl2'
+  if (t === 'warn') {
+    return cn(
+      base,
+      box,
+      active
+        ? 'border-[hsl(var(--warn)/.35)] bg-white/8 ring-1 ring-[hsl(var(--warn)/.25)]'
+        : 'border-border/60 hover:border-[hsl(var(--warn)/.25)] hover:bg-white/7',
+    )
+  }
+  if (t === 'bright') {
+    return cn(
+      base,
+      box,
+      active
+        ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
+        : 'border-border/60 hover:border-white/15 hover:bg-white/7',
+    )
+  }
+  return cn(
+    base,
+    box,
+    active
+      ? 'border-white/18 bg-white/8 ring-1 ring-white/10'
+      : 'border-border/60 hover:border-white/12 hover:bg-white/7',
+  )
+}
+
+function edgePath(a: { x: number; y: number }, b: { x: number; y: number }) {
+  const midX = (a.x + b.x) / 2
+  const dy = Math.max(6, Math.min(22, Math.abs(b.y - a.y)))
+  const c1 = { x: midX, y: a.y + Math.sign(b.y - a.y) * (dy * 0.35) }
+  const c2 = { x: midX, y: b.y - Math.sign(b.y - a.y) * (dy * 0.35) }
+  return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`
+}
+
+function safeLower(s: string) {
+  return s.toLowerCase()
+}
+
+export function RelationsPage() {
+  const reduceMotion = useReducedMotion()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [storedSelected, setStoredSelected] = useLocalStorageState<string>(
+    STORAGE_KEYS.relationsSelected,
+    'xuan',
+  )
+  const [storedKind, setStoredKind] = useLocalStorageState<string>(STORAGE_KEYS.relationsKind, 'all')
+  const [query, setQuery] = useState('')
+  const flashTimerRef = useRef<number | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+
+  const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
+
+  const kind = useMemo<KindFilter>(() => {
+    const fromUrl = parseKind(searchParams.get('kind'))
+    if (fromUrl) return fromUrl
+    const fromStore = parseKind(storedKind)
+    return fromStore ?? 'all'
+  }, [searchParams, storedKind])
+
+  const filteredBase = useMemo(() => {
+    const q = safeLower(query.trim())
+    return relationNodes.filter((n) => {
+      if (kind !== 'all' && n.kind !== kind) return false
+      if (!q) return true
+      const hay = safeLower(
+        [
+          n.title,
+          n.kind,
+          n.summary,
+          n.detail,
+          ...(n.keywords ?? []),
+          n.chronicleSlug ?? '',
+          n.timelineId ?? '',
+        ].join(' '),
+      )
+      return hay.includes(q)
+    })
+  }, [kind, query])
+
+  const selectedId = useMemo(() => {
+    const fromUrl = searchParams.get('id')
+    if (fromUrl && nodeById.has(fromUrl)) return fromUrl
+    if (storedSelected && nodeById.has(storedSelected)) return storedSelected
+    return filteredBase[0]?.id ?? 'xuan'
+  }, [filteredBase, nodeById, searchParams, storedSelected])
+
+  const selected = selectedId ? nodeById.get(selectedId) ?? null : null
+
+  const visibleIds = useMemo(() => {
+    const set = new Set<string>()
+    for (const n of filteredBase) set.add(n.id)
+    set.add('xuan')
+    if (selected) {
+      set.add(selected.id)
+      for (const id of getRelatedNodeIds(selected.id)) set.add(id)
+    }
+    return set
+  }, [filteredBase, selected])
+
+  const visibleNodes = useMemo(() => {
+    return relationNodes.filter((n) => visibleIds.has(n.id))
+  }, [visibleIds])
+
+  const visibleEdges = useMemo(() => {
+    return relationEdges.filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to))
+  }, [visibleIds])
+
+  useEffect(() => {
+    setStoredSelected(selectedId)
+  }, [selectedId, setStoredSelected])
+
+  useEffect(() => {
+    setStoredKind(kind)
+  }, [kind, setStoredKind])
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    let changed = false
+
+    if ((next.get('id') ?? '') !== selectedId) {
+      next.set('id', selectedId)
+      changed = true
+    }
+
+    const canonicalKind = kind === 'all' ? '' : kind
+    if ((next.get('kind') ?? '') !== canonicalKind) {
+      if (!canonicalKind) next.delete('kind')
+      else next.set('kind', canonicalKind)
+      changed = true
+    }
+
+    if (!changed) return
+    setSearchParams(next, { replace: true })
+  }, [kind, searchParams, selectedId, setSearchParams])
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    const first = filteredBase[0]?.id
+    if (!first) return
+    if (filteredBase.some((n) => n.id === selectedId)) return
+    const next = new URLSearchParams(searchParams)
+    next.set('id', first)
+    setSearchParams(next, { replace: true })
+  }, [filteredBase, searchParams, selectedId, setSearchParams])
+
+  const flashMessage = useCallback((msg: string) => {
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    setFlash(msg)
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 950)
+  }, [])
+
+  const selectId = useCallback(
+    (id: string) => {
+      if (!id) return
+      if (!nodeById.has(id)) return
+      const next = new URLSearchParams(searchParams)
+      next.set('id', id)
+      setSearchParams(next, { replace: true })
+      hapticTap()
+    },
+    [nodeById, searchParams, setSearchParams],
+  )
+
+  const setKind = useCallback(
+    (nextKind: KindFilter) => {
+      const next = new URLSearchParams(searchParams)
+      if (nextKind === 'all') next.delete('kind')
+      else next.set('kind', nextKind)
+      setSearchParams(next, { replace: true })
+      hapticTap()
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const appendSelectedToNotes = useCallback(() => {
+    if (!selected) return
+
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+
+    const edges = getRelationEdgesFor(selected.id)
+    const related = edges
+      .map((e) => {
+        const otherId = e.from === selected.id ? e.to : e.from
+        const other = nodeById.get(otherId)
+        if (!other) return null
+        return `${e.label}：${other.title}`
+      })
+      .filter(Boolean) as string[]
+
+    const block = [
+      `【${stamp} · 关系谱摘记】`,
+      `${selected.kind} · ${selected.title}`,
+      selected.summary,
+      selected.detail,
+      related.length ? '' : null,
+      related.length ? `牵连：` : null,
+      ...related.map((x) => `- ${x}`),
+    ]
+      .filter((x): x is string => typeof x === 'string')
+      .join('\n')
+
+    const prev = readString(STORAGE_KEYS.notes, '')
+    const next = prev.trim() ? `${prev}\n\n${block}` : block
+    writeString(STORAGE_KEYS.notes, next)
+
+    const prevMeta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
+    const nextMeta: NotesMeta = {
+      ...prevMeta,
+      updatedAt: now.getTime(),
+      lastSource: `关系谱：${selected.title}`,
+    }
+    writeJson(STORAGE_KEYS.notesMeta, nextMeta)
+
+    hapticSuccess()
+    flashMessage('已收入札记。')
+  }, [flashMessage, nodeById, selected])
+
+  const selectedEdges = useMemo(() => {
+    if (!selected) return []
+    return getRelationEdgesFor(selected.id)
+  }, [selected])
+
+  const selectedRelatedIdSet = useMemo(() => {
+    if (!selected) return new Set<string>()
+    return new Set(getRelatedNodeIds(selected.id))
+  }, [selected])
+
+  return (
+    <div className="space-y-6">
+      <Card className="relative overflow-hidden p-7 md:p-10">
+        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.36),transparent_62%)] blur-3xl" />
+        <div className="absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.30),transparent_62%)] blur-3xl" />
+
+        <div className="relative">
+          <Badge className="mb-4">关系谱</Badge>
+          <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">一张网，不为夸饰，只为对照</h2>
+          <p className="mt-3 max-w-[88ch] text-sm leading-7 text-muted/85">
+            这里把“人、誓词、旧物、关口与地点”连成一张谱：不是为了显得玄，而是为了把次序看清。
+            你点一处，就能看见它牵连到哪几处；牵连越清楚，故事就越像真事。
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            <ButtonLink to="/about">回人物志</ButtonLink>
+            <ButtonLink to="/grotto" variant="ghost">
+              去洞府图 <MapIcon className="h-4 w-4" />
+            </ButtonLink>
+            <ButtonLink to="/chronicles" variant="ghost">
+              去读纪事 <BookOpen className="h-4 w-4" />
+            </ButtonLink>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-12">
+        <Card className="lg:col-span-4">
+          <SectionHeading title="线索簿" subtitle="筛一筛，别让眼睛被“热闹”带跑。" />
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div
+              className={cn(
+                'focus-within:ring-1 focus-within:ring-white/10',
+                'flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+              )}
+            >
+              <Search className="h-4 w-4 text-muted/70" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setQuery('')
+                }}
+                placeholder="搜：断桥 / 誓词 / 药单 / 青冥……（Esc 清空）"
+                className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+              />
+              {query.trim() ? (
+                <button
+                  type="button"
+                  className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                  onClick={() => setQuery('')}
+                  aria-label="清空搜索"
+                  title="清空"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+            <div className="text-xs text-muted/70 sm:shrink-0">命中 {filteredBase.length}</div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="text-xs text-muted/70">类别</div>
+            <Chip selected={kind === 'all'} onClick={() => setKind('all')}>
+              全部
+            </Chip>
+            {RELATION_KINDS.map((k) => (
+              <Chip key={k} selected={kind === k} onClick={() => setKind(k)}>
+                {k}
+              </Chip>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-2">
+            {filteredBase.map((n) => {
+              const active = n.id === selectedId
+              return (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => selectId(n.id)}
+                  className={cn(
+                    'focus-ring tap flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left',
+                    active
+                      ? 'border-white/20 bg-white/10 ring-1 ring-white/10'
+                      : 'border-border/60 bg-white/4 hover:bg-white/7',
+                  )}
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-fg">{n.title}</div>
+                    <div className="mt-1 text-xs text-muted/80">{n.kind} · {n.summary}</div>
+                  </div>
+                  <span className="mt-0.5 shrink-0 rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
+                    {toneToken(n.tone) === 'warn' ? '警' : toneToken(n.tone) === 'bright' ? '明' : '平'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 grid h-9 w-9 place-items-center rounded-xl border border-border/70 bg-white/5 text-fg/90">
+                <Waypoints className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-fg">读法建议</div>
+                <div className="mt-1">先从“地点/旧物”入手，再看它牵连到哪些“关口/誓词”。越看越稳。</div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <div className="grid gap-4 lg:col-span-8 lg:grid-cols-12">
+          <Card className="relative overflow-hidden lg:col-span-7">
+            <SectionHeading title="谱面" subtitle="点节点；相连的线会亮起来。" />
+
+            <div className="relative mt-4 h-[520px] rounded-xl border border-border/60 bg-white/3">
+              <div className="pointer-events-none absolute inset-0">
+                <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.18),transparent_62%)] blur-3xl" />
+                <div className="absolute -right-24 top-10 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.16),transparent_62%)] blur-3xl" />
+                <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.08),transparent_70%)] blur-3xl" />
+              </div>
+
+              <svg
+                className="pointer-events-none absolute inset-0"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                {visibleEdges.map((e) => {
+                  const a = nodeById.get(e.from)?.pos
+                  const b = nodeById.get(e.to)?.pos
+                  if (!a || !b) return null
+
+                  const connected = selectedId ? e.from === selectedId || e.to === selectedId : false
+
+                  const dim = selectedId ? !connected : false
+
+                  return (
+                    <motion.path
+                      key={e.id}
+                      d={edgePath(a, b)}
+                      initial={reduceMotion ? false : { opacity: 0 }}
+                      animate={{ opacity: dim ? 0.12 : 0.32 }}
+                      transition={{ duration: 0.35 }}
+                      stroke="rgba(255,255,255,.55)"
+                      strokeWidth={0.35}
+                      fill="none"
+                      strokeLinecap="round"
+                    />
+                  )
+                })}
+              </svg>
+
+              {visibleNodes.map((n, idx) => {
+                const active = n.id === selectedId
+                const related = selectedId && !active ? selectedRelatedIdSet.has(n.id) || n.id === 'xuan' : true
+
+                const dim = selectedId ? !active && !related : false
+
+                return (
+                  <motion.button
+                    key={n.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => selectId(n.id)}
+                    className={cn(nodeChrome(n.tone, active), dim && 'opacity-60')}
+                    style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%` }}
+                    initial={reduceMotion ? false : { opacity: 0, scale: 0.98, y: 6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{
+                      delay: reduceMotion ? 0 : idx * 0.015,
+                      type: 'spring',
+                      stiffness: 520,
+                      damping: 36,
+                      mass: 0.7,
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-fg">{n.title}</div>
+                        <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">
+                          {n.kind} · {n.summary}
+                        </div>
+                      </div>
+                      <div className="mt-0.5 shrink-0 text-xs text-muted/70">{active ? '已按住' : '按'}</div>
+                    </div>
+                  </motion.button>
+                )
+              })}
+            </div>
+          </Card>
+
+          <Card className="relative overflow-hidden lg:col-span-5">
+            <SectionHeading title="详记" subtitle="不做“神话”，只做“对照”。" />
+
+            {selected ? (
+              <>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge>{selected.kind}</Badge>
+                  <span className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-[11px] text-muted/80">
+                    {toneToken(selected.tone) === 'warn' ? '警' : toneToken(selected.tone) === 'bright' ? '明' : '平'}
+                  </span>
+                </div>
+
+                <div className="mt-4 text-lg font-semibold tracking-tight text-fg">{selected.title}</div>
+                <div className="mt-2 text-sm leading-7 text-muted/85">{selected.detail}</div>
+
+                <div className="mt-5 grid gap-2">
+                  {selected.chronicleSlug ? (
+                    <Link
+                      to={`/chronicles/${selected.chronicleSlug}`}
+                      className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      去读对应纪事
+                      <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
+                    </Link>
+                  ) : null}
+
+                  {selected.timelineId ? (
+                    <Link
+                      to={`/grotto?id=${selected.timelineId}`}
+                      className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
+                    >
+                      <MapIcon className="h-4 w-4" />
+                      在洞府图定位
+                      <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
+                    </Link>
+                  ) : null}
+
+                  <Button type="button" variant="ghost" onClick={appendSelectedToNotes} className="justify-start">
+                    <NotebookPen className="h-4 w-4" />
+                    收入札记
+                    <span className="ml-auto text-muted/70">＋</span>
+                  </Button>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                  <div className="text-sm font-semibold text-fg">牵连</div>
+                  {selectedEdges.length ? (
+                    <div className="mt-3 grid gap-2">
+                      {selectedEdges.map((e) => {
+                        const otherId = e.from === selected.id ? e.to : e.from
+                        const other = nodeById.get(otherId)
+                        if (!other) return null
+                        return (
+                          <button
+                            key={e.id}
+                            type="button"
+                            onClick={() => selectId(other.id)}
+                            className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-xs text-muted/70">{e.label}</div>
+                              <div className="mt-0.5 truncate text-sm font-medium text-fg/90">{other.title}</div>
+                              <div className="mt-1 text-xs text-muted/80">{other.kind} · {other.summary}</div>
+                            </div>
+                            <span className="mt-0.5 shrink-0 text-xs text-muted/70">→</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs leading-6 text-muted/80">此处线索暂未连到别处。</div>
+                  )}
+                </div>
+
+                <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
+                  小提示：点“牵连”里的条目，谱面会把相关节点提亮；再回去读纪事，会更像把路走了一遍。
+                </div>
+
+                <AnimatePresence>
+                  {flash ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
+                    >
+                      {flash}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </>
+            ) : (
+              <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
+                <div className="text-sm font-semibold text-fg">暂无线索</div>
+                <div className="mt-2 text-xs leading-6 text-muted/80">筛选过严时，这里会保持安静。</div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}

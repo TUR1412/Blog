@@ -10,6 +10,7 @@ const NAV = [
   { to: '/chronicles', label: '纪事' },
   { to: '/grotto', label: '洞府图' },
   { to: '/about', label: '人物志' },
+  { to: '/relations', label: '关系谱' },
   { to: '/treasury', label: '藏品' },
   { to: '/notes', label: '札记' },
 ] as const
