@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight, BookOpen, Compass, Layers, NotebookPen, PencilLine, ScrollText, Search, Trash2, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
@@ -82,6 +82,10 @@ export function GrottoMapPage() {
   )
   const [query, setQuery] = useState('')
   const [annoQuery, setAnnoQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const appliedQuery = query.trim() ? deferredQuery : ''
+  const deferredAnnoQuery = useDeferredValue(annoQuery)
+  const appliedAnnoQuery = annoQuery.trim() ? deferredAnnoQuery : ''
   const [annoFindQuery, setAnnoFindQuery] = useState('')
   const [annoActiveHitIndex, setAnnoActiveHitIndex] = useState(0)
   const flashTimerRef = useRef<number | null>(null)
@@ -92,6 +96,16 @@ export function GrottoMapPage() {
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const byId = useMemo(() => new Map(timeline.map((t) => [t.id, t] as const)), [])
+  const eventSearchHayById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of timeline) {
+      map.set(
+        t.id,
+        `${t.when} ${t.title} ${t.detail} ${t.long ?? ''} ${timelineLayerLabel(t.layer)}`.toLowerCase(),
+      )
+    }
+    return map
+  }, [])
   const canonicalAnnotations = useMemo<GrottoAnnotations>(() => {
     const next: GrottoAnnotations = {}
     for (const [id, a] of Object.entries(annotations)) {
@@ -122,18 +136,19 @@ export function GrottoMapPage() {
   }, [searchParams, storedLayer])
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = appliedQuery.trim().toLowerCase()
     return timeline.filter((t) => {
       if (layerFilter !== 'all' && t.layer !== layerFilter) return false
       if (toneFilter !== 'all' && (t.tone ?? 'calm') !== toneFilter) return false
       if (!q) return true
-      const hay = `${t.when} ${t.title} ${t.detail} ${t.long ?? ''}`.toLowerCase()
-      return hay.includes(q)
+      return (eventSearchHayById.get(t.id) ?? '').includes(q)
     })
-  }, [layerFilter, query, toneFilter])
+  }, [appliedQuery, eventSearchHayById, layerFilter, toneFilter])
+
+  const heavyTimeline = filtered.length > 80
 
   const annotatedEntries = useMemo(() => {
-    const q = annoQuery.trim().toLowerCase()
+    const q = appliedAnnoQuery.trim().toLowerCase()
     const items: { t: TimelineEvent; ann: GrottoAnnotation }[] = []
     for (const t of timeline) {
       const ann = canonicalAnnotations[t.id]
@@ -141,13 +156,14 @@ export function GrottoMapPage() {
       if (layerFilter !== 'all' && t.layer !== layerFilter) continue
       if (toneFilter !== 'all' && (t.tone ?? 'calm') !== toneFilter) continue
       if (q) {
-        const hay = `${t.when} ${t.title} ${t.detail} ${t.long ?? ''} ${ann.text}`.toLowerCase()
-        if (!hay.includes(q)) continue
+        const base = eventSearchHayById.get(t.id) ?? ''
+        const annHay = ann.text.toLowerCase()
+        if (!base.includes(q) && !annHay.includes(q)) continue
       }
       items.push({ t, ann })
     }
     return items
-  }, [annoQuery, canonicalAnnotations, layerFilter, toneFilter])
+  }, [appliedAnnoQuery, canonicalAnnotations, eventSearchHayById, layerFilter, toneFilter])
 
   const selectedId = useMemo(() => {
     const fromUrl = searchParams.get('id')
@@ -663,7 +679,7 @@ export function GrottoMapPage() {
             </div>
 
             <div className="text-xs text-muted/70 sm:shrink-0">
-              显示 {filtered.length} / {timeline.length}
+              {query.trim() && query.trim() !== appliedQuery.trim() ? '检索中…' : `显示 ${filtered.length} / ${timeline.length}`}
             </div>
           </div>
 
@@ -725,14 +741,15 @@ export function GrottoMapPage() {
                       }}
                       className={cn(
                         'focus-ring tap relative w-full max-w-[520px] rounded-xl border bg-white/4 px-5 py-4 text-left',
+                        '[content-visibility:auto] [contain-intrinsic-size:520px_140px]',
                         active
                           ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
                           : 'border-border/60 hover:bg-white/7',
                       )}
-                      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                      initial={reduceMotion || heavyTimeline ? false : { opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{
-                        delay: reduceMotion ? 0 : idx * 0.02,
+                        delay: reduceMotion || heavyTimeline ? 0 : idx * 0.02,
                         type: 'spring',
                         stiffness: 420,
                         damping: 34,
@@ -1130,7 +1147,9 @@ export function GrottoMapPage() {
           </div>
 
           <div className="text-xs text-muted/70 sm:shrink-0">
-            显示 {annotatedEntries.length} / 已写 {annotationCount} 处
+            {annoQuery.trim() && annoQuery.trim() !== appliedAnnoQuery.trim()
+              ? '检索中…'
+              : `显示 ${annotatedEntries.length} / 已写 ${annotationCount} 处`}
           </div>
         </div>
 
@@ -1149,7 +1168,10 @@ export function GrottoMapPage() {
               return (
                 <div
                   key={t.id}
-                  className="rounded-xl border border-border/60 bg-white/4 px-5 py-4"
+                  className={cn(
+                    'rounded-xl border border-border/60 bg-white/4 px-5 py-4',
+                    '[content-visibility:auto] [contain-intrinsic-size:420px_240px]',
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">

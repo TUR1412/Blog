@@ -11,7 +11,7 @@ import {
   Waypoints,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
@@ -138,6 +138,10 @@ export function RelationsPage() {
   )
   const [query, setQuery] = useState('')
   const [annoQuery, setAnnoQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const appliedQuery = query.trim() ? deferredQuery : ''
+  const deferredAnnoQuery = useDeferredValue(annoQuery)
+  const appliedAnnoQuery = annoQuery.trim() ? deferredAnnoQuery : ''
   const [annoFindQuery, setAnnoFindQuery] = useState('')
   const [annoActiveHitIndex, setAnnoActiveHitIndex] = useState(0)
   const flashTimerRef = useRef<number | null>(null)
@@ -147,6 +151,26 @@ export function RelationsPage() {
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
+  const nodeSearchHayById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const n of relationNodes) {
+      map.set(
+        n.id,
+        safeLower(
+          [
+            n.title,
+            n.kind,
+            n.summary,
+            n.detail,
+            ...(n.keywords ?? []),
+            n.chronicleSlug ?? '',
+            n.timelineId ?? '',
+          ].join(' '),
+        ),
+      )
+    }
+    return map
+  }, [])
 
   const canonicalAnnotations = useMemo<RelationAnnotations>(() => {
     const next: RelationAnnotations = {}
@@ -177,24 +201,13 @@ export function RelationsPage() {
   }, [searchParams, storedOnly])
 
   const filteredBase = useMemo(() => {
-    const q = safeLower(query.trim())
+    const q = safeLower(appliedQuery.trim())
     return relationNodes.filter((n) => {
       if (kind !== 'all' && n.kind !== kind) return false
       if (!q) return true
-      const hay = safeLower(
-        [
-          n.title,
-          n.kind,
-          n.summary,
-          n.detail,
-          ...(n.keywords ?? []),
-          n.chronicleSlug ?? '',
-          n.timelineId ?? '',
-        ].join(' '),
-      )
-      return hay.includes(q)
+      return (nodeSearchHayById.get(n.id) ?? '').includes(q)
     })
-  }, [kind, query])
+  }, [appliedQuery, kind, nodeSearchHayById])
 
   const selectedId = useMemo(() => {
     const fromUrl = searchParams.get('id')
@@ -524,7 +537,7 @@ export function RelationsPage() {
   }, [selected])
 
   const annotatedEntries = useMemo(() => {
-    const q = safeLower(annoQuery.trim())
+    const q = safeLower(appliedAnnoQuery.trim())
     const items: { node: (typeof relationNodes)[number]; ann: RelationAnnotation }[] = []
 
     for (const node of relationNodes) {
@@ -534,19 +547,9 @@ export function RelationsPage() {
       if (onlyRelated && !relatedIds.has(node.id)) continue
 
       if (q) {
-        const hay = safeLower(
-          [
-            node.title,
-            node.kind,
-            node.summary,
-            node.detail,
-            ...(node.keywords ?? []),
-            node.chronicleSlug ?? '',
-            node.timelineId ?? '',
-            ann.text,
-          ].join(' '),
-        )
-        if (!hay.includes(q)) continue
+        const base = nodeSearchHayById.get(node.id) ?? ''
+        const annHay = safeLower(ann.text)
+        if (!base.includes(q) && !annHay.includes(q)) continue
       }
 
       items.push({ node, ann })
@@ -554,7 +557,7 @@ export function RelationsPage() {
 
     items.sort((a, b) => (b.ann.updatedAt || 0) - (a.ann.updatedAt || 0))
     return items
-  }, [annoQuery, canonicalAnnotations, kind, onlyRelated, relatedIds])
+  }, [appliedAnnoQuery, canonicalAnnotations, kind, nodeSearchHayById, onlyRelated, relatedIds])
 
   const exportRelationAnnotations = () => {
     if (annotationCount === 0) {
@@ -794,7 +797,7 @@ export function RelationsPage() {
               ) : null}
             </div>
             <div className="text-xs text-muted/70 sm:shrink-0">
-              命中 {listNodes.length}
+              {query.trim() && query.trim() !== appliedQuery.trim() ? '检索中…' : `命中 ${listNodes.length}`}
               {onlyRelated ? <span className="ml-1 text-muted/60">· 聚焦</span> : null}
             </div>
           </div>
@@ -831,6 +834,7 @@ export function RelationsPage() {
                   onClick={() => selectId(n.id)}
                   className={cn(
                     'focus-ring tap flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left',
+                    '[content-visibility:auto] [contain-intrinsic-size:240px_96px]',
                     active
                       ? 'border-white/20 bg-white/10 ring-1 ring-white/10'
                       : 'border-border/60 bg-white/4 hover:bg-white/7',
@@ -1242,7 +1246,9 @@ export function RelationsPage() {
           </div>
 
           <div className="text-xs text-muted/70 sm:shrink-0">
-            显示 {annotatedEntries.length} / 已写 {annotationCount} 处
+            {annoQuery.trim() && annoQuery.trim() !== appliedAnnoQuery.trim()
+              ? '检索中…'
+              : `显示 ${annotatedEntries.length} / 已写 ${annotationCount} 处`}
           </div>
         </div>
 
@@ -1310,7 +1316,13 @@ export function RelationsPage() {
         ) : annotatedEntries.length ? (
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
             {annotatedEntries.map(({ node, ann }) => (
-              <div key={node.id} className="rounded-xl border border-border/60 bg-white/4 px-5 py-4">
+              <div
+                key={node.id}
+                className={cn(
+                  'rounded-xl border border-border/60 bg-white/4 px-5 py-4',
+                  '[content-visibility:auto] [contain-intrinsic-size:420px_260px]',
+                )}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
