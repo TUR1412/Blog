@@ -5,6 +5,7 @@ import {
   Download,
   Map as MapIcon,
   NotebookPen,
+  RotateCcw,
   ScrollText,
   Search,
   Trash2,
@@ -39,6 +40,15 @@ type GrottoAnnotations = Record<string, GrottoAnnotation>
 
 type RelationAnnotation = { text: string; updatedAt: number }
 type RelationAnnotations = Record<string, RelationAnnotation>
+
+type AnnotationsHallUndoPayload = {
+  kind: 'xuantian.annotations.hall.undo'
+  v: 1
+  savedAt: number
+  note: string
+  grotto: GrottoAnnotations
+  relations: RelationAnnotations
+}
 
 type AnnotationEntry =
   | {
@@ -124,6 +134,7 @@ export function AnnotationsPage() {
     STORAGE_KEYS.annotationsHallKind,
     'all',
   )
+  const [undo, setUndo] = useLocalStorageState<AnnotationsHallUndoPayload | null>(STORAGE_KEYS.annotationsHallUndo, null)
   const [query, setQuery] = useState('')
 
   const flashMessage = (msg: string) => {
@@ -591,6 +602,123 @@ export function AnnotationsPage() {
     }
   }
 
+  const stashUndo = (note: string) => {
+    setUndo({
+      kind: 'xuantian.annotations.hall.undo',
+      v: 1,
+      savedAt: Date.now(),
+      note,
+      grotto: { ...grottoAnnotations },
+      relations: { ...relationAnnotations },
+    })
+  }
+
+  const cleanEmptyAnnotations = () => {
+    const purify = (raw: Record<string, { text?: unknown; updatedAt?: unknown }>) => {
+      const next: Record<string, { text: string; updatedAt: number }> = {}
+      let removed = 0
+      let kept = 0
+      for (const [id, a] of Object.entries(raw)) {
+        const text = typeof a?.text === 'string' ? a.text.trim() : ''
+        if (!text) {
+          removed += 1
+          continue
+        }
+        const updatedAt = typeof a?.updatedAt === 'number' ? a.updatedAt : 0
+        next[id] = { text, updatedAt }
+        kept += 1
+      }
+      return { next, removed, kept }
+    }
+
+    const grotto = purify(grottoAnnotations as unknown as Record<string, { text?: unknown; updatedAt?: unknown }>)
+    const relations = purify(relationAnnotations as unknown as Record<string, { text?: unknown; updatedAt?: unknown }>)
+
+    const totalRemoved = grotto.removed + relations.removed
+    if (totalRemoved === 0) {
+      flashMessage('无需清心：未发现空批注残留。')
+      hapticTap()
+      return
+    }
+
+    const ok = window.confirm(
+      [
+        '清心诀：剔除空批注',
+        '',
+        `洞府：剔除 ${grotto.removed} · 留存 ${grotto.kept}`,
+        `关系：剔除 ${relations.removed} · 留存 ${relations.kept}`,
+        '',
+        '确定：施诀',
+        '取消：作罢',
+      ].join('\n'),
+    )
+    if (!ok) return
+
+    stashUndo('剔除空批注')
+    setGrottoAnnotations(grotto.next)
+    setRelationAnnotations(relations.next)
+    hapticSuccess()
+    flashMessage(`清心诀已成：剔除 ${totalRemoved} 条空批注（可撤销）。`)
+  }
+
+  const clearSourceAnnotations = (source: 'grotto' | 'relations') => {
+    const label = source === 'grotto' ? '洞府图' : '关系谱'
+    const rawCount = source === 'grotto' ? Object.keys(grottoAnnotations).length : Object.keys(relationAnnotations).length
+    const liveCount = source === 'grotto' ? grottoCount : relationCount
+
+    if (rawCount === 0) {
+      flashMessage(`无需清空：${label}暂无批注。`)
+      hapticTap()
+      return
+    }
+
+    const ok = window.confirm(
+      [
+        `清心诀：清空${label}批注`,
+        '',
+        `有效批注：${liveCount} 条`,
+        `本地存量：${rawCount} 条`,
+        '',
+        '确定：清空（可撤销）',
+        '取消：作罢',
+      ].join('\n'),
+    )
+    if (!ok) return
+
+    stashUndo(`清空${label}批注`)
+    if (source === 'grotto') setGrottoAnnotations({})
+    else setRelationAnnotations({})
+    hapticSuccess()
+    flashMessage(`已清空${label}批注（可撤销）。`)
+  }
+
+  const undoLastClean = () => {
+    if (!undo || undo.kind !== 'xuantian.annotations.hall.undo' || undo.v !== 1) {
+      flashMessage('没有可撤销的清心。')
+      hapticTap()
+      return
+    }
+
+    const ok = window.confirm(
+      [
+        '回退印记：撤销上次清心',
+        '',
+        `上次施诀：${undo.note}`,
+        `落印时间：${formatDateTime(undo.savedAt)}`,
+        '',
+        '确定：撤销',
+        '取消：作罢',
+      ].join('\n'),
+    )
+    if (!ok) return
+
+    setGrottoAnnotations(undo.grotto ?? {})
+    setRelationAnnotations(undo.relations ?? {})
+    setUndo(null)
+    hapticSuccess()
+    flashMessage('已撤销上次清心。')
+  }
+
   const appendEntryToNotes = (it: AnnotationEntry) => {
     const ann = it.text.trim()
     if (!ann) {
@@ -838,6 +966,57 @@ export function AnnotationsPage() {
                 <Upload className="h-4 w-4" />
                 导入存档
                 <span className="ml-auto text-muted/70">↑</span>
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-fg">清心诀</div>
+              <div className="text-xs text-muted/70">留印可撤销</div>
+            </div>
+            <div className="mt-2 text-xs leading-6 text-muted/80">
+              只做三件事：剔除空批注、只清某一源、必要时撤销。每次施诀都会先落下“回退印记”。
+            </div>
+
+            {undo && undo.kind === 'xuantian.annotations.hall.undo' && undo.v === 1 ? (
+              <div className="mt-2 text-xs text-muted/75">
+                上次清心：{undo.note} · {formatDateTime(undo.savedAt)}
+              </div>
+            ) : (
+              <div className="mt-2 text-xs text-muted/75">回退印记：暂无</div>
+            )}
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <Button type="button" variant="outline" onClick={cleanEmptyAnnotations} className="justify-start">
+                <Trash2 className="h-4 w-4" />
+                剔除空批注
+                <span className="ml-auto text-muted/70">净</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => clearSourceAnnotations('grotto')}
+                className="justify-start border-[hsl(var(--warn)/.35)] text-[hsl(var(--warn))] hover:bg-[hsl(var(--warn)/.08)]"
+              >
+                <MapIcon className="h-4 w-4" />
+                清空洞府批注
+                <span className="ml-auto text-muted/70">危</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => clearSourceAnnotations('relations')}
+                className="justify-start border-[hsl(var(--warn)/.35)] text-[hsl(var(--warn))] hover:bg-[hsl(var(--warn)/.08)]"
+              >
+                <Waypoints className="h-4 w-4" />
+                清空关系批注
+                <span className="ml-auto text-muted/70">危</span>
+              </Button>
+              <Button type="button" variant="ghost" onClick={undoLastClean} className="justify-start" disabled={!undo}>
+                <RotateCcw className="h-4 w-4" />
+                撤销上次清心
+                <span className="ml-auto text-muted/70">↩</span>
               </Button>
             </div>
           </div>
