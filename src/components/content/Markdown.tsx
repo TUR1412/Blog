@@ -1,5 +1,5 @@
 import ReactMarkdown, { type Components } from 'react-markdown'
-import { isValidElement, memo, useMemo, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, memo, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -42,6 +42,77 @@ function flattenText(node: ReactNode): string {
   if (Array.isArray(node)) return node.map(flattenText).join('')
   if (isValidElement<{ children?: ReactNode }>(node)) return flattenText(node.props.children)
   return ''
+}
+
+type CalloutTone = 'calm' | 'bright' | 'good' | 'warn' | 'bad'
+type CalloutMeta = {
+  title: string
+  tone: CalloutTone
+  glyph: string
+}
+
+const CALLOUT_PRESETS: Record<string, CalloutMeta> = {
+  心法: { title: '心法', tone: 'good', glyph: '✦' },
+  戒律: { title: '戒律', tone: 'warn', glyph: '◆' },
+  异闻: { title: '异闻', tone: 'bright', glyph: '⟡' },
+  札记: { title: '札记', tone: 'calm', glyph: '•' },
+  注: { title: '注', tone: 'calm', glyph: '•' },
+  警: { title: '警', tone: 'bad', glyph: '⟁' },
+  禁: { title: '禁', tone: 'bad', glyph: '⟁' },
+
+  TIP: { title: '心法', tone: 'good', glyph: '✦' },
+  NOTE: { title: '注', tone: 'calm', glyph: '•' },
+  INFO: { title: '异闻', tone: 'bright', glyph: '⟡' },
+  WARN: { title: '戒律', tone: 'warn', glyph: '◆' },
+  WARNING: { title: '戒律', tone: 'warn', glyph: '◆' },
+  DANGER: { title: '禁', tone: 'bad', glyph: '⟁' },
+} as const
+
+function normalizeCalloutToken(raw: string) {
+  const t = raw.trim()
+  if (!t) return ''
+  if (/^[0-9A-Za-z_-]+$/.test(t)) return t.toUpperCase()
+  return t
+}
+
+function guessCalloutTone(token: string): CalloutTone {
+  if (!token) return 'calm'
+  if (
+    token === 'DANGER' ||
+    token.includes('警') ||
+    token.includes('禁') ||
+    token.includes('凶') ||
+    token.includes('危')
+  ) {
+    return 'bad'
+  }
+  if (token === 'WARN' || token === 'WARNING' || token.includes('戒') || token.includes('律')) return 'warn'
+  if (token === 'TIP' || token.includes('心') || token.includes('法')) return 'good'
+  if (token === 'INFO' || token.includes('闻')) return 'bright'
+  return 'calm'
+}
+
+function getCalloutMeta(tokenRaw: string): CalloutMeta | null {
+  const token = normalizeCalloutToken(tokenRaw)
+  if (!token) return null
+  if (CALLOUT_PRESETS[token]) return CALLOUT_PRESETS[token]
+  return { title: token, tone: guessCalloutTone(token), glyph: '◆' }
+}
+
+function parseCalloutMarker(raw: string): { token: string; rest: string } | null {
+  const m1 = raw.match(/^\s*\[!([^\]]+)\]\s*/u)
+  if (m1?.[1]) {
+    const token = normalizeCalloutToken(m1[1])
+    return { token, rest: raw.slice(m1[0].length) }
+  }
+
+  const m2 = raw.match(/^\s*【([^】]+)】\s*/u)
+  if (m2?.[1]) {
+    const token = normalizeCalloutToken(m2[1])
+    return { token, rest: raw.slice(m2[0].length) }
+  }
+
+  return null
 }
 
 function slugifyHeading(rawText: string, used: Set<string>, prefix: string) {
@@ -279,6 +350,97 @@ function buildComponents(opts: { idPrefix: string }): Components {
     )
   }
 
+  const blockquoteRenderer: Components['blockquote'] = ({ children, className, node, ...props }) => {
+    void node
+
+    const parts = Children.toArray(children)
+    const firstPIndex = parts.findIndex((p) => isValidElement(p) && p.type === 'p')
+    if (firstPIndex < 0) return <blockquote className={className} {...props}>{children}</blockquote>
+
+    const pEl = parts[firstPIndex]
+    if (!isValidElement<{ children?: ReactNode }>(pEl)) {
+      return <blockquote className={className} {...props}>{children}</blockquote>
+    }
+
+    const pChildren = Children.toArray(pEl.props.children)
+    const first = pChildren[0]
+    if (typeof first !== 'string') return <blockquote className={className} {...props}>{children}</blockquote>
+
+    const parsed = parseCalloutMarker(first)
+    const meta = parsed ? getCalloutMeta(parsed.token) : null
+    if (!parsed || !meta) return <blockquote className={className} {...props}>{children}</blockquote>
+
+    const toneFrame =
+      meta.tone === 'bad'
+        ? 'border-[hsl(var(--bad)/.30)] bg-gradient-to-br from-[hsl(var(--bad)/.14)] via-white/5 to-transparent'
+        : meta.tone === 'warn'
+          ? 'border-[hsl(var(--warn)/.30)] bg-gradient-to-br from-[hsl(var(--warn)/.14)] via-white/5 to-transparent'
+          : meta.tone === 'good'
+            ? 'border-[hsl(var(--good)/.30)] bg-gradient-to-br from-[hsl(var(--good)/.12)] via-white/5 to-transparent'
+            : meta.tone === 'bright'
+              ? 'border-[hsl(var(--accent2)/.30)] bg-gradient-to-br from-[hsl(var(--accent2)/.14)] via-white/5 to-transparent'
+              : 'border-border/60 bg-white/4'
+
+    const toneBar =
+      meta.tone === 'bad'
+        ? 'bg-gradient-to-b from-[hsl(var(--bad)/.85)] via-[hsl(var(--bad)/.25)] to-transparent'
+        : meta.tone === 'warn'
+          ? 'bg-gradient-to-b from-[hsl(var(--warn)/.85)] via-[hsl(var(--warn)/.25)] to-transparent'
+          : meta.tone === 'good'
+            ? 'bg-gradient-to-b from-[hsl(var(--good)/.85)] via-[hsl(var(--accent)/.22)] to-transparent'
+            : meta.tone === 'bright'
+              ? 'bg-gradient-to-b from-[hsl(var(--accent2)/.75)] via-[hsl(var(--accent)/.18)] to-transparent'
+              : 'bg-gradient-to-b from-white/18 via-white/8 to-transparent'
+
+    const toneBadge =
+      meta.tone === 'bad'
+        ? 'border-[hsl(var(--bad)/.35)] bg-[hsl(var(--bad)/.10)]'
+        : meta.tone === 'warn'
+          ? 'border-[hsl(var(--warn)/.35)] bg-[hsl(var(--warn)/.10)]'
+          : meta.tone === 'good'
+            ? 'border-[hsl(var(--good)/.35)] bg-[hsl(var(--good)/.10)]'
+            : meta.tone === 'bright'
+              ? 'border-[hsl(var(--accent2)/.35)] bg-[hsl(var(--accent2)/.10)]'
+              : 'border-border/70 bg-white/6'
+
+    const nextPChildren = [...pChildren]
+    if (parsed.rest) nextPChildren[0] = parsed.rest
+    else nextPChildren.shift()
+
+    const nextParts = [...parts]
+    if (nextPChildren.length === 0) {
+      nextParts.splice(firstPIndex, 1)
+    } else {
+      nextParts[firstPIndex] = cloneElement(pEl, { children: nextPChildren })
+    }
+
+    return (
+      <blockquote
+        data-x-callout={meta.title}
+        data-x-tone={meta.tone}
+        className={cn(
+          'relative my-6 overflow-hidden rounded-2xl border px-5 py-4 shadow-lift',
+          'before:content-none',
+          toneFrame,
+          className,
+        )}
+        {...props}
+      >
+        <div aria-hidden className={cn('pointer-events-none absolute inset-y-0 left-0 w-1', toneBar)} />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
+        <div className="not-prose mb-3 flex items-center gap-3">
+          <div className={cn('grid h-9 w-9 place-items-center rounded-xl border text-sm font-semibold text-fg/95', toneBadge)}>
+            {meta.glyph}
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-fg">{meta.title}</div>
+          </div>
+        </div>
+        {nextParts}
+      </blockquote>
+    )
+  }
+
   const imgRenderer: Components['img'] = ({ src, alt, className, node, ...props }) => {
     void node
     const s = typeof src === 'string' ? src : ''
@@ -364,6 +526,7 @@ function buildComponents(opts: { idPrefix: string }): Components {
   return {
     a: linkRenderer,
     code: codeRenderer,
+    blockquote: blockquoteRenderer,
     img: imgRenderer,
     table: tableRenderer,
     thead: theadRenderer,
@@ -424,7 +587,7 @@ export const Markdown = memo(function Markdown({
   if (!hasContent) return null
 
   return (
-    <div className={cn('prose prose-xuantian max-w-none', className)}>
+    <div className={cn('prose prose-xuantian xuantian-md max-w-none', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
         rehypePlugins={highlight ? [highlight] : []}

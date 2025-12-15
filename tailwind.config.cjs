@@ -79,7 +79,44 @@ module.exports = {
             'ul > li::marker': { color: 'hsl(var(--accent2) / 0.7)' },
             'ol > li::marker': { color: 'hsl(var(--accent) / 0.7)' },
 
-            h1: { letterSpacing: '-0.02em' },
+            strong: {
+              color: 'hsl(var(--fg) / 0.98)',
+              fontWeight: '700',
+              background:
+                'linear-gradient(180deg, transparent 62%, hsl(var(--accent2) / 0.16) 0)',
+              borderRadius: '10px',
+              padding: '0 0.12em',
+            },
+
+            h1: {
+              letterSpacing: '-0.03em',
+              position: 'relative',
+              paddingLeft: '1.05rem',
+              paddingBottom: '0.45rem',
+              borderBottom: '1px solid hsl(var(--border) / 0.55)',
+            },
+            'h1::before': {
+              content: '""',
+              position: 'absolute',
+              left: '0',
+              top: '0.72em',
+              width: '0.65rem',
+              height: '0.65rem',
+              borderRadius: '999px',
+              background:
+                'linear-gradient(135deg, hsl(var(--accent) / 0.95), hsl(var(--accent2) / 0.8))',
+              boxShadow: '0 0 0 6px hsl(var(--ring) / 0.12)',
+            },
+            'h1::after': {
+              content: '""',
+              position: 'absolute',
+              left: '1.05rem',
+              right: '0',
+              bottom: '-1px',
+              height: '1px',
+              background:
+                'linear-gradient(90deg, hsl(var(--accent) / 0.9), hsl(var(--accent2) / 0.45), transparent 72%)',
+            },
             h2: {
               letterSpacing: '-0.02em',
               position: 'relative',
@@ -125,6 +162,23 @@ module.exports = {
               borderRadius: '999px',
               background: 'hsl(var(--accent2) / 0.55)',
               boxShadow: '0 0 0 3px hsl(var(--ring) / 0.12)',
+            },
+
+            h4: {
+              letterSpacing: '-0.01em',
+              position: 'relative',
+              paddingLeft: '0.62rem',
+            },
+            'h4::before': {
+              content: '""',
+              position: 'absolute',
+              left: '0',
+              top: '0.9em',
+              width: '0.32rem',
+              height: '0.32rem',
+              borderRadius: '999px',
+              background: 'hsl(var(--accent) / 0.48)',
+              boxShadow: '0 0 0 3px hsl(var(--ring) / 0.10)',
             },
 
             blockquote: {
