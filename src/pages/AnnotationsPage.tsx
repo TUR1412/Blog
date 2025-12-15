@@ -473,38 +473,100 @@ export function AnnotationsPage() {
   const applyImported = (items: AnnotationsHallExportPayload['items']) => {
     const grottoIncoming: GrottoAnnotations = {}
     const relationIncoming: RelationAnnotations = {}
+    let skipped = 0
 
     for (const it of items) {
+      if (!it || typeof it !== 'object') {
+        skipped += 1
+        continue
+      }
+
       const text = typeof it.text === 'string' ? it.text.trim() : ''
-      if (!text) continue
+      if (!text) {
+        skipped += 1
+        continue
+      }
       const updatedAt = typeof it.updatedAt === 'number' ? it.updatedAt : Date.now()
 
       if (it.source === 'grotto') {
-        if (!timelineById.has(it.id)) continue
+        if (!timelineById.has(it.id)) {
+          skipped += 1
+          continue
+        }
         grottoIncoming[it.id] = { text, updatedAt }
-      } else {
-        if (!relationById.has(it.id)) continue
-        relationIncoming[it.id] = { text, updatedAt }
+        continue
       }
+
+      if (it.source === 'relations') {
+        if (!relationById.has(it.id)) {
+          skipped += 1
+          continue
+        }
+        relationIncoming[it.id] = { text, updatedAt }
+        continue
+      }
+
+      skipped += 1
     }
 
-    const count = Object.keys(grottoIncoming).length + Object.keys(relationIncoming).length
+    const grottoIncomingCount = Object.keys(grottoIncoming).length
+    const relationIncomingCount = Object.keys(relationIncoming).length
+    const count = grottoIncomingCount + relationIncomingCount
     if (count === 0) {
       window.alert('导入失败：存档里没有可识别的批注。')
       return
     }
 
-    const replace = window.confirm('导入方式：确定=覆盖现有两类批注；取消=合并（同一条以导入为准）。')
+    const diff = (incoming: Record<string, { text: string }>, current: Record<string, { text: string }>) => {
+      let add = 0
+      let update = 0
+      let same = 0
+      for (const [id, a] of Object.entries(incoming)) {
+        const prev = current[id]?.text?.trim() ?? ''
+        if (!prev) add += 1
+        else if (prev === a.text.trim()) same += 1
+        else update += 1
+      }
+      return { add, update, same }
+    }
+
+    const grottoDiff = diff(grottoIncoming, canonicalGrottoAnnotations)
+    const relationDiff = diff(relationIncoming, canonicalRelationAnnotations)
+
+    const previewLines = [
+      '导入预览（批注馆）',
+      '',
+      `洞府：新增 ${grottoDiff.add} · 覆盖 ${grottoDiff.update} · 无变化 ${grottoDiff.same}（有效 ${grottoIncomingCount}）`,
+      `关系：新增 ${relationDiff.add} · 覆盖 ${relationDiff.update} · 无变化 ${relationDiff.same}（有效 ${relationIncomingCount}）`,
+      skipped ? `跳过：${skipped} 条（空内容/未知节点/格式不符）` : null,
+      '',
+      '确定：继续导入',
+      '取消：放弃导入',
+    ].filter((x): x is string => typeof x === 'string')
+
+    const proceed = window.confirm(previewLines.join('\n'))
+    if (!proceed) return
+
+    const modeLines = [
+      '导入方式选择',
+      '',
+      '确定：覆盖（只保留导入内容；未包含的批注会被清掉）',
+      '取消：合并（保留现有批注；同一条以导入为准）',
+    ]
+    const replace = window.confirm(modeLines.join('\n'))
+
     if (replace) {
       setGrottoAnnotations(grottoIncoming)
       setRelationAnnotations(relationIncoming)
-    } else {
-      setGrottoAnnotations((prev) => ({ ...prev, ...grottoIncoming }))
-      setRelationAnnotations((prev) => ({ ...prev, ...relationIncoming }))
+      hapticSuccess()
+      flashMessage(`已覆盖导入：洞府 ${grottoIncomingCount} · 关系 ${relationIncomingCount}。`)
+      return
     }
 
+    setGrottoAnnotations((prev) => ({ ...prev, ...grottoIncoming }))
+    setRelationAnnotations((prev) => ({ ...prev, ...relationIncoming }))
     hapticSuccess()
-    flashMessage(`已导入批注：${count} 条。`)
+    flashMessage(`已合并导入：洞府 ${grottoIncomingCount} · 关系 ${relationIncomingCount}。`)
   }
 
   const importArchive = async (file: File) => {
