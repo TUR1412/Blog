@@ -1,12 +1,13 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Download, Eraser, Sparkles, Clipboard, Upload, PencilLine, ScrollText } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { Markdown } from '../components/content/Markdown'
+import { extractMarkdownHeadings, Markdown } from '../components/content/Markdown'
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
@@ -32,6 +33,7 @@ function formatTime(ts: number) {
 
 export function NotesPage() {
   const reduceMotion = useReducedMotion()
+  const [searchParams, setSearchParams] = useSearchParams()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const flashTimerRef = useRef<number | null>(null)
@@ -41,6 +43,8 @@ export function NotesPage() {
   )
   const [flash, setFlash] = useState<string | null>(null)
   const [view, setView] = useLocalStorageState<NotesView>(STORAGE_KEYS.notesView, 'edit')
+  const [handledAnchor, setHandledAnchor] = useState('')
+  const [activeHeadingId, setActiveHeadingId] = useState('')
 
   const flashMessage = (msg: string) => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
@@ -59,6 +63,86 @@ export function NotesPage() {
     if (!s) return 0
     return s.replace(/\s+/g, '').length
   }, [text])
+
+  const toc = useMemo(() => extractMarkdownHeadings(text, { idPrefix: 'notes-' }), [text])
+
+  const scrollToHeading = (id: string) => {
+    if (!id) return
+    const el = document.getElementById(id)
+    if (!el) return
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }
+
+  useEffect(() => {
+    const fromUrl = searchParams.get('view')
+    if (fromUrl === 'edit' || fromUrl === 'scroll') {
+      if (fromUrl !== view) setView(fromUrl)
+    }
+  }, [searchParams, setView, view])
+
+  useEffect(() => {
+    if (view !== 'scroll') return
+    const h = searchParams.get('h') ?? ''
+    if (!h) return
+    if (handledAnchor === h) return
+
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(h)
+      if (el) el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+      setHandledAnchor(h)
+    }, 0)
+
+    return () => window.clearTimeout(t)
+  }, [handledAnchor, reduceMotion, searchParams, view])
+
+  useEffect(() => {
+    if (view !== 'scroll') return
+    const t = window.setTimeout(() => {
+      if (!toc.length) {
+        setActiveHeadingId('')
+        return
+      }
+      setActiveHeadingId((prev) => (toc.some((h) => h.id === prev) ? prev : toc[0].id))
+    }, 0)
+
+    return () => window.clearTimeout(t)
+  }, [toc, view])
+
+  useEffect(() => {
+    if (view !== 'scroll') return
+    if (!toc.length) return
+    if (!('IntersectionObserver' in window)) return
+
+    let observer: IntersectionObserver | null = null
+    const t = window.setTimeout(() => {
+      const elements = toc
+        .map((h) => document.getElementById(h.id))
+        .filter(Boolean) as HTMLElement[]
+
+      if (elements.length === 0) return
+
+      observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries.filter((e) => e.isIntersecting)
+          if (visible.length === 0) return
+          visible.sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))
+          const top = visible[0]
+          setActiveHeadingId(top.target.id)
+        },
+        {
+          threshold: [0, 0.1, 0.2, 0.35, 0.5, 0.75, 1],
+          rootMargin: '-18% 0px -72% 0px',
+        },
+      )
+
+      for (const el of elements) observer.observe(el)
+    }, 0)
+
+    return () => {
+      window.clearTimeout(t)
+      observer?.disconnect()
+    }
+  }, [toc, view])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -98,6 +182,10 @@ export function NotesPage() {
     ].join('\n')
 
     setView('edit')
+    const next = new URLSearchParams(searchParams)
+    next.set('view', 'edit')
+    next.delete('h')
+    setSearchParams(next, { replace: true })
     setText((prev) => (prev.trim() ? `${prev}\n\n${template}` : template))
     window.setTimeout(() => textareaRef.current?.focus(), 0)
   }
@@ -230,6 +318,10 @@ export function NotesPage() {
               onClick={() => {
                 setView('edit')
                 hapticTap()
+                const next = new URLSearchParams(searchParams)
+                next.set('view', 'edit')
+                next.delete('h')
+                setSearchParams(next, { replace: true })
                 window.setTimeout(() => textareaRef.current?.focus(), 0)
               }}
               className="inline-flex items-center gap-2"
@@ -242,6 +334,9 @@ export function NotesPage() {
               onClick={() => {
                 setView('scroll')
                 hapticTap()
+                const next = new URLSearchParams(searchParams)
+                next.set('view', 'scroll')
+                setSearchParams(next, { replace: true })
               }}
               className="inline-flex items-center gap-2"
             >
@@ -275,6 +370,10 @@ export function NotesPage() {
                       variant="ghost"
                       onClick={() => {
                         setView('edit')
+                        const next = new URLSearchParams(searchParams)
+                        next.set('view', 'edit')
+                        next.delete('h')
+                        setSearchParams(next, { replace: true })
                         window.setTimeout(() => textareaRef.current?.focus(), 0)
                         hapticTap()
                       }}
@@ -303,7 +402,7 @@ export function NotesPage() {
           ) : (
             <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-5">
               {text.trim() ? (
-                <Markdown text={text} />
+                <Markdown text={text} idPrefix="notes-" />
               ) : (
                 <div className="text-sm leading-7 text-muted/85">此卷尚空。切回“执笔”，先落一句。</div>
               )}
@@ -368,6 +467,44 @@ export function NotesPage() {
           <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
             小提示：<span className="text-fg/85">文卷</span>适合阅读与备份；<span className="text-fg/85">存档</span>保留元信息，便于以后再导入续写。
           </div>
+
+          {view === 'scroll' && toc.length ? (
+            <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-fg">经卷目录</div>
+                <div className="text-xs text-muted/70">{toc.length} 目</div>
+              </div>
+              <div className="mt-2 grid gap-1">
+                {toc.map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    className={cn(
+                      'focus-ring tap w-full rounded-xl border border-border/60 px-3 py-2 text-left text-sm',
+                      h.id === activeHeadingId
+                        ? 'bg-white/10 text-fg ring-1 ring-white/10'
+                        : 'bg-white/4 text-fg/90 hover:bg-white/7',
+                    )}
+                    style={{ paddingLeft: `${Math.min(20, Math.max(12, 12 + (h.level - 1) * 8))}px` }}
+                    onClick={() => {
+                      setView('scroll')
+                      hapticTap()
+                      scrollToHeading(h.id)
+                      const next = new URLSearchParams(searchParams)
+                      next.set('view', 'scroll')
+                      next.set('h', h.id)
+                      setSearchParams(next, { replace: true })
+                    }}
+                  >
+                    {h.text}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 text-xs leading-6 text-muted/75">
+                可分享定位：把 <span className="text-fg/85">定位：/notes?view=scroll&amp;h=…</span> 写进札记，即可一键回到此处。
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-sm">
             <div className="flex items-center justify-between">

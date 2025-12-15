@@ -327,8 +327,8 @@ export function ChroniclePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: reduceMotion ? 0 : idx * 0.05, type: 'spring', stiffness: 420, damping: 34 }}
                 >
-                  <h2 className="text-lg font-semibold text-fg">{s.heading}</h2>
-                  <div className="mt-3 grid gap-3">
+                  <div className="prose prose-xuantian max-w-none">
+                    <h2 className="text-lg font-semibold text-fg">{s.heading}</h2>
                     {s.paragraphs.map((p, pi) => {
                       const pid = `p-${idx + 1}-${pi + 1}`
                       return (
@@ -336,8 +336,8 @@ export function ChroniclePage() {
                           key={pid}
                           id={pid}
                           className={cn(
-                            'scroll-mt-28 text-sm leading-7 text-muted/85 transition-colors',
-                            pid === activeParagraphId && 'rounded-xl bg-white/5 outline outline-1 outline-white/10',
+                            'scroll-mt-28 transition-colors',
+                            pid === activeParagraphId && 'rounded-xl bg-white/5 px-4 py-3 outline outline-1 outline-white/10',
                           )}
                         >
                           {p}

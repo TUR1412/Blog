@@ -721,18 +721,18 @@ export function AnnotationsPage() {
     flashMessage(`已清空${label}批注（可撤销）。`)
   }
 
-  const undoLastClean = () => {
+  const undoLastOperation = () => {
     if (!undo || undo.kind !== 'xuantian.annotations.hall.undo' || undo.v !== 1) {
-      flashMessage('没有可撤销的清心。')
+      flashMessage('没有可撤销的回退印记。')
       hapticTap()
       return
     }
 
     const ok = window.confirm(
       [
-        '回退印记：撤销上次清心',
+        '回退印记：撤销上次变更',
         '',
-        `上次施诀：${undo.note}`,
+        `上次变更：${undo.note}`,
         `落印时间：${formatDateTime(undo.savedAt)}`,
         '',
         '确定：撤销',
@@ -745,7 +745,7 @@ export function AnnotationsPage() {
     setRelationAnnotations(undo.relations ?? {})
     setUndo(null)
     hapticSuccess()
-    flashMessage('已撤销上次清心。')
+    flashMessage('已撤销上次变更。')
   }
 
   const downloadBackup = () => {
@@ -769,6 +769,42 @@ export function AnnotationsPage() {
     URL.revokeObjectURL(url)
     hapticSuccess()
     flashMessage('已下载护卷符快照。')
+  }
+
+  const restoreFromBackup = () => {
+    if (!backup || backup.kind !== 'xuantian.annotations.hall.backup' || backup.v !== 1) {
+      flashMessage('暂无可用的护卷符快照。')
+      hapticTap()
+      return
+    }
+
+    const countValid = (raw: Record<string, { text?: unknown }>) =>
+      Object.values(raw).reduce((acc, a) => acc + (typeof a?.text === 'string' && a.text.trim() ? 1 : 0), 0)
+
+    const backupGrottoCount = countValid(backup.grotto as unknown as Record<string, { text?: unknown }>)
+    const backupRelationCount = countValid(backup.relations as unknown as Record<string, { text?: unknown }>)
+
+    const ok = window.confirm(
+      [
+        '回魂灯：从护卷符恢复',
+        '',
+        '将用护卷符快照覆盖当前批注馆（洞府 + 关系）。',
+        `护卷符：${backup.reason} · ${formatDateTime(backup.savedAt)}`,
+        '',
+        `快照有效：洞府 ${backupGrottoCount} · 关系 ${backupRelationCount}`,
+        `当前有效：洞府 ${grottoCount} · 关系 ${relationCount}`,
+        '',
+        '确定：恢复（可撤销）',
+        '取消：作罢',
+      ].join('\n'),
+    )
+    if (!ok) return
+
+    stashUndo(`回魂灯：恢复前（${backup.reason}）`)
+    setGrottoAnnotations(backup.grotto ?? {})
+    setRelationAnnotations(backup.relations ?? {})
+    hapticSuccess()
+    flashMessage('已从护卷符恢复（可撤销）。')
   }
 
   const appendEntryToNotes = (it: AnnotationEntry) => {
@@ -1028,7 +1064,7 @@ export function AnnotationsPage() {
               <div className="text-xs text-muted/70">留印可撤销</div>
             </div>
             <div className="mt-2 text-xs leading-6 text-muted/80">
-              导入存档或施诀前会自动落下一枚“护卷符快照”，可一键下载备份；每次施诀也会留下“回退印记”，便于撤销。
+              导入存档或施诀前会自动落下一枚“护卷符快照”，可一键下载备份；回魂灯会用它覆盖当前批注，并生成“恢复前”回退印记。
             </div>
 
             {backup && backup.kind === 'xuantian.annotations.hall.backup' && backup.v === 1 ? (
@@ -1050,6 +1086,17 @@ export function AnnotationsPage() {
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
               <Button
                 type="button"
+                variant="outline"
+                onClick={restoreFromBackup}
+                className="justify-start border-[hsl(var(--warn)/.35)] text-[hsl(var(--warn))] hover:bg-[hsl(var(--warn)/.08)]"
+                disabled={!backup || backup.kind !== 'xuantian.annotations.hall.backup' || backup.v !== 1}
+              >
+                <BookOpen className="h-4 w-4" />
+                回魂灯：从护卷符恢复
+                <span className="ml-auto text-muted/70">↻</span>
+              </Button>
+              <Button
+                type="button"
                 variant="ghost"
                 onClick={downloadBackup}
                 className="justify-start"
@@ -1062,12 +1109,12 @@ export function AnnotationsPage() {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={undoLastClean}
+                onClick={undoLastOperation}
                 className="justify-start"
                 disabled={!undo || undo.kind !== 'xuantian.annotations.hall.undo' || undo.v !== 1}
               >
                 <RotateCcw className="h-4 w-4" />
-                撤销上次清心
+                撤销上次变更
                 <span className="ml-auto text-muted/70">↩</span>
               </Button>
               <Button type="button" variant="outline" onClick={cleanEmptyAnnotations} className="justify-start">
