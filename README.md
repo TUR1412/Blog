@@ -42,6 +42,14 @@ npm run build
 npm run preview
 ```
 
+## 部署到 GitHub Pages
+
+本仓库已内置 GitHub Actions 工作流：推送到 `main` 会自动 `npm ci` + `npm run build`，并把 `dist/` 发布到 GitHub Pages。
+
+1. 在 GitHub 仓库打开：Settings → Pages
+2. Source 选择：GitHub Actions
+3. 等待 Actions 跑完后，访问：`https://<username>.github.io/Blog/`
+
 ## 约束
 
 - 站点正文只围绕“修仙纪事与人物志”，避免无关内容。
