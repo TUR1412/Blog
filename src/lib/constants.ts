@@ -1,10 +1,11 @@
-export const APP_VERSION = '2025.12.15.22'
-export const ASSET_VERSION = '20251215-22'
+export const APP_VERSION = '2025.12.15.23'
+export const ASSET_VERSION = '20251215-23'
 
 export const STORAGE_KEYS = {
   theme: 'xuantian.theme',
   notes: 'xuantian.notes.v1',
   notesMeta: 'xuantian.notesMeta.v1',
+  notesView: 'xuantian.notes.view.v1',
   tagFilter: 'xuantian.chronicles.tag',
   treasureOrder: 'xuantian.treasures.order.v1',
   bookmarks: 'xuantian.bookmarks.v1',

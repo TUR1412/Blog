@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -1152,8 +1153,8 @@ export function AnnotationsPage() {
                         </div>
                       </div>
 
-                      <div className="mt-3 whitespace-pre-wrap rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-sm leading-7 text-fg/90">
-                        {it.text}
+                      <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3">
+                        <Markdown text={it.text} className="prose-sm leading-7" />
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">

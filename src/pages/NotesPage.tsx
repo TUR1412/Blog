@@ -1,15 +1,20 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Download, Eraser, Sparkles, Clipboard, Upload } from 'lucide-react'
+import { Download, Eraser, Sparkles, Clipboard, Upload, PencilLine, ScrollText } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
+import { Markdown } from '../components/content/Markdown'
+import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
+import { hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
+type NotesView = 'edit' | 'scroll'
 type NotesExportPayload = {
   kind: 'xuantian.notes'
   v: 1
@@ -35,6 +40,7 @@ export function NotesPage() {
     readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 }),
   )
   const [flash, setFlash] = useState<string | null>(null)
+  const [view, setView] = useLocalStorageState<NotesView>(STORAGE_KEYS.notesView, 'edit')
 
   const flashMessage = (msg: string) => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
@@ -68,6 +74,14 @@ export function NotesPage() {
     return () => window.clearTimeout(t)
   }, [text])
 
+  useEffect(() => {
+    if (view !== 'edit') return
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [text, view])
+
   const insertTemplate = () => {
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -83,6 +97,7 @@ export function NotesPage() {
       '- （可从纪事页“收入札记”一键带入）',
     ].join('\n')
 
+    setView('edit')
     setText((prev) => (prev.trim() ? `${prev}\n\n${template}` : template))
     window.setTimeout(() => textareaRef.current?.focus(), 0)
   }
@@ -208,6 +223,34 @@ export function NotesPage() {
         <Card className="lg:col-span-8">
           <SectionHeading title="正文" subtitle="输入即保存；刷新不丢。" />
 
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="text-xs text-muted/70">观法</div>
+            <Chip
+              selected={view === 'edit'}
+              onClick={() => {
+                setView('edit')
+                hapticTap()
+                window.setTimeout(() => textareaRef.current?.focus(), 0)
+              }}
+              className="inline-flex items-center gap-2"
+            >
+              <PencilLine className="h-3.5 w-3.5" />
+              执笔
+            </Chip>
+            <Chip
+              selected={view === 'scroll'}
+              onClick={() => {
+                setView('scroll')
+                hapticTap()
+              }}
+              className="inline-flex items-center gap-2"
+            >
+              <ScrollText className="h-3.5 w-3.5" />
+              经卷观
+            </Chip>
+            <div className="ml-auto text-xs text-muted/70">Markdown 排版已启用</div>
+          </div>
+
           {empty ? (
             <div className="rounded-xl border border-border/60 bg-white/4 p-6">
               <div className="flex items-start gap-4">
@@ -223,11 +266,19 @@ export function NotesPage() {
                   <div className="mt-1 text-sm leading-7 text-muted/85">
                     先写三问，最容易起笔：分寸、规矩、慢半拍。写完再回去读纪事，会更有味道。
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                     <Button type="button" onClick={insertTemplate}>
                       插入“今日三问”
                     </Button>
-                    <Button type="button" variant="ghost" onClick={() => textareaRef.current?.focus()}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setView('edit')
+                        window.setTimeout(() => textareaRef.current?.focus(), 0)
+                        hapticTap()
+                      }}
+                    >
                       直接开写
                     </Button>
                   </div>
@@ -236,18 +287,28 @@ export function NotesPage() {
             </div>
           ) : null}
 
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={18}
-            placeholder="写点真话：你今天守住了什么？你今天差点偏到哪里？"
-            className={cn(
-              'mt-4 w-full resize-y rounded-xl border border-border/70 bg-white/4 px-4 py-4',
-              'text-sm leading-7 text-fg placeholder:text-muted/70',
-              'focus-ring',
-            )}
-          />
+          {view === 'edit' ? (
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={12}
+              placeholder="写点真话：你今天守住了什么？你今天差点偏到哪里？"
+              className={cn(
+                'mt-4 w-full rounded-xl border border-border/70 bg-white/4 px-4 py-4',
+                'text-sm leading-7 text-fg placeholder:text-muted/70',
+                'focus-ring overflow-hidden',
+              )}
+            />
+          ) : (
+            <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-5">
+              {text.trim() ? (
+                <Markdown text={text} />
+              ) : (
+                <div className="text-sm leading-7 text-muted/85">此卷尚空。切回“执笔”，先落一句。</div>
+              )}
+            </div>
+          )}
         </Card>
 
         <Card className="lg:col-span-4">
