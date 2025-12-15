@@ -278,6 +278,75 @@ function buildComponents(opts: { idPrefix: string }): Components {
     )
   }
 
+  const imgRenderer: Components['img'] = ({ src, alt, className, node, ...props }) => {
+    void node
+    const s = typeof src === 'string' ? src : ''
+    const a = typeof alt === 'string' ? alt : ''
+    return (
+      <img
+        src={s}
+        alt={a}
+        loading="lazy"
+        decoding="async"
+        className={cn('rounded-2xl border border-border/60 bg-white/2 shadow-lift', className)}
+        {...props}
+      />
+    )
+  }
+
+  const tableRenderer: Components['table'] = ({ children, className, node, ...props }) => {
+    void node
+    return (
+      <div className="not-prose my-6 overflow-x-auto rounded-2xl border border-border/60 bg-white/4 shadow-lift">
+        <table className={cn('w-full min-w-[560px] border-collapse text-sm', className)} {...props}>
+          {children}
+        </table>
+      </div>
+    )
+  }
+
+  const theadRenderer: Components['thead'] = ({ children, className, node, ...props }) => {
+    void node
+    return (
+      <thead className={cn('bg-white/5 text-xs font-semibold text-fg/90', className)} {...props}>
+        {children}
+      </thead>
+    )
+  }
+
+  const tbodyRenderer: Components['tbody'] = ({ children, className, node, ...props }) => {
+    void node
+    return (
+      <tbody
+        className={cn('divide-y divide-border/50 [&>tr:nth-child(even)]:bg-white/2', className)}
+        {...props}
+      >
+        {children}
+      </tbody>
+    )
+  }
+
+  const thRenderer: Components['th'] = ({ children, className, node, ...props }) => {
+    void node
+    return (
+      <th
+        className={cn('whitespace-nowrap border-b border-border/60 px-4 py-3 text-left font-semibold text-fg/90', className)}
+        {...props}
+      >
+        {children}
+      </th>
+    )
+  }
+
+  const tdRenderer: Components['td'] = ({ children, className, node, ...props }) => {
+    void node
+    return (
+      <td className={cn('px-4 py-3 align-top text-fg/85', className)} {...props}>
+        {children}
+      </td>
+    )
+  }
+
   const makeHeading =
     (Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'): Components[typeof Tag] =>
     ({ className, children, node, ...props }) => {
@@ -294,6 +363,12 @@ function buildComponents(opts: { idPrefix: string }): Components {
   return {
     a: linkRenderer,
     code: codeRenderer,
+    img: imgRenderer,
+    table: tableRenderer,
+    thead: theadRenderer,
+    tbody: tbodyRenderer,
+    th: thRenderer,
+    td: tdRenderer,
     h1: makeHeading('h1'),
     h2: makeHeading('h2'),
     h3: makeHeading('h3'),
