@@ -5,7 +5,7 @@ import { Badge } from '../components/ui/Badge'
 import { ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { timeline } from '../content/timeline'
+import { timeline, timelineLayerLabel } from '../content/timeline'
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 
@@ -133,7 +133,12 @@ export function AboutPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-xs text-muted/70">{t.when}</div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted/70">
+                          <span>{t.when}</span>
+                          <span className="rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
+                            {timelineLayerLabel(t.layer)}
+                          </span>
+                        </div>
                         <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
                         <div className="mt-1 text-xs leading-6 text-muted/80">{t.detail}</div>
                       </div>

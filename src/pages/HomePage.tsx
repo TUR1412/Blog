@@ -7,7 +7,7 @@ import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import { chronicles } from '../content/chronicles'
-import { timeline } from '../content/timeline'
+import { timeline, timelineLayerLabel } from '../content/timeline'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { readJson, writeString } from '../lib/storage'
@@ -292,7 +292,12 @@ export function HomePage() {
             <div className="grid gap-3">
               {timeline.slice(0, 5).map((t) => (
                 <div key={t.id} className="rounded-xl border border-border/60 bg-white/4 px-4 py-3">
-                  <div className="text-xs text-muted/70">{t.when}</div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted/70">
+                    <span>{t.when}</span>
+                    <span className="rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
+                      {timelineLayerLabel(t.layer)}
+                    </span>
+                  </div>
                   <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
                   <div className="mt-1 text-xs leading-6 text-muted/80">{t.detail}</div>
                 </div>
@@ -329,7 +334,7 @@ export function HomePage() {
           <Card className="lg:col-span-8">
             <SectionHeading title="藏品小录" subtitle="可拖拽排序，像把旧物摆回心里合适的位置。" />
             <div className="grid gap-2 sm:grid-cols-2">
-              {['旧茶盏', '门外灯芯', '点脊剑', '药单册'].map((name) => (
+              {['旧茶盏', '门外灯芯', '经阁镇纸', '药单册'].map((name) => (
                 <div key={name} className="rounded-xl border border-border/60 bg-white/4 px-4 py-4">
                   <div className="text-sm font-semibold text-fg">{name}</div>
                   <div className="mt-1 text-xs text-muted/80">点进“藏品”可拖拽整理。</div>

@@ -1,3 +1,16 @@
+export type TimelineLayer = 1 | 2 | 3 | 4
+
+export const TIMELINE_LAYER_META: Record<TimelineLayer, { label: string; hint: string }> = {
+  1: { label: '立身', hint: '先把脚下站稳：规矩、耐心、手上要干净。' },
+  2: { label: '立名', hint: '名声不是用来换便宜，是用来被检验。' },
+  3: { label: '立规', hint: '把争端写成章法：让后来人照着做。' },
+  4: { label: '立秤', hint: '端秤不压人：秤压的是规矩，不是人。' },
+}
+
+export function timelineLayerLabel(layer: TimelineLayer) {
+  return TIMELINE_LAYER_META[layer]?.label ?? '未定'
+}
+
 export type TimelineEvent = {
   id: string
   when: string
@@ -6,6 +19,7 @@ export type TimelineEvent = {
   long?: string
   chronicleSlug?: string
   tone?: 'calm' | 'bright' | 'warn'
+  layer: TimelineLayer
 }
 
 export const timeline: TimelineEvent[] = [
@@ -17,14 +31,17 @@ export const timeline: TimelineEvent[] = [
     long: '他初入山门时没有“惊天异象”。最先学的是把桶挑稳、把话说清：不抢别人一步，也不让自己的诺言松半分。',
     chronicleSlug: 'frost-moon-lantern',
     tone: 'calm',
+    layer: 1,
   },
   {
     id: 't-176-1',
     when: '玄历一七六年 · 夏至',
     title: '内门初入',
     detail: '开始抄经与守夜，常把“稳”挂在嘴边。',
-    long: '内门规矩更细：火候、心气、值夜的时辰都要对得上。他不爱讲大道理，只把“该做的事”做得干净。',
+    long: '内门规矩更细：火候、心气、值夜的时辰都要对得上。他不爱讲大道理，只把“该做的事”做得干净；抄经抄到手酸，也不抄捷径。',
+    chronicleSlug: 'summer-solstice-sutra-copying',
     tone: 'calm',
+    layer: 1,
   },
   {
     id: 't-178-1',
@@ -34,6 +51,7 @@ export const timeline: TimelineEvent[] = [
     long: '他赢得不靠狠话，靠分寸：该止就止，该收就收。对手输得明白，也留得住脸面。',
     chronicleSlug: 'four-seas-sword-asking',
     tone: 'bright',
+    layer: 2,
   },
   {
     id: 't-180-1',
@@ -43,6 +61,7 @@ export const timeline: TimelineEvent[] = [
     long: '他说“欠的是汤钱，不是名头”。于是还账、请医、修木板，一件件做完，像把一段人情摆回正路。',
     chronicleSlug: 'broken-bridge-old-promise',
     tone: 'calm',
+    layer: 2,
   },
   {
     id: 't-182-1',
@@ -52,6 +71,7 @@ export const timeline: TimelineEvent[] = [
     long: '清泉不大，却牵动三村与药圃。轩少不以名头压人，只把时辰、桶数、轮次写清，再立几块界石，让人“记得住、照着做”。',
     chronicleSlug: 'clear-spring-boundary-stones',
     tone: 'warn',
+    layer: 3,
   },
   {
     id: 't-183-1',
@@ -61,6 +81,7 @@ export const timeline: TimelineEvent[] = [
     long: '他留的是药单与回访的次序：谁先稳气血、谁忌什么、何时再诊。人救回来之后，医馆也能照着办下去。',
     chronicleSlug: 'northern-famine-dan-rescue',
     tone: 'bright',
+    layer: 3,
   },
   {
     id: 't-184-1',
@@ -70,14 +91,17 @@ export const timeline: TimelineEvent[] = [
     long: '他把守夜写成册：先敲小钟，再派两人去看；不许一个人逞强。少了“英雄”，多了平安。',
     chronicleSlug: 'bell-tower-night-watch',
     tone: 'calm',
+    layer: 3,
   },
   {
     id: 't-186-1',
     when: '玄历一八六年 · 白露',
     title: '诸宗公议',
     detail: '提出可执行细则，先立边界，再谈威望。',
-    long: '他把誓词翻出来逐条对照，逼众人面对自己的承诺。规矩之所以能立住，是因为它也能约束“强者”。',
+    long: '他把誓词翻出来逐条对照，逼众人面对自己的承诺。规矩之所以能立住，是因为它也能约束“强者”。那夜他在灯下写了两页细则，第二天就拿去公议台上逐条过。',
+    chronicleSlug: 'white-dew-oath-ledger',
     tone: 'warn',
+    layer: 4,
   },
   {
     id: 't-187-1',
@@ -87,5 +111,6 @@ export const timeline: TimelineEvent[] = [
     long: '“轩天帝”多用于公文抬头；私下仍叫“轩少”。他更愿意被记作一个端秤的人，而不是被吹成天上来的神话。',
     chronicleSlug: 'after-ascension-not-boast',
     tone: 'bright',
+    layer: 4,
   },
 ]

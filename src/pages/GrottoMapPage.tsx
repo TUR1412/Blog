@@ -1,18 +1,42 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, BookOpen, Compass, NotebookPen, Search, X } from 'lucide-react'
+import { ArrowRight, BookOpen, Compass, Layers, NotebookPen, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { timeline, type TimelineEvent } from '../content/timeline'
+import {
+  TIMELINE_LAYER_META,
+  timelineLayerLabel,
+  timeline,
+  type TimelineEvent,
+  type TimelineLayer,
+} from '../content/timeline'
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
+import { hapticSuccess } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
+
+type ToneFilter = 'all' | 'calm' | 'bright' | 'warn'
+type LayerFilter = 'all' | TimelineLayer
+
+function parseTone(raw: string | null): ToneFilter | null {
+  if (!raw) return null
+  if (raw === 'all' || raw === 'calm' || raw === 'bright' || raw === 'warn') return raw
+  return null
+}
+
+function parseLayer(raw: string | null): LayerFilter | null {
+  if (!raw) return null
+  if (raw === 'all') return 'all'
+  if (raw === '1' || raw === '2' || raw === '3' || raw === '4') return Number(raw) as TimelineLayer
+  return null
+}
 
 function toneClass(tone: TimelineEvent['tone']) {
   if (tone === 'bright') return 'from-[hsl(var(--accent)/.22)] via-white/8 to-transparent'
@@ -27,20 +51,39 @@ export function GrottoMapPage() {
     STORAGE_KEYS.grottoSelected,
     '',
   )
+  const [storedLayer, setStoredLayer] = useLocalStorageState<string>(STORAGE_KEYS.grottoLayer, 'all')
+  const [storedTone, setStoredTone] = useLocalStorageState<string>(STORAGE_KEYS.grottoTone, 'all')
   const [query, setQuery] = useState('')
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const keyboardNavRef = useRef(false)
 
   const byId = useMemo(() => new Map(timeline.map((t) => [t.id, t] as const)), [])
 
+  const toneFilter = useMemo<ToneFilter>(() => {
+    const fromUrl = parseTone(searchParams.get('tone'))
+    if (fromUrl) return fromUrl
+    const fromStore = parseTone(storedTone)
+    return fromStore ?? 'all'
+  }, [searchParams, storedTone])
+
+  const layerFilter = useMemo<LayerFilter>(() => {
+    const fromUrl = parseLayer(searchParams.get('layer'))
+    if (fromUrl) return fromUrl
+    const fromStore = parseLayer(storedLayer)
+    return fromStore ?? 'all'
+  }, [searchParams, storedLayer])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return timeline
     return timeline.filter((t) => {
+      if (layerFilter !== 'all' && t.layer !== layerFilter) return false
+      if (toneFilter !== 'all' && (t.tone ?? 'calm') !== toneFilter) return false
+      if (!q) return true
       const hay = `${t.when} ${t.title} ${t.detail} ${t.long ?? ''}`.toLowerCase()
       return hay.includes(q)
     })
-  }, [query])
+  }, [layerFilter, query, toneFilter])
 
   const selectedId = useMemo(() => {
     const fromUrl = searchParams.get('id')
@@ -60,9 +103,11 @@ export function GrottoMapPage() {
   const selectId = useCallback(
     (id: string) => {
       if (!id) return
-      setSearchParams({ id }, { replace: true })
+      const next = new URLSearchParams(searchParams)
+      next.set('id', id)
+      setSearchParams(next, { replace: true })
     },
-    [setSearchParams],
+    [searchParams, setSearchParams],
   )
 
   useEffect(() => {
@@ -71,13 +116,42 @@ export function GrottoMapPage() {
   }, [selectedId, setStoredSelectedId])
 
   useEffect(() => {
-    if (!selectedId) return
-    const fromUrl = searchParams.get('id')
-    if (fromUrl === selectedId) return
+    setStoredTone(toneFilter)
+  }, [toneFilter, setStoredTone])
+
+  useEffect(() => {
+    setStoredLayer(layerFilter === 'all' ? 'all' : String(layerFilter))
+  }, [layerFilter, setStoredLayer])
+
+  useEffect(() => {
     const next = new URLSearchParams(searchParams)
-    next.set('id', selectedId)
+    let changed = false
+
+    if (selectedId) {
+      const fromUrl = next.get('id')
+      if (fromUrl !== selectedId) {
+        next.set('id', selectedId)
+        changed = true
+      }
+    }
+
+    const canonical = toneFilter === 'all' ? '' : toneFilter
+    if ((next.get('tone') ?? '') !== canonical) {
+      if (!canonical) next.delete('tone')
+      else next.set('tone', canonical)
+      changed = true
+    }
+
+    const canonicalLayer = layerFilter === 'all' ? '' : String(layerFilter)
+    if ((next.get('layer') ?? '') !== canonicalLayer) {
+      if (!canonicalLayer) next.delete('layer')
+      else next.set('layer', canonicalLayer)
+      changed = true
+    }
+
+    if (!changed) return
     setSearchParams(next, { replace: true })
-  }, [searchParams, selectedId, setSearchParams])
+  }, [layerFilter, searchParams, selectedId, setSearchParams, toneFilter])
 
   useEffect(() => {
     return () => {
@@ -86,14 +160,40 @@ export function GrottoMapPage() {
   }, [])
 
   useEffect(() => {
-    const q = query.trim()
-    if (!q) return
     const first = filtered[0]?.id
     if (!first) return
-    if (first === selectedId) return
     if (filtered.some((t) => t.id === selectedId)) return
     selectId(first)
-  }, [filtered, query, selectedId, selectId])
+  }, [filtered, selectedId, selectId])
+
+  useEffect(() => {
+    if (!keyboardNavRef.current) return
+    keyboardNavRef.current = false
+    if (!selectedId) return
+    const el = document.getElementById(`grotto-${selectedId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+  }, [reduceMotion, selectedId])
+
+  const setTone = useCallback(
+    (nextTone: ToneFilter) => {
+      const next = new URLSearchParams(searchParams)
+      if (nextTone === 'all') next.delete('tone')
+      else next.set('tone', nextTone)
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const setLayer = useCallback(
+    (nextLayer: LayerFilter) => {
+      const next = new URLSearchParams(searchParams)
+      if (nextLayer === 'all') next.delete('layer')
+      else next.set('layer', String(nextLayer))
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
 
   const addSelectedToNotes = () => {
     if (!selected) return
@@ -102,7 +202,7 @@ export function GrottoMapPage() {
     const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
     const block = [
       `【${stamp} · 洞府图摘记】`,
-      `${selected.when} · ${selected.title}`,
+      `${timelineLayerLabel(selected.layer)} · ${selected.when} · ${selected.title}`,
       selected.long ?? selected.detail,
     ].join('\n')
 
@@ -111,9 +211,14 @@ export function GrottoMapPage() {
     writeString(STORAGE_KEYS.notes, next)
 
     const prevMeta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
-    const nextMeta: NotesMeta = { ...prevMeta, updatedAt: Date.now(), lastSource: `洞府图：${selected.title}` }
+    const nextMeta: NotesMeta = {
+      ...prevMeta,
+      updatedAt: now.getTime(),
+      lastSource: `洞府图：${selected.title}`,
+    }
     writeJson(STORAGE_KEYS.notesMeta, nextMeta)
 
+    hapticSuccess()
     flashMessage('已收入札记。')
   }
 
@@ -143,6 +248,20 @@ export function GrottoMapPage() {
         <Card className="lg:col-span-7">
           <SectionHeading title="灵脉路标" subtitle="点任一节点，右侧会展开细节与去处。" />
 
+          <div className="rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 grid h-9 w-9 place-items-center rounded-xl border border-border/70 bg-white/5 text-fg/90">
+                <Layers className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-fg">洞府四层（筛选只为看清次序）</div>
+                <div className="mt-1">
+                  立身 · 立名 · 立规 · 立秤。分层不是“比高低”，只是把关口按章法排好：你会更容易看见他是如何一步步把分寸写进规矩里。
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <div
               className={cn(
@@ -161,6 +280,7 @@ export function GrottoMapPage() {
                   }
                   if (e.key === 'ArrowDown') {
                     e.preventDefault()
+                    keyboardNavRef.current = true
                     const idx = filtered.findIndex((t) => t.id === selectedId)
                     const base = idx >= 0 ? idx : -1
                     const next = filtered[Math.min(filtered.length - 1, base + 1)]
@@ -168,13 +288,14 @@ export function GrottoMapPage() {
                   }
                   if (e.key === 'ArrowUp') {
                     e.preventDefault()
+                    keyboardNavRef.current = true
                     const idx = filtered.findIndex((t) => t.id === selectedId)
                     const base = idx >= 0 ? idx : filtered.length
                     const next = filtered[Math.max(0, base - 1)]
                     if (next) selectId(next.id)
                   }
                 }}
-                placeholder="搜路标：霜月 / 断桥 / 北境 / 立界……（↑↓ 走位，Esc 清空）"
+                placeholder="搜路标：霜月 / 抄经 / 断桥 / 北境 / 公议……（↑↓ 走位，Esc 清空）"
                 className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
               />
               {query.trim() ? (
@@ -195,6 +316,39 @@ export function GrottoMapPage() {
             </div>
           </div>
 
+          <div className="mt-3 grid gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-xs text-muted/70">洞府层</div>
+              <Chip selected={layerFilter === 'all'} onClick={() => setLayer('all')}>
+                全部
+              </Chip>
+              {([1, 2, 3, 4] as TimelineLayer[]).map((layer) => {
+                const meta = TIMELINE_LAYER_META[layer]
+                return (
+                  <Chip key={String(layer)} selected={layerFilter === layer} onClick={() => setLayer(layer)}>
+                    {meta.label}
+                  </Chip>
+                )
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-xs text-muted/70">气象</div>
+              <Chip selected={toneFilter === 'all'} onClick={() => setTone('all')}>
+                全部
+              </Chip>
+              <Chip selected={toneFilter === 'calm'} onClick={() => setTone('calm')}>
+                平
+              </Chip>
+              <Chip selected={toneFilter === 'bright'} onClick={() => setTone('bright')}>
+                明
+              </Chip>
+              <Chip selected={toneFilter === 'warn'} onClick={() => setTone('warn')}>
+                警
+              </Chip>
+            </div>
+          </div>
+
           <div className="relative">
             <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/10" />
 
@@ -212,8 +366,10 @@ export function GrottoMapPage() {
                   >
                     <motion.button
                       type="button"
+                      id={`grotto-${t.id}`}
                       aria-pressed={active}
                       onClick={() => {
+                        keyboardNavRef.current = false
                         selectId(t.id)
                       }}
                       className={cn(
@@ -238,23 +394,32 @@ export function GrottoMapPage() {
                           <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
                           <div className="mt-2 text-xs leading-6 text-muted/80">{t.detail}</div>
                         </div>
-                        <div className="mt-1 shrink-0 text-xs text-muted/70">
-                          {active ? '已选' : '选'}
+                        <div className="mt-1 shrink-0 text-right">
+                          <div className="text-xs text-muted/70">{active ? '已选' : '选'}</div>
+                          <div className="mt-1 inline-flex items-center rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
+                            {timelineLayerLabel(t.layer)}
+                          </div>
                         </div>
                       </div>
                     </motion.button>
 
                     <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2">
-                      <div
+                      <motion.div
                         className={cn(
                           'grid h-8 w-8 place-items-center rounded-full border',
                           active
                             ? 'border-white/20 bg-white/10 text-fg'
                             : 'border-white/12 bg-white/6 text-muted/70',
                         )}
+                        animate={
+                          reduceMotion || !active
+                            ? undefined
+                            : { scale: [1, 1.08, 1], boxShadow: ['0 0 0 rgba(0,0,0,0)', '0 0 26px rgba(255,255,255,.12)', '0 0 0 rgba(0,0,0,0)'] }
+                        }
+                        transition={{ duration: 2.6, repeat: reduceMotion || !active ? 0 : Infinity, ease: 'easeInOut' }}
                       >
                         <Compass className={cn('h-4 w-4', active && 'text-fg')} />
-                      </div>
+                      </motion.div>
                     </div>
                   </div>
                 )
@@ -281,6 +446,18 @@ export function GrottoMapPage() {
                       <div className="min-w-0">
                         <div className="text-xs text-muted/70">{selected.when}</div>
                         <div className="mt-1 text-lg font-semibold text-fg">{selected.title}</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-[11px] text-muted/80">
+                            {timelineLayerLabel(selected.layer)}
+                          </span>
+                          <span className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-[11px] text-muted/80">
+                            {(selected.tone ?? 'calm') === 'warn'
+                              ? '警'
+                              : (selected.tone ?? 'calm') === 'bright'
+                                ? '明'
+                                : '平'}
+                          </span>
+                        </div>
                       </div>
                       <div className="shrink-0 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-xs text-muted/80">
                         路标

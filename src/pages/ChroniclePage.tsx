@@ -10,6 +10,7 @@ import { getChronicleBySlug } from '../content/chronicles'
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
+import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
@@ -200,6 +201,7 @@ export function ChroniclePage() {
 
     try {
       await navigator.clipboard.writeText(outline)
+      hapticTap()
       setCopied(true)
       window.setTimeout(() => setCopied(false), 900)
     } catch {
@@ -224,6 +226,7 @@ export function ChroniclePage() {
     writeString(STORAGE_KEYS.notes, next)
     const meta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
     writeJson<NotesMeta>(STORAGE_KEYS.notesMeta, { ...meta, updatedAt: now, lastSource: chronicle.slug })
+    hapticSuccess()
   }
 
   const scrollToAnchor = (id: string) => {
@@ -269,13 +272,15 @@ export function ChroniclePage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() =>
+                  onClick={() => {
+                    if (isBookmarked) hapticTap()
+                    else hapticSuccess()
                     setBookmarks((prev) =>
                       prev.includes(chronicle.slug)
                         ? prev.filter((s) => s !== chronicle.slug)
                         : [...prev, chronicle.slug],
                     )
-                  }
+                  }}
                 >
                   {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
                   {isBookmarked ? '已收藏' : '收藏'}

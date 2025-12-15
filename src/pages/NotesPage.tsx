@@ -282,11 +282,11 @@ export function NotesPage() {
               className="w-full justify-start"
             >
               <Upload className="h-4 w-4" />
-              导入（TXT/JSON）
+              导入（文卷/存档）
             </Button>
             <Button type="button" variant="ghost" onClick={exportNotes} className="w-full justify-start" disabled={!text.trim()}>
               <Download className="h-4 w-4" />
-              导出 TXT
+              导出文卷
             </Button>
             <Button
               type="button"
@@ -296,12 +296,16 @@ export function NotesPage() {
               disabled={!text.trim()}
             >
               <Download className="h-4 w-4" />
-              导出 JSON
+              导出存档
             </Button>
             <Button type="button" variant="ghost" onClick={clearAll} className="w-full justify-start">
               <Eraser className="h-4 w-4" />
               清空（慎）
             </Button>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
+            小提示：<span className="text-fg/85">文卷</span>适合阅读与备份；<span className="text-fg/85">存档</span>保留元信息，便于以后再导入续写。
           </div>
 
           <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-sm">
