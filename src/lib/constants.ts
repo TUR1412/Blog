@@ -1,5 +1,5 @@
-export const APP_VERSION = '2025.12.15.9'
-export const ASSET_VERSION = '20251215-9'
+export const APP_VERSION = '2025.12.15.10'
+export const ASSET_VERSION = '20251215-10'
 
 export const STORAGE_KEYS = {
   theme: 'xuantian.theme',
@@ -13,6 +13,7 @@ export const STORAGE_KEYS = {
   grottoSelected: 'xuantian.grotto.selected.v1',
   grottoLayer: 'xuantian.grotto.layer.v1',
   grottoTone: 'xuantian.grotto.tone.v1',
+  grottoAnnotations: 'xuantian.grotto.annotations.v1',
   relationsSelected: 'xuantian.relations.selected.v1',
   relationsKind: 'xuantian.relations.kind.v1',
   notesImportHint: 'xuantian.notes.importHint.v1',

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, BookOpen, Compass, Layers, NotebookPen, Search, X } from 'lucide-react'
+import { ArrowRight, BookOpen, Compass, Layers, NotebookPen, PencilLine, Search, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
@@ -17,13 +17,27 @@ import {
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
-import { hapticSuccess } from '../lib/haptics'
+import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 
 type ToneFilter = 'all' | 'calm' | 'bright' | 'warn'
 type LayerFilter = 'all' | TimelineLayer
+
+type GrottoAnnotation = {
+  text: string
+  updatedAt: number
+}
+
+type GrottoAnnotations = Record<string, GrottoAnnotation>
+
+function formatClock(ts: number) {
+  if (!ts) return '未落笔'
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 
 function parseTone(raw: string | null): ToneFilter | null {
   if (!raw) return null
@@ -53,10 +67,15 @@ export function GrottoMapPage() {
   )
   const [storedLayer, setStoredLayer] = useLocalStorageState<string>(STORAGE_KEYS.grottoLayer, 'all')
   const [storedTone, setStoredTone] = useLocalStorageState<string>(STORAGE_KEYS.grottoTone, 'all')
+  const [annotations, setAnnotations] = useLocalStorageState<GrottoAnnotations>(
+    STORAGE_KEYS.grottoAnnotations,
+    {},
+  )
   const [query, setQuery] = useState('')
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const keyboardNavRef = useRef(false)
+  const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
 
   const byId = useMemo(() => new Map(timeline.map((t) => [t.id, t] as const)), [])
 
@@ -93,6 +112,9 @@ export function GrottoMapPage() {
   }, [byId, searchParams, storedSelectedId])
 
   const selected = selectedId ? byId.get(selectedId) ?? null : null
+  const selectedAnnotation = selectedId ? annotations[selectedId] ?? null : null
+  const annoDraft = selectedId ? (annoDraftById[selectedId] ?? selectedAnnotation?.text ?? '') : ''
+  const annoSavedAt = selectedAnnotation?.updatedAt ?? 0
 
   const flashMessage = (msg: string) => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
@@ -175,6 +197,31 @@ export function GrottoMapPage() {
     el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
   }, [reduceMotion, selectedId])
 
+  useEffect(() => {
+    if (!selectedId) return
+    if (!(selectedId in annoDraftById)) return
+    const currentSaved = selectedAnnotation?.text ?? ''
+    const trimmed = annoDraft.trim()
+    if (trimmed === currentSaved) return
+
+    const t = window.setTimeout(() => {
+      const now = Date.now()
+      setAnnotations((prev) => {
+        const next = { ...prev }
+        if (!trimmed) {
+          delete next[selectedId]
+          return next
+        }
+        next[selectedId] = { text: trimmed, updatedAt: now }
+        return next
+      })
+      flashMessage('已落笔。')
+      hapticTap()
+    }, 260)
+
+    return () => window.clearTimeout(t)
+  }, [annoDraft, annoDraftById, selectedAnnotation, selectedId, setAnnotations])
+
   const setTone = useCallback(
     (nextTone: ToneFilter) => {
       const next = new URLSearchParams(searchParams)
@@ -220,6 +267,41 @@ export function GrottoMapPage() {
 
     hapticSuccess()
     flashMessage('已收入札记。')
+  }
+
+  const appendAnnotationToNotes = () => {
+    if (!selected) return
+    const ann = annotations[selected.id]?.text?.trim() ?? ''
+    if (!ann) {
+      window.alert('此处尚未落笔。')
+      return
+    }
+
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+
+    const block = [
+      `【${stamp} · 路标批注】`,
+      `${timelineLayerLabel(selected.layer)} · ${selected.when} · ${selected.title}`,
+      `“${ann}”`,
+      `（来源：洞府图 · ${selected.title}）`,
+    ].join('\n')
+
+    const prev = readString(STORAGE_KEYS.notes, '')
+    const next = prev.trim() ? `${prev}\n\n${block}` : block
+    writeString(STORAGE_KEYS.notes, next)
+
+    const prevMeta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
+    const nextMeta: NotesMeta = {
+      ...prevMeta,
+      updatedAt: now.getTime(),
+      lastSource: `洞府图批注：${selected.title}`,
+    }
+    writeJson(STORAGE_KEYS.notesMeta, nextMeta)
+
+    hapticSuccess()
+    flashMessage('批注已并入札记。')
   }
 
   return (
@@ -466,6 +548,74 @@ export function GrottoMapPage() {
 
                     <div className="mt-3 text-sm leading-7 text-muted/85">
                       {selected.long ?? selected.detail}
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="grid h-9 w-9 place-items-center rounded-xl border border-border/70 bg-white/5 text-fg/90">
+                              <PencilLine className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-fg">路标批注</div>
+                              <div className="text-xs text-muted/70">写一句你自己的分寸（自动保存）。</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted/70">最近：{formatClock(annoSavedAt)}</div>
+                      </div>
+
+                      <textarea
+                        value={annoDraft}
+                        onChange={(e) => {
+                          if (!selected.id) return
+                          const nextText = e.target.value
+                          setAnnoDraftById((prev) => ({ ...prev, [selected.id]: nextText }))
+                        }}
+                        rows={3}
+                        placeholder="例如：这一关口不是靠“更狠”，是靠把账写清、把空补上。"
+                        className={cn(
+                          'mt-3 w-full resize-y rounded-xl border border-border/70 bg-white/4 px-4 py-3',
+                          'text-sm leading-7 text-fg placeholder:text-muted/70',
+                          'focus-ring',
+                        )}
+                      />
+
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <Button type="button" variant="ghost" onClick={appendAnnotationToNotes} className="justify-start">
+                          <NotebookPen className="h-4 w-4" />
+                          并入札记
+                          <span className="ml-auto text-muted/70">＋</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            if (!selected.id) return
+                            if (!annotations[selected.id]) return
+                            const ok = window.confirm('确定清空此处批注？')
+                            if (!ok) return
+                            setAnnotations((prev) => {
+                              const next = { ...prev }
+                              delete next[selected.id]
+                              return next
+                            })
+                            setAnnoDraftById((prev) => {
+                              const next = { ...prev }
+                              delete next[selected.id]
+                              return next
+                            })
+                            hapticTap()
+                            flashMessage('已清空批注。')
+                          }}
+                          className="justify-start"
+                          disabled={!annotations[selected.id]?.text}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          清空
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="mt-5 grid gap-2">
