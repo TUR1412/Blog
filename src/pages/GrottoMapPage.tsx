@@ -80,6 +80,7 @@ export function GrottoMapPage() {
     {},
   )
   const [query, setQuery] = useState('')
+  const [annoQuery, setAnnoQuery] = useState('')
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const keyboardNavRef = useRef(false)
@@ -126,6 +127,23 @@ export function GrottoMapPage() {
       return hay.includes(q)
     })
   }, [layerFilter, query, toneFilter])
+
+  const annotatedEntries = useMemo(() => {
+    const q = annoQuery.trim().toLowerCase()
+    const items: { t: TimelineEvent; ann: GrottoAnnotation }[] = []
+    for (const t of timeline) {
+      const ann = canonicalAnnotations[t.id]
+      if (!ann) continue
+      if (layerFilter !== 'all' && t.layer !== layerFilter) continue
+      if (toneFilter !== 'all' && (t.tone ?? 'calm') !== toneFilter) continue
+      if (q) {
+        const hay = `${t.when} ${t.title} ${t.detail} ${t.long ?? ''} ${ann.text}`.toLowerCase()
+        if (!hay.includes(q)) continue
+      }
+      items.push({ t, ann })
+    }
+    return items
+  }, [annoQuery, canonicalAnnotations, layerFilter, toneFilter])
 
   const selectedId = useMemo(() => {
     const fromUrl = searchParams.get('id')
@@ -441,9 +459,8 @@ export function GrottoMapPage() {
     }
   }
 
-  const appendAnnotationToNotes = () => {
-    if (!selected) return
-    const ann = annotations[selected.id]?.text?.trim() ?? ''
+  const appendAnnotationEntryToNotes = (t: TimelineEvent, annText: string) => {
+    const ann = annText.trim()
     if (!ann) {
       window.alert('此处尚未落笔。')
       return
@@ -455,9 +472,9 @@ export function GrottoMapPage() {
 
     const block = [
       `【${stamp} · 路标批注】`,
-      `${timelineLayerLabel(selected.layer)} · ${selected.when} · ${selected.title}`,
+      `${timelineLayerLabel(t.layer)} · ${t.when} · ${t.title}`,
       `“${ann}”`,
-      `（来源：洞府图 · ${selected.title}）`,
+      `（来源：洞府图 · ${t.title}）`,
     ].join('\n')
 
     const prev = readString(STORAGE_KEYS.notes, '')
@@ -468,12 +485,18 @@ export function GrottoMapPage() {
     const nextMeta: NotesMeta = {
       ...prevMeta,
       updatedAt: now.getTime(),
-      lastSource: `洞府图批注：${selected.title}`,
+      lastSource: `洞府图批注：${t.title}`,
     }
     writeJson(STORAGE_KEYS.notesMeta, nextMeta)
 
     hapticSuccess()
     flashMessage('批注已并入札记。')
+  }
+
+  const appendAnnotationToNotes = () => {
+    if (!selected) return
+    const ann = annotations[selected.id]?.text?.trim() ?? ''
+    appendAnnotationEntryToNotes(selected, ann)
   }
 
   return (
@@ -913,6 +936,121 @@ export function GrottoMapPage() {
           </AnimatePresence>
         </Card>
       </div>
+
+      <Card className="relative overflow-hidden p-6 md:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.20),transparent_62%)] blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.18),transparent_62%)] blur-3xl" />
+
+        <SectionHeading title="批注总览" subtitle="把你写下的分寸摊开，看一眼就知道路走到哪。" />
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div
+            className={cn(
+              'focus-within:ring-1 focus-within:ring-white/10',
+              'flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+            )}
+          >
+            <Search className="h-4 w-4 text-muted/70" />
+            <input
+              value={annoQuery}
+              onChange={(e) => setAnnoQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setAnnoQuery('')
+              }}
+              placeholder="搜批注：分寸 / 规矩 / 补空 / 断桥……（Esc 清空）"
+              className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+            />
+            {annoQuery.trim() ? (
+              <button
+                type="button"
+                className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                onClick={() => setAnnoQuery('')}
+                aria-label="清空搜索"
+                title="清空"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="text-xs text-muted/70 sm:shrink-0">
+            显示 {annotatedEntries.length} / 已写 {annotationCount} 处
+          </div>
+        </div>
+
+        {annotationCount === 0 ? (
+          <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
+            <div className="text-sm font-semibold text-fg">还没写下批注</div>
+            <div className="mt-2 text-xs leading-6 text-muted/80">
+              先在右侧“路标批注”落笔一两句，再回来看，会更像把路走稳了。
+            </div>
+          </div>
+        ) : annotatedEntries.length ? (
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {annotatedEntries.map(({ t, ann }) => {
+              const tone = (t.tone ?? 'calm') === 'warn' ? '警' : (t.tone ?? 'calm') === 'bright' ? '明' : '平'
+
+              return (
+                <div
+                  key={t.id}
+                  className="rounded-xl border border-border/60 bg-white/4 px-5 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs text-muted/70">
+                        {timelineLayerLabel(t.layer)} · {t.when}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
+                    </div>
+                    <span className="shrink-0 rounded-full border border-border/70 bg-white/5 px-2 py-1 text-[11px] text-muted/80">
+                      {tone}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 whitespace-pre-wrap rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-sm leading-7 text-fg/90">
+                    {ann.text}
+                  </div>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        selectId(t.id)
+                        hapticTap()
+                      }}
+                      className="justify-start"
+                    >
+                      <Compass className="h-4 w-4" />
+                      定位到路标
+                      <span className="ml-auto text-muted/70">→</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => appendAnnotationEntryToNotes(t, ann.text)}
+                      className="justify-start"
+                    >
+                      <NotebookPen className="h-4 w-4" />
+                      并入札记
+                      <span className="ml-auto text-muted/70">＋</span>
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
+            <div className="text-sm font-semibold text-fg">暂无匹配</div>
+            <div className="mt-2 text-xs leading-6 text-muted/80">换个词试试，或清空检索。</div>
+          </div>
+        )}
+
+        <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
+          小提示：这里的筛选沿用上方“洞府层/气象”。你可以先把路缩到一层，再把批注逐条并入札记——久了就成心法。
+        </div>
+      </Card>
     </div>
   )
 }
