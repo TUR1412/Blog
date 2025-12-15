@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Markdown } from '../components/content/Markdown'
+import { DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS, type MarkdownHighlightOptions, Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -35,6 +35,7 @@ type ToneFilter = 'all' | Tone
 type SourceFilter = 'all' | 'grotto' | 'relations'
 type LayerFilter = 'all' | TimelineLayer
 type RelationKindFilter = 'all' | RelationKind
+type FindOptions = Required<MarkdownHighlightOptions>
 
 type GrottoAnnotation = { text: string; updatedAt: number }
 type GrottoAnnotations = Record<string, GrottoAnnotation>
@@ -126,6 +127,10 @@ export function AnnotationsPage() {
   const importRef = useRef<HTMLInputElement | null>(null)
   const hallRef = useRef<HTMLDivElement | null>(null)
   const [findQuery, setFindQuery] = useState('')
+  const [findOptions, setFindOptions] = useLocalStorageState<FindOptions>(
+    STORAGE_KEYS.findOptions,
+    DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS,
+  )
   const [hitCount, setHitCount] = useState(0)
   const [activeHitIndex, setActiveHitIndex] = useState(0)
   const [activeEntryKey, setActiveEntryKey] = useState('')
@@ -305,8 +310,11 @@ export function AnnotationsPage() {
 
   const hitTrackKey = useMemo(() => {
     if (!findQuery.trim()) return ''
-    return filtered.map((it) => `${it.source}:${it.id}:${it.updatedAt}`).join('|')
-  }, [filtered, findQuery])
+    const flags = `mc:${findOptions.matchCase ? 1 : 0};ww:${findOptions.wholeWord ? 1 : 0};ip:${
+      findOptions.ignorePunctuation ? 1 : 0
+    }`
+    return `${flags}|${filtered.map((it) => `${it.source}:${it.id}:${it.updatedAt}`).join('|')}`
+  }, [filtered, findOptions.ignorePunctuation, findOptions.matchCase, findOptions.wholeWord, findQuery])
 
   const activeEntry = useMemo(() => {
     if (!activeEntryKey) return null
@@ -355,6 +363,11 @@ export function AnnotationsPage() {
     hapticTap()
   }
 
+  const toggleFindOption = (key: keyof FindOptions) => {
+    setFindOptions((prev) => ({ ...prev, [key]: !prev[key] }))
+    hapticTap()
+  }
+
   const scrollToActiveEntry = () => {
     if (!activeEntryKey) return
     const root = hallRef.current
@@ -368,7 +381,7 @@ export function AnnotationsPage() {
   useEffect(() => {
     const t = window.setTimeout(() => setActiveHitIndex(0), 0)
     return () => window.clearTimeout(t)
-  }, [findQuery])
+  }, [findOptions, findQuery])
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -1100,6 +1113,30 @@ export function AnnotationsPage() {
               ) : null}
             </div>
 
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Chip
+                selected={findOptions.matchCase}
+                onClick={() => toggleFindOption('matchCase')}
+                title="区分大小写（默认不区分）"
+              >
+                区分大小写
+              </Chip>
+              <Chip
+                selected={findOptions.wholeWord}
+                onClick={() => toggleFindOption('wholeWord')}
+                title="整词匹配（仅对字母/数字/下划线有效）"
+              >
+                整词
+              </Chip>
+              <Chip
+                selected={findOptions.ignorePunctuation}
+                onClick={() => toggleFindOption('ignorePunctuation')}
+                title="忽略空格与标点：可跨「、·—」等符号命中"
+              >
+                忽略标点
+              </Chip>
+            </div>
+
             <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -1418,6 +1455,7 @@ export function AnnotationsPage() {
                           text={it.text}
                           className="prose-sm leading-7"
                           highlightQuery={findQuery}
+                          highlightOptions={findOptions}
                           highlightScope="hall"
                           highlightIdPrefix="hall-hit-"
                           activeHighlightIndex={-1}

@@ -5,6 +5,21 @@ import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import { cn } from '../../lib/cn'
 
+export type MarkdownHighlightOptions = {
+  /** 是否区分大小写；默认 false（不区分）。 */
+  matchCase?: boolean
+  /** 是否整词匹配；仅对纯字母/数字/下划线有效。 */
+  wholeWord?: boolean
+  /** 忽略标点/空白：允许在匹配字符间跨过标点与空格。 */
+  ignorePunctuation?: boolean
+}
+
+export const DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS: Required<MarkdownHighlightOptions> = {
+  matchCase: false,
+  wholeWord: false,
+  ignorePunctuation: false,
+}
+
 type MarkdownProps = {
   text: string
   className?: string
@@ -16,6 +31,8 @@ type MarkdownProps = {
   idPrefix?: string
   /** 高亮检索词（用于经卷内检索）。为空时不启用高亮。 */
   highlightQuery?: string
+  /** 高亮检索的匹配规则（区分大小写/整词/忽略标点）。 */
+  highlightOptions?: MarkdownHighlightOptions
   /** 高亮命中的范围标记（便于页面内检索 DOM）。 */
   highlightScope?: string
   /** 高亮命中的 ID 前缀（用于滚动定位）。 */
@@ -135,16 +152,41 @@ function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function buildHighlightRegExp(queryRaw: string, opts: MarkdownHighlightOptions): RegExp | null {
+  const q = queryRaw.trim()
+  if (!q) return null
+
+  const matchCase = opts.matchCase ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS.matchCase
+  const wholeWord = opts.wholeWord ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS.wholeWord
+  const ignorePunctuation = opts.ignorePunctuation ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS.ignorePunctuation
+
+  let pattern = ''
+
+  if (ignorePunctuation) {
+    const compact = q.replace(/[\s\p{P}\p{S}]+/gu, '')
+    const parts = Array.from(compact)
+    if (!parts.length) return null
+    const sep = `[\\s\\p{P}\\p{S}]*`
+    pattern = parts.map(escapeRegExp).join(sep)
+  } else {
+    pattern = escapeRegExp(q)
+    const canWholeWord = wholeWord && /^[0-9A-Za-z_]+$/.test(q)
+    if (canWholeWord) pattern = `\\b${pattern}\\b`
+  }
+
+  const flags = matchCase ? 'gu' : 'giu'
+  return new RegExp(pattern, flags)
+}
+
 function buildRehypeHighlight(opts: {
   query: string
+  options: MarkdownHighlightOptions
   scope: string
   idPrefix: string
   activeIndex: number
 }) {
-  const raw = opts.query.trim()
-  if (!raw) return null
-
-  const re = new RegExp(escapeRegExp(raw), 'gi')
+  const re = buildHighlightRegExp(opts.query, opts.options)
+  if (!re) return null
   const skipTags = new Set(['pre', 'code', 'script', 'style'])
 
   return function rehypeXuantianHighlight(tree: unknown) {
@@ -385,6 +427,7 @@ export function Markdown({
   linkifyLocations = true,
   idPrefix = '',
   highlightQuery,
+  highlightOptions,
   highlightScope = 'md',
   highlightIdPrefix,
   activeHighlightIndex = 0,
@@ -393,6 +436,7 @@ export function Markdown({
   if (!md.trim()) return null
 
   const q = typeof highlightQuery === 'string' ? highlightQuery.trim() : ''
+  const hOpts = highlightOptions ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS
   const scope = (highlightScope || 'md').trim() || 'md'
   const hitIdPrefix = typeof highlightIdPrefix === 'string' ? highlightIdPrefix : `${scope}-hit-`
   const activeIdx = Number.isFinite(activeHighlightIndex) ? activeHighlightIndex : 0
@@ -400,6 +444,7 @@ export function Markdown({
   const highlight = q
     ? buildRehypeHighlight({
         query: q,
+        options: hOpts,
         scope,
         idPrefix: hitIdPrefix,
         activeIndex: activeIdx,

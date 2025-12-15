@@ -7,7 +7,12 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { extractMarkdownHeadings, Markdown } from '../components/content/Markdown'
+import {
+  DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS,
+  type MarkdownHighlightOptions,
+  extractMarkdownHeadings,
+  Markdown,
+} from '../components/content/Markdown'
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
@@ -16,6 +21,7 @@ import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 type NotesView = 'edit' | 'scroll'
+type FindOptions = Required<MarkdownHighlightOptions>
 type NotesExportPayload = {
   kind: 'xuantian.notes'
   v: 1
@@ -47,6 +53,10 @@ export function NotesPage() {
   const [tocFolded, setTocFolded] = useLocalStorageState<boolean>(STORAGE_KEYS.notesTocFold, false)
   const [tocQuery, setTocQuery] = useState('')
   const [findQuery, setFindQuery] = useState('')
+  const [findOptions, setFindOptions] = useLocalStorageState<FindOptions>(
+    STORAGE_KEYS.findOptions,
+    DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS,
+  )
   const [hitCount, setHitCount] = useState(0)
   const [activeHitIndex, setActiveHitIndex] = useState(0)
   const [handledAnchor, setHandledAnchor] = useState('')
@@ -107,6 +117,11 @@ export function NotesPage() {
     }, 0)
   }
 
+  const toggleFindOption = (key: keyof FindOptions) => {
+    setFindOptions((prev) => ({ ...prev, [key]: !prev[key] }))
+    hapticTap()
+  }
+
   const copyLocation = async () => {
     const id = activeHeadingId || toc[0]?.id || ''
     if (!id) {
@@ -132,7 +147,7 @@ export function NotesPage() {
       setActiveHitIndex(0)
     }, 0)
     return () => window.clearTimeout(t)
-  }, [findQuery, view])
+  }, [findOptions, findQuery, view])
 
   useEffect(() => {
     if (view !== 'scroll') return
@@ -149,7 +164,7 @@ export function NotesPage() {
       setActiveHitIndex((prev) => (nextCount ? Math.min(prev, nextCount - 1) : 0))
     }, 0)
     return () => window.clearTimeout(t)
-  }, [findQuery, text, view])
+  }, [findOptions, findQuery, text, view])
 
   useEffect(() => {
     const fromUrl = searchParams.get('view')
@@ -485,6 +500,7 @@ export function NotesPage() {
                     text={text}
                     idPrefix="notes-"
                     highlightQuery={findQuery}
+                    highlightOptions={findOptions}
                     highlightScope="notes"
                     highlightIdPrefix="notes-hit-"
                     activeHighlightIndex={activeHitIndex}
@@ -599,6 +615,30 @@ export function NotesPage() {
                   ) : null}
                 </div>
 
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Chip
+                    selected={findOptions.matchCase}
+                    onClick={() => toggleFindOption('matchCase')}
+                    title="区分大小写（默认不区分）"
+                  >
+                    区分大小写
+                  </Chip>
+                  <Chip
+                    selected={findOptions.wholeWord}
+                    onClick={() => toggleFindOption('wholeWord')}
+                    title="整词匹配（仅对字母/数字/下划线有效）"
+                  >
+                    整词
+                  </Chip>
+                  <Chip
+                    selected={findOptions.ignorePunctuation}
+                    onClick={() => toggleFindOption('ignorePunctuation')}
+                    title="忽略空格与标点：可跨「、·—」等符号命中"
+                  >
+                    忽略标点
+                  </Chip>
+                </div>
+
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -627,7 +667,7 @@ export function NotesPage() {
                 </div>
 
                 <div className="mt-2 text-xs leading-6 text-muted/75">
-                  命中会以“金光”标出，便于对照与复盘。
+                  命中会以“金光”标出；若勾上“忽略标点”，可跨符号寻到一整句。
                 </div>
               </div>
 
