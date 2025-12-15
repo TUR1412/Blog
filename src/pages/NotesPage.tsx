@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Download, Eraser, Sparkles, Clipboard, Upload, PencilLine, ScrollText } from 'lucide-react'
+import { Download, Eraser, Sparkles, Clipboard, Upload, PencilLine, ScrollText, Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
@@ -11,7 +11,7 @@ import { extractMarkdownHeadings, Markdown } from '../components/content/Markdow
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
-import { hapticTap } from '../lib/haptics'
+import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
@@ -43,6 +43,8 @@ export function NotesPage() {
   )
   const [flash, setFlash] = useState<string | null>(null)
   const [view, setView] = useLocalStorageState<NotesView>(STORAGE_KEYS.notesView, 'edit')
+  const [tocFolded, setTocFolded] = useLocalStorageState<boolean>(STORAGE_KEYS.notesTocFold, false)
+  const [tocQuery, setTocQuery] = useState('')
   const [handledAnchor, setHandledAnchor] = useState('')
   const [activeHeadingId, setActiveHeadingId] = useState('')
 
@@ -65,12 +67,39 @@ export function NotesPage() {
   }, [text])
 
   const toc = useMemo(() => extractMarkdownHeadings(text, { idPrefix: 'notes-' }), [text])
+  const tocVisible = useMemo(() => {
+    const q = tocQuery.trim().toLowerCase()
+    return toc.filter((h) => {
+      if (!q && tocFolded && h.level > 2) return false
+      if (!q) return true
+      return h.text.toLowerCase().includes(q)
+    })
+  }, [toc, tocFolded, tocQuery])
 
   const scrollToHeading = (id: string) => {
     if (!id) return
     const el = document.getElementById(id)
     if (!el) return
     el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }
+
+  const copyLocation = async () => {
+    const id = activeHeadingId || toc[0]?.id || ''
+    if (!id) {
+      flashMessage('暂无可复制定位。')
+      hapticTap()
+      return
+    }
+
+    const line = `定位：/notes?view=scroll&h=${encodeURIComponent(id)}`
+    try {
+      await navigator.clipboard.writeText(line)
+      hapticSuccess()
+      flashMessage('已复制定位。')
+    } catch {
+      flashMessage('复制失败：剪贴板不可用。')
+      hapticTap()
+    }
   }
 
   useEffect(() => {
@@ -470,36 +499,102 @@ export function NotesPage() {
 
           {view === 'scroll' && toc.length ? (
             <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-semibold text-fg">经卷目录</div>
-                <div className="text-xs text-muted/70">{toc.length} 目</div>
-              </div>
-              <div className="mt-2 grid gap-1">
-                {toc.map((h) => (
+                <div className="flex items-center gap-2">
                   <button
-                    key={h.id}
                     type="button"
-                    className={cn(
-                      'focus-ring tap w-full rounded-xl border border-border/60 px-3 py-2 text-left text-sm',
-                      h.id === activeHeadingId
-                        ? 'bg-white/10 text-fg ring-1 ring-white/10'
-                        : 'bg-white/4 text-fg/90 hover:bg-white/7',
-                    )}
-                    style={{ paddingLeft: `${Math.min(20, Math.max(12, 12 + (h.level - 1) * 8))}px` }}
-                    onClick={() => {
-                      setView('scroll')
-                      hapticTap()
-                      scrollToHeading(h.id)
-                      const next = new URLSearchParams(searchParams)
-                      next.set('view', 'scroll')
-                      next.set('h', h.id)
-                      setSearchParams(next, { replace: true })
-                    }}
+                    className="focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-xs font-medium text-fg/90 hover:bg-white/10"
+                    onClick={copyLocation}
+                    disabled={!toc.length}
+                    title="复制当前位置定位"
                   >
-                    {h.text}
+                    <Clipboard className="h-4 w-4" />
+                    复制定位
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    className="focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-xs font-medium text-fg/90 hover:bg-white/10"
+                    onClick={() => {
+                      setTocFolded((v) => !v)
+                      hapticTap()
+                    }}
+                    title={tocFolded ? '展开细目' : '收起细目'}
+                  >
+                    {tocFolded ? '展开细目' : '收起细目'}
+                  </button>
+                </div>
               </div>
+
+              <div className="mt-2 flex items-center justify-between text-xs text-muted/70">
+                <div>
+                  显示 {tocVisible.length} / {toc.length}
+                </div>
+                {tocQuery.trim() ? <div>已按目录检索</div> : tocFolded ? <div>仅主目</div> : <div>全目</div>}
+              </div>
+
+              <div
+                className={cn(
+                  'mt-2 flex items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+                  'focus-within:ring-1 focus-within:ring-white/10',
+                )}
+              >
+                <Search className="h-4 w-4 text-muted/70" />
+                <input
+                  value={tocQuery}
+                  onChange={(e) => setTocQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setTocQuery('')
+                  }}
+                  placeholder="搜目录：摘录 / 分寸 / 规矩……（Esc 清空）"
+                  className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+                />
+                {tocQuery.trim() ? (
+                  <button
+                    type="button"
+                    className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                    onClick={() => setTocQuery('')}
+                    aria-label="清空目录搜索"
+                    title="清空"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+
+              {tocVisible.length ? (
+                <div className="mt-2 grid gap-1">
+                  {tocVisible.map((h) => (
+                    <button
+                      key={h.id}
+                      type="button"
+                      className={cn(
+                        'focus-ring tap w-full rounded-xl border border-border/60 px-3 py-2 text-left text-sm',
+                        h.id === activeHeadingId
+                          ? 'bg-white/10 text-fg ring-1 ring-white/10'
+                          : 'bg-white/4 text-fg/90 hover:bg-white/7',
+                      )}
+                      style={{ paddingLeft: `${Math.min(20, Math.max(12, 12 + (h.level - 1) * 8))}px` }}
+                      onClick={() => {
+                        setView('scroll')
+                        hapticTap()
+                        setTocQuery('')
+                        scrollToHeading(h.id)
+                        const next = new URLSearchParams(searchParams)
+                        next.set('view', 'scroll')
+                        next.set('h', h.id)
+                        setSearchParams(next, { replace: true })
+                      }}
+                    >
+                      {h.text}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-3 py-3 text-xs text-muted/75">
+                  未搜到匹配目录。
+                </div>
+              )}
               <div className="mt-2 text-xs leading-6 text-muted/75">
                 可分享定位：把 <span className="text-fg/85">定位：/notes?view=scroll&amp;h=…</span> 写进札记，即可一键回到此处。
               </div>
