@@ -12,7 +12,7 @@ import {
   Upload,
   Waypoints,
 } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
@@ -124,6 +124,10 @@ export function AnnotationsPage() {
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const importRef = useRef<HTMLInputElement | null>(null)
+  const hallRef = useRef<HTMLDivElement | null>(null)
+  const [findQuery, setFindQuery] = useState('')
+  const [hitCount, setHitCount] = useState(0)
+  const [activeHitIndex, setActiveHitIndex] = useState(0)
 
   const [grottoAnnotations, setGrottoAnnotations] = useLocalStorageState<GrottoAnnotations>(
     STORAGE_KEYS.grottoAnnotations,
@@ -297,6 +301,90 @@ export function AnnotationsPage() {
       return hay.includes(q)
     })
   }, [entries, layer, query, relKind, source, tone])
+
+  const hitTrackKey = useMemo(() => {
+    if (!findQuery.trim()) return ''
+    return filtered.map((it) => `${it.source}:${it.id}:${it.updatedAt}`).join('|')
+  }, [filtered, findQuery])
+
+  const getMarks = useCallback(() => {
+    const root = hallRef.current
+    if (!root) return [] as HTMLElement[]
+    return Array.from(root.querySelectorAll('mark[data-x-hit="hall"]')) as HTMLElement[]
+  }, [])
+
+  const syncActiveMark = useCallback(
+    (idx: number, scroll: boolean) => {
+      const marks = getMarks()
+      for (const el of marks) el.removeAttribute('data-x-active')
+      const active = marks[idx]
+      if (!active) return
+      active.setAttribute('data-x-active', '1')
+      if (!scroll) return
+      active.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+    },
+    [getMarks, reduceMotion],
+  )
+
+  const jumpToHit = (targetIndex: number) => {
+    const q = findQuery.trim()
+    if (!q) {
+      flashMessage('先写一个卷内检索词。')
+      hapticTap()
+      return
+    }
+    if (!hitCount) {
+      flashMessage('未命中。')
+      hapticTap()
+      return
+    }
+
+    const next = ((targetIndex % hitCount) + hitCount) % hitCount
+    setActiveHitIndex(next)
+    window.setTimeout(() => syncActiveMark(next, true), 0)
+    hapticTap()
+  }
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setActiveHitIndex(0), 0)
+    return () => window.clearTimeout(t)
+  }, [findQuery])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const q = findQuery.trim()
+      if (!q) {
+        setHitCount(0)
+        setActiveHitIndex(0)
+        return
+      }
+
+      const marks = getMarks()
+      const nextCount = marks.length
+      setHitCount(nextCount)
+
+      if (!nextCount) {
+        setActiveHitIndex(0)
+        return
+      }
+
+      setActiveHitIndex((prev) => Math.min(prev, nextCount - 1))
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [findQuery, getMarks, hitTrackKey])
+
+  useEffect(() => {
+    const q = findQuery.trim()
+    if (!q) return
+    const t = window.setTimeout(() => {
+      const marks = getMarks()
+      const nextCount = marks.length
+      if (!nextCount) return
+      const idx = Math.max(0, Math.min(activeHitIndex, nextCount - 1))
+      syncActiveMark(idx, false)
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [activeHitIndex, findQuery, getMarks, hitTrackKey, syncActiveMark])
 
   const exportScroll = () => {
     if (filtered.length === 0) {
@@ -948,6 +1036,78 @@ export function AnnotationsPage() {
             </div>
           </div>
 
+          <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-fg">卷内检索</div>
+              {findQuery.trim() ? (
+                <div className="text-xs text-muted/70">
+                  {hitCount ? `${Math.min(activeHitIndex + 1, hitCount)}/${hitCount}` : '未命中'}
+                </div>
+              ) : (
+                <div className="text-xs text-muted/70">输入即点亮</div>
+              )}
+            </div>
+
+            <div
+              className={cn(
+                'mt-2 flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+                'focus-within:ring-1 focus-within:ring-white/10',
+              )}
+            >
+              <Search className="h-4 w-4 text-muted/70" />
+              <input
+                value={findQuery}
+                onChange={(e) => setFindQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setFindQuery('')
+                  if (e.key === 'Enter') jumpToHit(0)
+                }}
+                placeholder="搜卷内：只标亮批注正文（Enter 跳首处，Esc 清空）"
+                className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+              />
+              {findQuery.trim() ? (
+                <button
+                  type="button"
+                  className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                  onClick={() => setFindQuery('')}
+                  aria-label="清空卷内检索"
+                  title="清空"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={cn(
+                  'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                  hitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                )}
+                onClick={() => jumpToHit(activeHitIndex - 1)}
+                disabled={!hitCount}
+              >
+                上一处 <span className="text-muted/70">↑</span>
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                  hitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                )}
+                onClick={() => jumpToHit(activeHitIndex + 1)}
+                disabled={!hitCount}
+              >
+                下一处 <span className="text-muted/70">↓</span>
+              </button>
+            </div>
+
+            <div className="mt-2 text-xs leading-6 text-muted/75">
+              不影响筛选，只在右侧“批注条目”正文里标亮命中。
+            </div>
+          </div>
+
           <div className="mt-4 grid gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="text-xs text-muted/70">来源</div>
@@ -1164,7 +1324,7 @@ export function AnnotationsPage() {
             <SectionHeading title="批注条目" subtitle="每条都可定位回原处，也可一键并入札记。" />
 
             {filtered.length ? (
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div ref={hallRef} className="grid gap-3 lg:grid-cols-2">
                 {filtered.map((it, idx) => {
                   const tone = toneToken(it.tone)
                   const label = it.source === 'grotto' ? '洞府图' : '关系谱'
@@ -1201,7 +1361,14 @@ export function AnnotationsPage() {
                       </div>
 
                       <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3">
-                        <Markdown text={it.text} className="prose-sm leading-7" />
+                        <Markdown
+                          text={it.text}
+                          className="prose-sm leading-7"
+                          highlightQuery={findQuery}
+                          highlightScope="hall"
+                          highlightIdPrefix="hall-hit-"
+                          activeHighlightIndex={-1}
+                        />
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
