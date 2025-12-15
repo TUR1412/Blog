@@ -1,5 +1,15 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, BookOpen, Map as MapIcon, NotebookPen, Search, Waypoints, X } from 'lucide-react'
+import {
+  ArrowRight,
+  BookOpen,
+  Map as MapIcon,
+  NotebookPen,
+  PencilLine,
+  Search,
+  Trash2,
+  Waypoints,
+  X,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
@@ -24,6 +34,13 @@ import { readJson, readString, writeJson, writeString } from '../lib/storage'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 type KindFilter = 'all' | RelationKind
+
+type RelationAnnotation = {
+  text: string
+  updatedAt: number
+}
+
+type RelationAnnotations = Record<string, RelationAnnotation>
 
 function parseKind(raw: string | null): KindFilter | null {
   if (!raw) return null
@@ -89,6 +106,13 @@ function safeLower(s: string) {
   return s.toLowerCase()
 }
 
+function formatClock(ts: number) {
+  if (!ts) return '未落笔'
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 export function RelationsPage() {
   const reduceMotion = useReducedMotion()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -98,11 +122,32 @@ export function RelationsPage() {
   )
   const [storedKind, setStoredKind] = useLocalStorageState<string>(STORAGE_KEYS.relationsKind, 'all')
   const [storedOnly, setStoredOnly] = useLocalStorageState<boolean>(STORAGE_KEYS.relationsOnly, false)
+  const [annotations, setAnnotations] = useLocalStorageState<RelationAnnotations>(
+    STORAGE_KEYS.relationsAnnotations,
+    {},
+  )
   const [query, setQuery] = useState('')
+  const [annoQuery, setAnnoQuery] = useState('')
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
 
   const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
+
+  const canonicalAnnotations = useMemo<RelationAnnotations>(() => {
+    const next: RelationAnnotations = {}
+    for (const [id, a] of Object.entries(annotations)) {
+      if (!nodeById.has(id)) continue
+      if (!a || typeof a !== 'object') continue
+      const text = typeof a.text === 'string' ? a.text.trim() : ''
+      if (!text) continue
+      const updatedAt = typeof a.updatedAt === 'number' ? a.updatedAt : 0
+      next[id] = { text, updatedAt }
+    }
+    return next
+  }, [annotations, nodeById])
+
+  const annotationCount = useMemo(() => Object.keys(canonicalAnnotations).length, [canonicalAnnotations])
 
   const kind = useMemo<KindFilter>(() => {
     const fromUrl = parseKind(searchParams.get('kind'))
@@ -145,6 +190,9 @@ export function RelationsPage() {
   }, [filteredBase, nodeById, searchParams, storedSelected])
 
   const selected = selectedId ? nodeById.get(selectedId) ?? null : null
+  const selectedAnnotation = selectedId ? canonicalAnnotations[selectedId] ?? null : null
+  const annoDraft = selectedId ? (annoDraftById[selectedId] ?? selectedAnnotation?.text ?? '') : ''
+  const annoSavedAt = selectedAnnotation?.updatedAt ?? 0
 
   const relatedIds = useMemo(() => {
     const set = new Set<string>()
@@ -192,6 +240,12 @@ export function RelationsPage() {
     setStoredOnly(onlyRelated)
   }, [onlyRelated, setStoredOnly])
 
+  const flashMessage = useCallback((msg: string) => {
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+    setFlash(msg)
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 950)
+  }, [])
+
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
     let changed = false
@@ -235,11 +289,30 @@ export function RelationsPage() {
     setSearchParams(next, { replace: true })
   }, [filteredBase, onlyRelated, searchParams, selectedId, setSearchParams])
 
-  const flashMessage = useCallback((msg: string) => {
-    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
-    setFlash(msg)
-    flashTimerRef.current = window.setTimeout(() => setFlash(null), 950)
-  }, [])
+  useEffect(() => {
+    if (!selectedId) return
+    if (!(selectedId in annoDraftById)) return
+    const currentSaved = selectedAnnotation?.text ?? ''
+    const trimmed = annoDraft.trim()
+    if (trimmed === currentSaved) return
+
+    const t = window.setTimeout(() => {
+      const now = Date.now()
+      setAnnotations((prev) => {
+        const next = { ...prev }
+        if (!trimmed) {
+          delete next[selectedId]
+          return next
+        }
+        next[selectedId] = { text: trimmed, updatedAt: now }
+        return next
+      })
+      flashMessage('已落笔。')
+      hapticTap()
+    }, 260)
+
+    return () => window.clearTimeout(t)
+  }, [annoDraft, annoDraftById, flashMessage, selectedAnnotation, selectedId, setAnnotations])
 
   const selectId = useCallback(
     (id: string) => {
@@ -273,6 +346,46 @@ export function RelationsPage() {
       hapticTap()
     },
     [searchParams, setSearchParams],
+  )
+
+  const appendRelationAnnotationToNotes = useCallback(
+    (nodeId: string, annText: string) => {
+      const node = nodeById.get(nodeId)
+      if (!node) return
+      const ann = annText.trim()
+      if (!ann) {
+        window.alert('此处尚未落笔。')
+        return
+      }
+
+      const now = new Date()
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+
+      const block = [
+        `【${stamp} · 关系谱批注】`,
+        `${node.kind} · ${node.title}`,
+        node.summary,
+        `“${ann}”`,
+        `（来源：关系谱 · ${node.title}）`,
+      ].join('\n')
+
+      const prev = readString(STORAGE_KEYS.notes, '')
+      const next = prev.trim() ? `${prev}\n\n${block}` : block
+      writeString(STORAGE_KEYS.notes, next)
+
+      const prevMeta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
+      const nextMeta: NotesMeta = {
+        ...prevMeta,
+        updatedAt: now.getTime(),
+        lastSource: `关系谱批注：${node.title}`,
+      }
+      writeJson(STORAGE_KEYS.notesMeta, nextMeta)
+
+      hapticSuccess()
+      flashMessage('批注已并入札记。')
+    },
+    [flashMessage, nodeById],
   )
 
   const appendSelectedToNotes = useCallback(() => {
@@ -329,6 +442,39 @@ export function RelationsPage() {
     if (!selected) return new Set<string>()
     return new Set(getRelatedNodeIds(selected.id))
   }, [selected])
+
+  const annotatedEntries = useMemo(() => {
+    const q = safeLower(annoQuery.trim())
+    const items: { node: (typeof relationNodes)[number]; ann: RelationAnnotation }[] = []
+
+    for (const node of relationNodes) {
+      const ann = canonicalAnnotations[node.id]
+      if (!ann) continue
+      if (kind !== 'all' && node.kind !== kind) continue
+      if (onlyRelated && !relatedIds.has(node.id)) continue
+
+      if (q) {
+        const hay = safeLower(
+          [
+            node.title,
+            node.kind,
+            node.summary,
+            node.detail,
+            ...(node.keywords ?? []),
+            node.chronicleSlug ?? '',
+            node.timelineId ?? '',
+            ann.text,
+          ].join(' '),
+        )
+        if (!hay.includes(q)) continue
+      }
+
+      items.push({ node, ann })
+    }
+
+    items.sort((a, b) => (b.ann.updatedAt || 0) - (a.ann.updatedAt || 0))
+    return items
+  }, [annoQuery, canonicalAnnotations, kind, onlyRelated, relatedIds])
 
   return (
     <div className="space-y-6">
@@ -552,6 +698,81 @@ export function RelationsPage() {
                 <div className="mt-4 text-lg font-semibold tracking-tight text-fg">{selected.title}</div>
                 <div className="mt-2 text-sm leading-7 text-muted/85">{selected.detail}</div>
 
+                <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className="grid h-9 w-9 place-items-center rounded-xl border border-border/70 bg-white/5 text-fg/90">
+                          <PencilLine className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-fg">节点批注</div>
+                          <div className="text-xs text-muted/70">写一句你自己的对照（自动保存）。</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted/70">最近：{formatClock(annoSavedAt)}</div>
+                  </div>
+
+                  <textarea
+                    value={annoDraft}
+                    onChange={(e) => {
+                      if (!selected.id) return
+                      const nextText = e.target.value
+                      setAnnoDraftById((prev) => ({ ...prev, [selected.id]: nextText }))
+                    }}
+                    rows={3}
+                    placeholder="例如：这条牵连不是靠声势，而是靠能被对照的细则。"
+                    className={cn(
+                      'mt-3 w-full resize-y rounded-xl border border-border/70 bg-white/4 px-4 py-3',
+                      'text-sm leading-7 text-fg placeholder:text-muted/70',
+                      'focus-ring',
+                    )}
+                  />
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => appendRelationAnnotationToNotes(selected.id, annoDraft)}
+                      className="justify-start"
+                      disabled={!annoDraft.trim()}
+                    >
+                      <NotebookPen className="h-4 w-4" />
+                      并入札记
+                      <span className="ml-auto text-muted/70">＋</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (!selected.id) return
+                        const has = Boolean(annoDraft.trim() || canonicalAnnotations[selected.id])
+                        if (!has) return
+                        const ok = window.confirm('确定清空此处批注？')
+                        if (!ok) return
+                        setAnnotations((prev) => {
+                          const next = { ...prev }
+                          delete next[selected.id]
+                          return next
+                        })
+                        setAnnoDraftById((prev) => {
+                          const next = { ...prev }
+                          delete next[selected.id]
+                          return next
+                        })
+                        hapticTap()
+                        flashMessage('已清空批注。')
+                      }}
+                      className="justify-start"
+                      disabled={!annoDraft.trim() && !canonicalAnnotations[selected.id]}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      清空
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="mt-5 grid gap-2">
                   {selected.chronicleSlug ? (
                     <Link
@@ -638,6 +859,117 @@ export function RelationsPage() {
           </Card>
         </div>
       </div>
+
+      <Card className="relative overflow-hidden p-6 md:p-8">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.22),transparent_62%)] blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.18),transparent_62%)] blur-3xl" />
+
+        <SectionHeading title="批注总览" subtitle="把你写下的对照摊开：哪条线最稳，哪条线最虚，一眼便知。" />
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div
+            className={cn(
+              'focus-within:ring-1 focus-within:ring-white/10',
+              'flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+            )}
+          >
+            <Search className="h-4 w-4 text-muted/70" />
+            <input
+              value={annoQuery}
+              onChange={(e) => setAnnoQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setAnnoQuery('')
+              }}
+              placeholder="搜批注：誓词 / 旧物 / 端秤 / 界石……（Esc 清空）"
+              className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+            />
+            {annoQuery.trim() ? (
+              <button
+                type="button"
+                className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                onClick={() => setAnnoQuery('')}
+                aria-label="清空搜索"
+                title="清空"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="text-xs text-muted/70 sm:shrink-0">
+            显示 {annotatedEntries.length} / 已写 {annotationCount} 处
+          </div>
+        </div>
+
+        {annotationCount === 0 ? (
+          <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
+            <div className="text-sm font-semibold text-fg">还没写下批注</div>
+            <div className="mt-2 text-xs leading-6 text-muted/80">
+              先在右侧“节点批注”落笔一两句；再回来看，牵连会更像真事。
+            </div>
+          </div>
+        ) : annotatedEntries.length ? (
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {annotatedEntries.map(({ node, ann }) => (
+              <div key={node.id} className="rounded-xl border border-border/60 bg-white/4 px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge>{node.kind}</Badge>
+                      <span className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-[11px] text-muted/80">
+                        {toneToken(node.tone) === 'warn'
+                          ? '警'
+                          : toneToken(node.tone) === 'bright'
+                            ? '明'
+                            : '平'}
+                      </span>
+                      <span className="text-xs text-muted/70">最近：{formatClock(ann.updatedAt)}</span>
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-fg">{node.title}</div>
+                    <div className="mt-1 text-xs leading-6 text-muted/80">{node.summary}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 whitespace-pre-wrap rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-sm leading-7 text-fg/90">
+                  {ann.text}
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => selectId(node.id)}
+                    className="justify-start"
+                  >
+                    <MapIcon className="h-4 w-4" />
+                    定位到节点
+                    <span className="ml-auto text-muted/70">→</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => appendRelationAnnotationToNotes(node.id, ann.text)}
+                    className="justify-start"
+                  >
+                    <NotebookPen className="h-4 w-4" />
+                    并入札记
+                    <span className="ml-auto text-muted/70">＋</span>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
+            <div className="text-sm font-semibold text-fg">暂无匹配</div>
+            <div className="mt-2 text-xs leading-6 text-muted/80">换个词试试，或清空检索。</div>
+          </div>
+        )}
+
+        <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
+          小提示：这里沿用“类别/只看牵连”的筛选。你可以先聚焦，再把批注逐条并入札记——久了就成心法。
+        </div>
+      </Card>
     </div>
   )
 }
