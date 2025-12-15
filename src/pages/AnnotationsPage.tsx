@@ -128,6 +128,7 @@ export function AnnotationsPage() {
   const [findQuery, setFindQuery] = useState('')
   const [hitCount, setHitCount] = useState(0)
   const [activeHitIndex, setActiveHitIndex] = useState(0)
+  const [activeEntryKey, setActiveEntryKey] = useState('')
 
   const [grottoAnnotations, setGrottoAnnotations] = useLocalStorageState<GrottoAnnotations>(
     STORAGE_KEYS.grottoAnnotations,
@@ -307,6 +308,11 @@ export function AnnotationsPage() {
     return filtered.map((it) => `${it.source}:${it.id}:${it.updatedAt}`).join('|')
   }, [filtered, findQuery])
 
+  const activeEntry = useMemo(() => {
+    if (!activeEntryKey) return null
+    return filtered.find((it) => `${it.source}:${it.id}` === activeEntryKey) ?? null
+  }, [activeEntryKey, filtered])
+
   const getMarks = useCallback(() => {
     const root = hallRef.current
     if (!root) return [] as HTMLElement[]
@@ -318,12 +324,16 @@ export function AnnotationsPage() {
       const marks = getMarks()
       for (const el of marks) el.removeAttribute('data-x-active')
       const active = marks[idx]
-      if (!active) return
+      if (!active) {
+        setActiveEntryKey('')
+        return
+      }
       active.setAttribute('data-x-active', '1')
-      if (!scroll) return
-      active.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+      const entry = active.closest('[data-hall-entry]') as HTMLElement | null
+      setActiveEntryKey(entry?.getAttribute('data-hall-entry') ?? '')
+      if (scroll) active.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
     },
-    [getMarks, reduceMotion],
+    [getMarks, reduceMotion, setActiveEntryKey],
   )
 
   const jumpToHit = (targetIndex: number) => {
@@ -345,6 +355,16 @@ export function AnnotationsPage() {
     hapticTap()
   }
 
+  const scrollToActiveEntry = () => {
+    if (!activeEntryKey) return
+    const root = hallRef.current
+    if (!root) return
+    const el = root.querySelector(`[data-hall-entry="${activeEntryKey}"]`) as HTMLElement | null
+    if (!el) return
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    hapticTap()
+  }
+
   useEffect(() => {
     const t = window.setTimeout(() => setActiveHitIndex(0), 0)
     return () => window.clearTimeout(t)
@@ -356,6 +376,7 @@ export function AnnotationsPage() {
       if (!q) {
         setHitCount(0)
         setActiveHitIndex(0)
+        setActiveEntryKey('')
         return
       }
 
@@ -365,6 +386,7 @@ export function AnnotationsPage() {
 
       if (!nextCount) {
         setActiveHitIndex(0)
+        setActiveEntryKey('')
         return
       }
 
@@ -1103,6 +1125,31 @@ export function AnnotationsPage() {
               </button>
             </div>
 
+            {findQuery.trim() ? (
+              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted/75">
+                <div className="min-w-0 truncate">
+                  当前命中：
+                  <span className="text-fg/85">
+                    {activeEntry
+                      ? `${activeEntry.source === 'grotto' ? '洞府图' : '关系谱'} · ${activeEntry.title}`
+                      : '—'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-1.5 text-xs font-medium',
+                    activeEntryKey ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                  )}
+                  onClick={scrollToActiveEntry}
+                  disabled={!activeEntryKey}
+                >
+                  回到条目
+                  <span className="text-muted/70">↘</span>
+                </button>
+              </div>
+            ) : null}
+
             <div className="mt-2 text-xs leading-6 text-muted/75">
               不影响筛选，只在右侧“批注条目”正文里标亮命中。
             </div>
@@ -1333,6 +1380,8 @@ export function AnnotationsPage() {
                       ? `${timelineLayerLabel(it.layer)} · ${it.when}`
                       : `${it.kind} · ${it.meta}`
 
+                  const entryKey = `${it.source}:${it.id}`
+
                   const relationJumpId =
                     it.source === 'grotto' ? relationNodeIdForTimelineId.get(it.id) ?? null : null
                   const grottoJumpId =
@@ -1340,8 +1389,12 @@ export function AnnotationsPage() {
 
                   return (
                     <motion.div
-                      key={`${it.source}:${it.id}`}
-                      className="rounded-xl border border-border/60 bg-white/4 px-5 py-4"
+                      key={entryKey}
+                      data-hall-entry={entryKey}
+                      className={cn(
+                        'rounded-xl border border-border/60 bg-white/4 px-5 py-4',
+                        entryKey === activeEntryKey && 'ring-1 ring-[hsl(var(--ring)/.25)]',
+                      )}
                       initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: reduceMotion ? 0 : idx * 0.015, type: 'spring', stiffness: 420, damping: 34 }}
