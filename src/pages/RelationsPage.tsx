@@ -42,6 +42,14 @@ type RelationAnnotation = {
 
 type RelationAnnotations = Record<string, RelationAnnotation>
 
+type RelationAnnotationsExportPayload = {
+  kind: 'xuantian.relations.annotations'
+  v: 1
+  exportedAt: number
+  count: number
+  annotations: RelationAnnotations
+}
+
 function parseKind(raw: string | null): KindFilter | null {
   if (!raw) return null
   if (raw === 'all') return 'all'
@@ -131,6 +139,7 @@ export function RelationsPage() {
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
+  const annoImportRef = useRef<HTMLInputElement | null>(null)
 
   const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
 
@@ -475,6 +484,181 @@ export function RelationsPage() {
     items.sort((a, b) => (b.ann.updatedAt || 0) - (a.ann.updatedAt || 0))
     return items
   }, [annoQuery, canonicalAnnotations, kind, onlyRelated, relatedIds])
+
+  const exportRelationAnnotations = () => {
+    if (annotationCount === 0) {
+      window.alert('当前没有可导出的节点批注。')
+      return
+    }
+
+    const payload: RelationAnnotationsExportPayload = {
+      kind: 'xuantian.relations.annotations',
+      v: 1,
+      exportedAt: Date.now(),
+      count: annotationCount,
+      annotations: canonicalAnnotations,
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-relations-annotations-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    hapticTap()
+    flashMessage('已导出批注存档。')
+  }
+
+  const exportRelationAnnotationsScroll = () => {
+    if (annotationCount === 0) {
+      window.alert('当前没有可导出的节点批注。')
+      return
+    }
+
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+
+    const kindRank = new Map<RelationKind, number>(RELATION_KINDS.map((k, i) => [k, i]))
+    const nodes = relationNodes
+      .filter((n) => Boolean(canonicalAnnotations[n.id]))
+      .slice()
+      .sort((a, b) => {
+        const ak = kindRank.get(a.kind) ?? 999
+        const bk = kindRank.get(b.kind) ?? 999
+        if (ak !== bk) return ak - bk
+        return a.title.localeCompare(b.title, 'zh-Hans-CN')
+      })
+
+    const lines: string[] = [
+      '轩天帝 · 关系谱节点批注文卷',
+      `导出时间：${stamp} ${clock}`,
+      `共计：${annotationCount} 处`,
+      '',
+    ]
+
+    for (const node of nodes) {
+      const ann = canonicalAnnotations[node.id]
+      if (!ann) continue
+
+      lines.push(`【关系谱批注】${node.kind} · ${node.title}`)
+
+      const parts = ann.text.split(/\r?\n/).map((x) => x.trimEnd())
+      if (parts.length <= 1) {
+        lines.push(`批注：${(parts[0] ?? '').trim()}`)
+      } else {
+        lines.push('批注：')
+        for (const p of parts) lines.push(`  ${p}`)
+      }
+
+      const edges = getRelationEdgesFor(node.id)
+      const related = edges
+        .map((e) => {
+          const otherId = e.from === node.id ? e.to : e.from
+          const other = nodeById.get(otherId)
+          if (!other) return null
+          return `${e.label}：${other.title}`
+        })
+        .filter(Boolean) as string[]
+
+      if (related.length) {
+        lines.push('牵连：')
+        for (const x of related) lines.push(`- ${x}`)
+      }
+
+      lines.push('')
+    }
+
+    const text = `${lines.join('\n').trimEnd()}\n`
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-relations-annotations-${stamp}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    hapticTap()
+    flashMessage('已导出批注文卷。')
+  }
+
+  const applyImportedAnnotations = (incoming: RelationAnnotations) => {
+    const known: RelationAnnotations = {}
+    for (const [id, a] of Object.entries(incoming)) {
+      if (!nodeById.has(id)) continue
+      const text = typeof a?.text === 'string' ? a.text.trim() : ''
+      if (!text) continue
+      const updatedAt = typeof a?.updatedAt === 'number' ? a.updatedAt : Date.now()
+      known[id] = { text, updatedAt }
+    }
+
+    const count = Object.keys(known).length
+    if (count === 0) {
+      window.alert('导入失败：存档里没有可识别的批注。')
+      return
+    }
+
+    const replace = window.confirm('导入方式：确定=覆盖现有批注；取消=合并（同一节点以导入为准）。')
+    if (replace) {
+      setAnnotations(known)
+    } else {
+      setAnnotations((prev) => ({ ...prev, ...known }))
+    }
+
+    setAnnoDraftById((prev) => {
+      const next = { ...prev }
+      for (const id of Object.keys(known)) delete next[id]
+      return next
+    })
+
+    hapticSuccess()
+    flashMessage(`已导入批注：${count} 处。`)
+  }
+
+  const importRelationAnnotations = async (file: File) => {
+    try {
+      const raw = await file.text()
+      const data = JSON.parse(raw) as unknown
+
+      let incoming: unknown = null
+      if (data && typeof data === 'object') {
+        const maybe = data as Partial<RelationAnnotationsExportPayload> & { annotations?: unknown }
+        if (maybe.kind === 'xuantian.relations.annotations' && maybe.v === 1 && maybe.annotations) {
+          incoming = maybe.annotations
+        } else {
+          incoming = data
+        }
+      }
+
+      if (!incoming || typeof incoming !== 'object') {
+        window.alert('导入失败：存档格式不支持。')
+        return
+      }
+
+      const incomingMap = incoming as Record<string, unknown>
+      const normalized: RelationAnnotations = {}
+      for (const [id, v] of Object.entries(incomingMap)) {
+        if (!v) continue
+        if (typeof v === 'string') {
+          const text = v.trim()
+          if (!text) continue
+          normalized[id] = { text, updatedAt: Date.now() }
+          continue
+        }
+        if (typeof v === 'object') {
+          const obj = v as Partial<RelationAnnotation>
+          const text = typeof obj.text === 'string' ? obj.text.trim() : ''
+          if (!text) continue
+          normalized[id] = { text, updatedAt: typeof obj.updatedAt === 'number' ? obj.updatedAt : Date.now() }
+        }
+      }
+
+      applyImportedAnnotations(normalized)
+    } catch {
+      window.alert('导入失败：存档内容有误。')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -898,6 +1082,60 @@ export function RelationsPage() {
 
           <div className="text-xs text-muted/70 sm:shrink-0">
             显示 {annotatedEntries.length} / 已写 {annotationCount} 处
+          </div>
+        </div>
+
+        <input
+          ref={annoImportRef}
+          type="file"
+          accept="application/json,text/plain"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.currentTarget.files?.[0]
+            e.currentTarget.value = ''
+            if (!file) return
+            void importRelationAnnotations(file)
+          }}
+        />
+
+        <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-fg">批注存档</div>
+            <div className="text-xs text-muted/70">已写 {annotationCount} 处</div>
+          </div>
+          <div className="mt-2 text-xs leading-6 text-muted/80">
+            建议偶尔导出一次存档，防止设备更换或清理缓存后丢失；文卷适合阅读与归档。
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <Button
+              type="button"
+              variant="ghost"
+              className="justify-start"
+              onClick={exportRelationAnnotationsScroll}
+              disabled={annotationCount === 0}
+            >
+              导出文卷
+              <span className="ml-auto text-muted/70">↓</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="justify-start"
+              onClick={exportRelationAnnotations}
+              disabled={annotationCount === 0}
+            >
+              导出存档
+              <span className="ml-auto text-muted/70">↓</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="justify-start"
+              onClick={() => annoImportRef.current?.click()}
+            >
+              导入存档
+              <span className="ml-auto text-muted/70">↑</span>
+            </Button>
           </div>
         </div>
 
