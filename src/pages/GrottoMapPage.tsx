@@ -283,16 +283,23 @@ export function GrottoMapPage() {
     [searchParams, setSearchParams],
   )
 
-  const addSelectedToNotes = () => {
+  const addSelectedToNotes = (includeAnnotation: boolean) => {
     if (!selected) return
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const ann = includeAnnotation ? annoDraft.trim() : ''
     const block = [
       `【${stamp} · 洞府图摘记】`,
       `${timelineLayerLabel(selected.layer)} · ${selected.when} · ${selected.title}`,
       selected.long ?? selected.detail,
-    ].join('\n')
+      includeAnnotation && ann ? '' : null,
+      includeAnnotation && ann ? `【路标批注】` : null,
+      includeAnnotation && ann ? `“${ann}”` : null,
+      includeAnnotation && ann ? `（来源：洞府图 · ${selected.title}）` : null,
+    ]
+      .filter((x): x is string => typeof x === 'string')
+      .join('\n')
 
     const prev = readString(STORAGE_KEYS.notes, '')
     const next = prev.trim() ? `${prev}\n\n${block}` : block
@@ -302,7 +309,7 @@ export function GrottoMapPage() {
     const nextMeta: NotesMeta = {
       ...prevMeta,
       updatedAt: now.getTime(),
-      lastSource: `洞府图：${selected.title}`,
+      lastSource: includeAnnotation && ann ? `洞府图（含批注）：${selected.title}` : `洞府图：${selected.title}`,
     }
     writeJson(STORAGE_KEYS.notesMeta, nextMeta)
 
@@ -882,13 +889,26 @@ export function GrottoMapPage() {
                       <Button
                         type="button"
                         variant="ghost"
-                        onClick={addSelectedToNotes}
+                        onClick={() => addSelectedToNotes(false)}
                         className="justify-start"
                       >
                         <NotebookPen className="h-4 w-4" />
                         收入札记
                         <span className="ml-auto text-muted/70">＋</span>
                       </Button>
+
+                      {annoDraft.trim() ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => addSelectedToNotes(true)}
+                          className="justify-start"
+                        >
+                          <NotebookPen className="h-4 w-4" />
+                          收入札记（含批注）
+                          <span className="ml-auto text-muted/70">＋</span>
+                        </Button>
+                      ) : null}
 
                       <Button
                         type="button"

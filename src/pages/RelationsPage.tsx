@@ -397,7 +397,7 @@ export function RelationsPage() {
     [flashMessage, nodeById],
   )
 
-  const appendSelectedToNotes = useCallback(() => {
+  const appendSelectedToNotes = useCallback((includeAnnotation: boolean) => {
     if (!selected) return
 
     const now = new Date()
@@ -414,11 +414,17 @@ export function RelationsPage() {
       })
       .filter(Boolean) as string[]
 
+    const ann = includeAnnotation ? annoDraft.trim() : ''
+
     const block = [
       `【${stamp} · 关系谱摘记】`,
       `${selected.kind} · ${selected.title}`,
       selected.summary,
       selected.detail,
+      includeAnnotation && ann ? '' : null,
+      includeAnnotation && ann ? `【节点批注】` : null,
+      includeAnnotation && ann ? `“${ann}”` : null,
+      includeAnnotation && ann ? `（来源：关系谱 · ${selected.title}）` : null,
       related.length ? '' : null,
       related.length ? `牵连：` : null,
       ...related.map((x) => `- ${x}`),
@@ -434,13 +440,13 @@ export function RelationsPage() {
     const nextMeta: NotesMeta = {
       ...prevMeta,
       updatedAt: now.getTime(),
-      lastSource: `关系谱：${selected.title}`,
+      lastSource: includeAnnotation && ann ? `关系谱（含批注）：${selected.title}` : `关系谱：${selected.title}`,
     }
     writeJson(STORAGE_KEYS.notesMeta, nextMeta)
 
     hapticSuccess()
     flashMessage('已收入札记。')
-  }, [flashMessage, nodeById, selected])
+  }, [annoDraft, flashMessage, nodeById, selected])
 
   const selectedEdges = useMemo(() => {
     if (!selected) return []
@@ -980,11 +986,29 @@ export function RelationsPage() {
                     </Link>
                   ) : null}
 
-                  <Button type="button" variant="ghost" onClick={appendSelectedToNotes} className="justify-start">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => appendSelectedToNotes(false)}
+                    className="justify-start"
+                  >
                     <NotebookPen className="h-4 w-4" />
                     收入札记
                     <span className="ml-auto text-muted/70">＋</span>
                   </Button>
+
+                  {annoDraft.trim() ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => appendSelectedToNotes(true)}
+                      className="justify-start"
+                    >
+                      <NotebookPen className="h-4 w-4" />
+                      收入札记（含批注）
+                      <span className="ml-auto text-muted/70">＋</span>
+                    </Button>
+                  ) : null}
                 </div>
 
                 <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
