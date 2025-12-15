@@ -12,7 +12,7 @@ import {
   Upload,
   Waypoints,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS, type MarkdownHighlightOptions, Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
@@ -73,6 +73,7 @@ type AnnotationEntry =
       chronicleSlug?: string
       updatedAt: number
       text: string
+      searchHay: string
     }
   | {
       source: 'relations'
@@ -85,6 +86,7 @@ type AnnotationEntry =
       timelineId?: string
       updatedAt: number
       text: string
+      searchHay: string
     }
 
 type AnnotationsHallExportPayload = {
@@ -160,6 +162,11 @@ export function AnnotationsPage() {
     null,
   )
   const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const appliedQuery = query.trim() ? deferredQuery : ''
+
+  const deferredFindQuery = useDeferredValue(findQuery)
+  const appliedFindQuery = findQuery.trim() ? deferredFindQuery : ''
 
   const flashMessage = (msg: string) => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
@@ -246,6 +253,7 @@ export function AnnotationsPage() {
       const t = timelineById.get(id)
       if (!t) continue
       const tone: Tone = (t.tone ?? 'calm') as Tone
+      const searchHay = safeLower(['洞府图', t.title, t.detail, a.text, t.when, timelineLayerLabel(t.layer)].join(' '))
       list.push({
         source: 'grotto',
         id,
@@ -257,6 +265,7 @@ export function AnnotationsPage() {
         chronicleSlug: t.chronicleSlug,
         updatedAt: a.updatedAt,
         text: a.text,
+        searchHay,
       })
     }
 
@@ -264,6 +273,7 @@ export function AnnotationsPage() {
       const n = relationById.get(id)
       if (!n) continue
       const tone: Tone = (n.tone === 'warn' ? 'warn' : n.tone === 'bright' ? 'bright' : 'calm') as Tone
+      const searchHay = safeLower(['关系谱', n.title, n.summary, a.text, n.kind].join(' '))
       list.push({
         source: 'relations',
         id,
@@ -275,6 +285,7 @@ export function AnnotationsPage() {
         timelineId: n.timelineId,
         updatedAt: a.updatedAt,
         text: a.text,
+        searchHay,
       })
     }
 
@@ -283,7 +294,7 @@ export function AnnotationsPage() {
   }, [canonicalGrottoAnnotations, canonicalRelationAnnotations, relationById, timelineById])
 
   const filtered = useMemo(() => {
-    const q = safeLower(query.trim())
+    const q = safeLower(appliedQuery.trim())
     return entries.filter((it) => {
       if (source !== 'all' && it.source !== source) return false
       if (tone !== 'all' && it.tone !== tone) return false
@@ -295,26 +306,19 @@ export function AnnotationsPage() {
       }
 
       if (!q) return true
-      const hay = safeLower(
-        [
-          it.source === 'grotto' ? '洞府图' : '关系谱',
-          it.title,
-          it.meta,
-          it.text,
-          it.source === 'grotto' ? it.when : it.kind,
-        ].join(' '),
-      )
-      return hay.includes(q)
+      return it.searchHay.includes(q)
     })
-  }, [entries, layer, query, relKind, source, tone])
+  }, [appliedQuery, entries, layer, relKind, source, tone])
+
+  const heavyList = filtered.length > 80
 
   const hitTrackKey = useMemo(() => {
-    if (!findQuery.trim()) return ''
+    if (!appliedFindQuery.trim()) return ''
     const flags = `mc:${findOptions.matchCase ? 1 : 0};ww:${findOptions.wholeWord ? 1 : 0};ip:${
       findOptions.ignorePunctuation ? 1 : 0
     }`
     return `${flags}|${filtered.map((it) => `${it.source}:${it.id}:${it.updatedAt}`).join('|')}`
-  }, [filtered, findOptions.ignorePunctuation, findOptions.matchCase, findOptions.wholeWord, findQuery])
+  }, [appliedFindQuery, filtered, findOptions.ignorePunctuation, findOptions.matchCase, findOptions.wholeWord])
 
   const activeEntry = useMemo(() => {
     if (!activeEntryKey) return null
@@ -345,9 +349,15 @@ export function AnnotationsPage() {
   )
 
   const jumpToHit = (targetIndex: number) => {
-    const q = findQuery.trim()
-    if (!q) {
+    const inputQ = findQuery.trim()
+    const q = appliedFindQuery.trim()
+    if (!inputQ) {
       flashMessage('先写一个卷内检索词。')
+      hapticTap()
+      return
+    }
+    if (!q) {
+      flashMessage('检索词正在点亮，稍等一息再跳。')
       hapticTap()
       return
     }
@@ -385,7 +395,7 @@ export function AnnotationsPage() {
 
   useEffect(() => {
     const t = window.setTimeout(() => {
-      const q = findQuery.trim()
+      const q = appliedFindQuery.trim()
       if (!q) {
         setHitCount(0)
         setActiveHitIndex(0)
@@ -406,10 +416,10 @@ export function AnnotationsPage() {
       setActiveHitIndex((prev) => Math.min(prev, nextCount - 1))
     }, 0)
     return () => window.clearTimeout(t)
-  }, [findQuery, getMarks, hitTrackKey])
+  }, [appliedFindQuery, getMarks, hitTrackKey])
 
   useEffect(() => {
-    const q = findQuery.trim()
+    const q = appliedFindQuery.trim()
     if (!q) return
     const t = window.setTimeout(() => {
       const marks = getMarks()
@@ -419,7 +429,7 @@ export function AnnotationsPage() {
       syncActiveMark(idx, false)
     }, 0)
     return () => window.clearTimeout(t)
-  }, [activeHitIndex, findQuery, getMarks, hitTrackKey, syncActiveMark])
+  }, [activeHitIndex, appliedFindQuery, getMarks, hitTrackKey, syncActiveMark])
 
   const exportScroll = () => {
     if (filtered.length === 0) {
@@ -1067,7 +1077,7 @@ export function AnnotationsPage() {
             </div>
 
             <div className="text-xs text-muted/70 sm:shrink-0 lg:shrink-0">
-              命中 {filtered.length} / 共 {totalCount}
+              {query.trim() && query.trim() !== appliedQuery.trim() ? '检索中…' : `命中 ${filtered.length} / 共 ${totalCount}`}
             </div>
           </div>
 
@@ -1076,7 +1086,11 @@ export function AnnotationsPage() {
               <div className="text-sm font-semibold text-fg">卷内检索</div>
               {findQuery.trim() ? (
                 <div className="text-xs text-muted/70">
-                  {hitCount ? `${Math.min(activeHitIndex + 1, hitCount)}/${hitCount}` : '未命中'}
+                  {findQuery.trim() !== appliedFindQuery.trim()
+                    ? '点亮中…'
+                    : hitCount
+                      ? `${Math.min(activeHitIndex + 1, hitCount)}/${hitCount}`
+                      : '未命中'}
                 </div>
               ) : (
                 <div className="text-xs text-muted/70">输入即点亮</div>
@@ -1162,7 +1176,7 @@ export function AnnotationsPage() {
               </button>
             </div>
 
-            {findQuery.trim() ? (
+            {appliedFindQuery.trim() ? (
               <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted/75">
                 <div className="min-w-0 truncate">
                   当前命中：
@@ -1430,11 +1444,17 @@ export function AnnotationsPage() {
                       data-hall-entry={entryKey}
                       className={cn(
                         'rounded-xl border border-border/60 bg-white/4 px-5 py-4',
+                        '[content-visibility:auto] [contain-intrinsic-size:280px_220px]',
                         entryKey === activeEntryKey && 'ring-1 ring-[hsl(var(--ring)/.25)]',
                       )}
-                      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                      initial={reduceMotion || heavyList ? false : { opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: reduceMotion ? 0 : idx * 0.015, type: 'spring', stiffness: 420, damping: 34 }}
+                      transition={{
+                        delay: reduceMotion || heavyList ? 0 : idx * 0.015,
+                        type: 'spring',
+                        stiffness: 420,
+                        damping: 34,
+                      }}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -1454,7 +1474,7 @@ export function AnnotationsPage() {
                         <Markdown
                           text={it.text}
                           className="prose-sm leading-7"
-                          highlightQuery={findQuery}
+                          highlightQuery={appliedFindQuery}
                           highlightOptions={findOptions}
                           highlightScope="hall"
                           highlightIdPrefix="hall-hit-"

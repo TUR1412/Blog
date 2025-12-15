@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Download, Eraser, Sparkles, Clipboard, Upload, PencilLine, ScrollText, Search } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -57,6 +57,8 @@ export function NotesPage() {
     STORAGE_KEYS.findOptions,
     DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS,
   )
+  const deferredFindQuery = useDeferredValue(findQuery)
+  const appliedFindQuery = findQuery.trim() ? deferredFindQuery : ''
   const [hitCount, setHitCount] = useState(0)
   const [activeHitIndex, setActiveHitIndex] = useState(0)
   const [handledAnchor, setHandledAnchor] = useState('')
@@ -97,8 +99,27 @@ export function NotesPage() {
     el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
+  const getMarks = useCallback(() => {
+    const root = scrollRef.current
+    if (!root) return [] as HTMLElement[]
+    return Array.from(root.querySelectorAll('mark[data-x-hit="notes"]')) as HTMLElement[]
+  }, [])
+
+  const syncActiveMark = useCallback(
+    (idx: number, scroll: boolean) => {
+      const marks = getMarks()
+      for (const el of marks) el.removeAttribute('data-x-active')
+      const active = marks[idx]
+      if (!active) return
+      active.setAttribute('data-x-active', '1')
+      if (!scroll) return
+      active.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+    },
+    [getMarks, reduceMotion],
+  )
+
   const jumpToHit = (idx: number) => {
-    const q = findQuery.trim()
+    const q = appliedFindQuery.trim()
     if (view !== 'scroll') return
     if (!q) return
     if (!hitCount) return
@@ -106,15 +127,7 @@ export function NotesPage() {
     const next = ((idx % hitCount) + hitCount) % hitCount
     setActiveHitIndex(next)
 
-    window.setTimeout(() => {
-      const root = scrollRef.current
-      if (!root) return
-      const el = root.querySelector(
-        `mark[data-x-hit="notes"][data-x-idx="${next}"]`,
-      ) as HTMLElement | null
-      if (!el) return
-      el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
-    }, 0)
+    window.setTimeout(() => syncActiveMark(next, true), 0)
   }
 
   const toggleFindOption = (key: keyof FindOptions) => {
@@ -151,20 +164,36 @@ export function NotesPage() {
 
   useEffect(() => {
     if (view !== 'scroll') return
-    const q = findQuery.trim()
+    const q = appliedFindQuery.trim()
     const t = window.setTimeout(() => {
-      const root = scrollRef.current
-      if (!root || !q) {
+      if (!q) {
         setHitCount(0)
+        for (const el of getMarks()) el.removeAttribute('data-x-active')
         return
       }
-      const hits = root.querySelectorAll('mark[data-x-hit="notes"]')
+
+      const hits = getMarks()
       const nextCount = hits.length
       setHitCount(nextCount)
       setActiveHitIndex((prev) => (nextCount ? Math.min(prev, nextCount - 1) : 0))
     }, 0)
     return () => window.clearTimeout(t)
-  }, [findOptions, findQuery, text, view])
+  }, [appliedFindQuery, findOptions, getMarks, text, view])
+
+  useEffect(() => {
+    if (view !== 'scroll') return
+    const q = appliedFindQuery.trim()
+    if (!q) return
+    const t = window.setTimeout(() => {
+      const marks = getMarks()
+      const nextCount = marks.length
+      if (!nextCount) return
+      const idx = Math.max(0, Math.min(activeHitIndex, nextCount - 1))
+      syncActiveMark(idx, false)
+    }, 0)
+
+    return () => window.clearTimeout(t)
+  }, [activeHitIndex, appliedFindQuery, findOptions, getMarks, syncActiveMark, text, view])
 
   useEffect(() => {
     const fromUrl = searchParams.get('view')
@@ -499,11 +528,11 @@ export function NotesPage() {
                   <Markdown
                     text={text}
                     idPrefix="notes-"
-                    highlightQuery={findQuery}
+                    highlightQuery={appliedFindQuery}
                     highlightOptions={findOptions}
                     highlightScope="notes"
                     highlightIdPrefix="notes-hit-"
-                    activeHighlightIndex={activeHitIndex}
+                    activeHighlightIndex={-1}
                   />
                 </div>
               ) : (
@@ -578,7 +607,11 @@ export function NotesPage() {
                   <div className="text-sm font-semibold text-fg">卷内检索</div>
                   {findQuery.trim() ? (
                     <div className="text-xs text-muted/70">
-                      {hitCount ? `${Math.min(activeHitIndex + 1, hitCount)}/${hitCount}` : '未命中'}
+                      {findQuery.trim() !== appliedFindQuery.trim()
+                        ? '点亮中…'
+                        : hitCount
+                          ? `${Math.min(activeHitIndex + 1, hitCount)}/${hitCount}`
+                          : '未命中'}
                     </div>
                   ) : (
                     <div className="text-xs text-muted/70">输入即点亮</div>

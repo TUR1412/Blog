@@ -1,5 +1,5 @@
 import ReactMarkdown, { type Components } from 'react-markdown'
-import { isValidElement, type ReactNode } from 'react'
+import { isValidElement, memo, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -420,7 +420,7 @@ function buildComponents(opts: { idPrefix: string }): Components {
   }
 }
 
-export function Markdown({
+export const Markdown = memo(function Markdown({
   text,
   className,
   bracketHeadings = true,
@@ -432,24 +432,37 @@ export function Markdown({
   highlightIdPrefix,
   activeHighlightIndex = 0,
 }: MarkdownProps) {
-  const md = normalizeXuantianMarkdown(text, { bracketHeadings, linkifyLocations })
-  if (!md.trim()) return null
+  const md = useMemo(
+    () => normalizeXuantianMarkdown(text, { bracketHeadings, linkifyLocations }),
+    [bracketHeadings, linkifyLocations, text],
+  )
+  const hasContent = md.trim().length > 0
 
   const q = typeof highlightQuery === 'string' ? highlightQuery.trim() : ''
-  const hOpts = highlightOptions ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS
+  const hOpts = useMemo(
+    () => ({
+      matchCase: highlightOptions?.matchCase ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS.matchCase,
+      wholeWord: highlightOptions?.wholeWord ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS.wholeWord,
+      ignorePunctuation: highlightOptions?.ignorePunctuation ?? DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS.ignorePunctuation,
+    }),
+    [highlightOptions?.ignorePunctuation, highlightOptions?.matchCase, highlightOptions?.wholeWord],
+  )
   const scope = (highlightScope || 'md').trim() || 'md'
   const hitIdPrefix = typeof highlightIdPrefix === 'string' ? highlightIdPrefix : `${scope}-hit-`
   const activeIdx = Number.isFinite(activeHighlightIndex) ? activeHighlightIndex : 0
 
-  const highlight = q
-    ? buildRehypeHighlight({
-        query: q,
-        options: hOpts,
-        scope,
-        idPrefix: hitIdPrefix,
-        activeIndex: activeIdx,
-      })
-    : null
+  const highlight = useMemo(() => {
+    if (!q) return null
+    return buildRehypeHighlight({
+      query: q,
+      options: hOpts,
+      scope,
+      idPrefix: hitIdPrefix,
+      activeIndex: activeIdx,
+    })
+  }, [activeIdx, hOpts, hitIdPrefix, q, scope])
+
+  if (!hasContent) return null
 
   return (
     <div className={cn('prose prose-xuantian max-w-none', className)}>
@@ -462,4 +475,4 @@ export function Markdown({
       </ReactMarkdown>
     </div>
   )
-}
+})
