@@ -85,6 +85,13 @@ function formatClock(ts: number) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
+function formatDateTime(ts: number) {
+  if (!ts) return '未落笔'
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 function toneToken(tone: Tone) {
   if (tone === 'warn') return 'warn'
   if (tone === 'bright') return 'bright'
@@ -352,6 +359,115 @@ export function AnnotationsPage() {
     URL.revokeObjectURL(url)
     hapticTap()
     flashMessage('已导出存档。')
+  }
+
+  const exportSealedBook = () => {
+    if (totalCount === 0) {
+      window.alert('当前没有可导出的批注。')
+      return
+    }
+
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+
+    const lines: string[] = [
+      '轩天帝 · 批注馆封印卷',
+      `导出时间：${stamp} ${clock}`,
+      `洞府批注：${grottoCount} 处`,
+      `关系批注：${relationCount} 处`,
+      '',
+      '【洞府卷】（按洞府层分卷）',
+      '',
+    ]
+
+    for (const layerValue of [1, 2, 3, 4] as TimelineLayer[]) {
+      const layerMeta = TIMELINE_LAYER_META[layerValue]
+      lines.push(`【${layerMeta.label}】${layerMeta.hint}`)
+      const any = timeline.some((t) => t.layer === layerValue && Boolean(canonicalGrottoAnnotations[t.id]))
+      if (!any) {
+        lines.push('（此卷暂无批注）')
+        lines.push('')
+        continue
+      }
+
+      for (const t of timeline) {
+        if (t.layer !== layerValue) continue
+        const ann = canonicalGrottoAnnotations[t.id]
+        if (!ann) continue
+        const tone = (t.tone ?? 'calm') as Tone
+        lines.push(`- ${t.when} · ${t.title}（${tone === 'warn' ? '警' : tone === 'bright' ? '明' : '平'}）`)
+        const parts = ann.text.split(/\r?\n/).map((x) => x.trimEnd())
+        if (parts.length <= 1) {
+          lines.push(`  批注：${(parts[0] ?? '').trim()}`)
+        } else {
+          lines.push('  批注：')
+          for (const p of parts) lines.push(`    ${p}`)
+        }
+        lines.push(`  最近：${formatDateTime(ann.updatedAt)}`)
+        lines.push(`  定位：/grotto?id=${t.id}`)
+        lines.push('')
+      }
+    }
+
+    lines.push('【关系卷】（按关系类分卷）')
+    lines.push('')
+
+    for (const k of RELATION_KINDS) {
+      lines.push(`【${k}】`)
+      const nodes = relationNodes
+        .filter((n) => n.kind === k && Boolean(canonicalRelationAnnotations[n.id]))
+        .slice()
+        .sort((a, b) => a.title.localeCompare(b.title, 'zh-Hans-CN'))
+
+      if (nodes.length === 0) {
+        lines.push('（此卷暂无批注）')
+        lines.push('')
+        continue
+      }
+
+      for (const n of nodes) {
+        const ann = canonicalRelationAnnotations[n.id]
+        if (!ann) continue
+        const tone = (n.tone === 'warn' ? 'warn' : n.tone === 'bright' ? 'bright' : 'calm') as Tone
+        lines.push(`- ${n.title}（${tone === 'warn' ? '警' : tone === 'bright' ? '明' : '平'}）`)
+        lines.push(`  摘要：${n.summary}`)
+
+        const parts = ann.text.split(/\r?\n/).map((x) => x.trimEnd())
+        if (parts.length <= 1) {
+          lines.push(`  批注：${(parts[0] ?? '').trim()}`)
+        } else {
+          lines.push('  批注：')
+          for (const p of parts) lines.push(`    ${p}`)
+        }
+
+        if (n.timelineId && timelineById.has(n.timelineId)) {
+          const t = timelineById.get(n.timelineId)
+          lines.push(`  对应路标：${t ? `${timelineLayerLabel(t.layer)} · ${t.when} · ${t.title}` : n.timelineId}`)
+          lines.push(`  定位：/grotto?id=${n.timelineId}`)
+        }
+
+        if (n.chronicleSlug) {
+          lines.push(`  对应纪事：/chronicles/${n.chronicleSlug}`)
+        }
+
+        lines.push(`  最近：${formatDateTime(ann.updatedAt)}`)
+        lines.push(`  定位：/relations?id=${n.id}`)
+        lines.push('')
+      }
+    }
+
+    const text = `${lines.join('\n').trimEnd()}\n`
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-annotations-seal-${stamp}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    hapticTap()
+    flashMessage('已封印整卷。')
   }
 
   const applyImported = (items: AnnotationsHallExportPayload['items']) => {
@@ -635,6 +751,17 @@ export function AnnotationsPage() {
               文卷适合阅读与留档；存档可导入，适合换设备或清理缓存前备份。
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={exportSealedBook}
+                className="justify-start"
+                disabled={totalCount === 0}
+              >
+                <ScrollText className="h-4 w-4" />
+                封印整卷（全站）
+                <span className="ml-auto text-muted/70">↓</span>
+              </Button>
               <Button type="button" variant="ghost" onClick={exportScroll} className="justify-start" disabled={!filtered.length}>
                 <ScrollText className="h-4 w-4" />
                 导出文卷（当前筛选）
