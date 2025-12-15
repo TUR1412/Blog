@@ -1,5 +1,5 @@
-export const APP_VERSION = '2025.12.15.16'
-export const ASSET_VERSION = '20251215-16'
+export const APP_VERSION = '2025.12.15.17'
+export const ASSET_VERSION = '20251215-17'
 
 export const STORAGE_KEYS = {
   theme: 'xuantian.theme',
@@ -18,5 +18,9 @@ export const STORAGE_KEYS = {
   relationsKind: 'xuantian.relations.kind.v1',
   relationsOnly: 'xuantian.relations.only.v1',
   relationsAnnotations: 'xuantian.relations.annotations.v1',
+  annotationsHallSource: 'xuantian.annotations.hall.source.v1',
+  annotationsHallTone: 'xuantian.annotations.hall.tone.v1',
+  annotationsHallLayer: 'xuantian.annotations.hall.layer.v1',
+  annotationsHallKind: 'xuantian.annotations.hall.kind.v1',
   notesImportHint: 'xuantian.notes.importHint.v1',
 } as const

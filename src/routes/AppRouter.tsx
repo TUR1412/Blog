@@ -21,6 +21,9 @@ const NotesPage = lazy(() => import('../pages/NotesPage').then((m) => ({ default
 const RelationsPage = lazy(() =>
   import('../pages/RelationsPage').then((m) => ({ default: m.RelationsPage })),
 )
+const AnnotationsPage = lazy(() =>
+  import('../pages/AnnotationsPage').then((m) => ({ default: m.AnnotationsPage })),
+)
 const NotFoundPage = lazy(() =>
   import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
@@ -145,6 +148,16 @@ export function AppRouter() {
             <Page>
               <Suspense fallback={<PageFallback />}>
                 <NotesPage />
+              </Suspense>
+            </Page>
+          }
+        />
+        <Route
+          path="/annotations"
+          element={
+            <Page>
+              <Suspense fallback={<PageFallback />}>
+                <AnnotationsPage />
               </Suspense>
             </Page>
           }
