@@ -3,18 +3,13 @@ import { cn } from '../../lib/cn'
 export function Chip({
   children,
   selected,
-  onClick,
   className,
-}: {
-  children: React.ReactNode
-  selected?: boolean
-  onClick?: () => void
-  className?: string
-}) {
+  ...props
+}: { children: React.ReactNode; selected?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
+      {...props}
       type="button"
-      onClick={onClick}
       className={cn(
         'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
         selected
@@ -27,4 +22,3 @@ export function Chip({
     </button>
   )
 }
-

@@ -317,6 +317,53 @@ export function GrottoMapPage() {
     flashMessage('已导出批注存档。')
   }
 
+  const exportAnnotationsScroll = () => {
+    if (annotationCount === 0) {
+      window.alert('当前没有可导出的路标批注。')
+      return
+    }
+
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    const clock = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+
+    const lines: string[] = [
+      '轩天帝 · 洞府图路标批注文卷',
+      `导出时间：${stamp} ${clock}`,
+      `共计：${annotationCount} 处`,
+      '',
+    ]
+
+    for (const t of timeline) {
+      const ann = canonicalAnnotations[t.id]?.text?.trim() ?? ''
+      if (!ann) continue
+
+      lines.push(`【路标批注】${timelineLayerLabel(t.layer)} · ${t.when} · ${t.title}`)
+
+      const parts = ann.split(/\r?\n/).map((x) => x.trimEnd())
+      if (parts.length <= 1) {
+        lines.push(`批注：${(parts[0] ?? '').trim()}`)
+      } else {
+        lines.push('批注：')
+        for (const p of parts) lines.push(`  ${p}`)
+      }
+
+      lines.push('')
+    }
+
+    const text = `${lines.join('\n').trimEnd()}\n`
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `xuantian-grotto-annotations-${stamp}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+    hapticTap()
+    flashMessage('已导出批注文卷。')
+  }
+
   const applyImportedAnnotations = (incoming: GrottoAnnotations) => {
     const known: GrottoAnnotations = {}
     for (const [id, a] of Object.entries(incoming)) {
@@ -763,7 +810,17 @@ export function GrottoMapPage() {
                         <div className="mt-2 text-xs leading-6 text-muted/80">
                           建议偶尔导出一次存档，防止设备更换或清理缓存后丢失。
                         </div>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="justify-start"
+                            onClick={exportAnnotationsScroll}
+                            disabled={annotationCount === 0}
+                          >
+                            导出文卷
+                            <span className="ml-auto text-muted/70">↓</span>
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"

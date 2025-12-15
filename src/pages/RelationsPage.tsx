@@ -32,6 +32,13 @@ function parseKind(raw: string | null): KindFilter | null {
   return null
 }
 
+function parseOnly(raw: string | null): boolean | null {
+  if (!raw) return null
+  if (raw === '1' || raw === 'true') return true
+  if (raw === '0' || raw === 'false') return false
+  return null
+}
+
 function toneToken(tone?: RelationTone) {
   if (tone === 'warn') return 'warn'
   if (tone === 'bright') return 'bright'
@@ -90,6 +97,7 @@ export function RelationsPage() {
     'xuan',
   )
   const [storedKind, setStoredKind] = useLocalStorageState<string>(STORAGE_KEYS.relationsKind, 'all')
+  const [storedOnly, setStoredOnly] = useLocalStorageState<boolean>(STORAGE_KEYS.relationsOnly, false)
   const [query, setQuery] = useState('')
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -102,6 +110,12 @@ export function RelationsPage() {
     const fromStore = parseKind(storedKind)
     return fromStore ?? 'all'
   }, [searchParams, storedKind])
+
+  const onlyRelated = useMemo(() => {
+    const fromUrl = parseOnly(searchParams.get('only'))
+    if (fromUrl !== null) return fromUrl
+    return storedOnly
+  }, [searchParams, storedOnly])
 
   const filteredBase = useMemo(() => {
     const q = safeLower(query.trim())
@@ -132,16 +146,23 @@ export function RelationsPage() {
 
   const selected = selectedId ? nodeById.get(selectedId) ?? null : null
 
-  const visibleIds = useMemo(() => {
+  const relatedIds = useMemo(() => {
     const set = new Set<string>()
-    for (const n of filteredBase) set.add(n.id)
     set.add('xuan')
-    if (selected) {
-      set.add(selected.id)
-      for (const id of getRelatedNodeIds(selected.id)) set.add(id)
+    if (selectedId) {
+      set.add(selectedId)
+      for (const id of getRelatedNodeIds(selectedId)) set.add(id)
     }
     return set
-  }, [filteredBase, selected])
+  }, [selectedId])
+
+  const visibleIds = useMemo(() => {
+    if (onlyRelated) return relatedIds
+    const set = new Set<string>()
+    for (const n of filteredBase) set.add(n.id)
+    for (const id of relatedIds) set.add(id)
+    return set
+  }, [filteredBase, onlyRelated, relatedIds])
 
   const visibleNodes = useMemo(() => {
     return relationNodes.filter((n) => visibleIds.has(n.id))
@@ -151,6 +172,14 @@ export function RelationsPage() {
     return relationEdges.filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to))
   }, [visibleIds])
 
+  const listNodes = useMemo(() => {
+    if (!onlyRelated) return filteredBase
+    const nodes = filteredBase.filter((n) => relatedIds.has(n.id))
+    if (!selected) return nodes
+    if (nodes.some((n) => n.id === selected.id)) return nodes
+    return [selected, ...nodes]
+  }, [filteredBase, onlyRelated, relatedIds, selected])
+
   useEffect(() => {
     setStoredSelected(selectedId)
   }, [selectedId, setStoredSelected])
@@ -158,6 +187,10 @@ export function RelationsPage() {
   useEffect(() => {
     setStoredKind(kind)
   }, [kind, setStoredKind])
+
+  useEffect(() => {
+    setStoredOnly(onlyRelated)
+  }, [onlyRelated, setStoredOnly])
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
@@ -175,9 +208,16 @@ export function RelationsPage() {
       changed = true
     }
 
+    const canonicalOnly = onlyRelated ? '1' : ''
+    if ((next.get('only') ?? '') !== canonicalOnly) {
+      if (!canonicalOnly) next.delete('only')
+      else next.set('only', canonicalOnly)
+      changed = true
+    }
+
     if (!changed) return
     setSearchParams(next, { replace: true })
-  }, [kind, searchParams, selectedId, setSearchParams])
+  }, [kind, onlyRelated, searchParams, selectedId, setSearchParams])
 
   useEffect(() => {
     return () => {
@@ -186,13 +226,14 @@ export function RelationsPage() {
   }, [])
 
   useEffect(() => {
+    if (onlyRelated) return
     const first = filteredBase[0]?.id
     if (!first) return
     if (filteredBase.some((n) => n.id === selectedId)) return
     const next = new URLSearchParams(searchParams)
     next.set('id', first)
     setSearchParams(next, { replace: true })
-  }, [filteredBase, searchParams, selectedId, setSearchParams])
+  }, [filteredBase, onlyRelated, searchParams, selectedId, setSearchParams])
 
   const flashMessage = useCallback((msg: string) => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
@@ -217,6 +258,17 @@ export function RelationsPage() {
       const next = new URLSearchParams(searchParams)
       if (nextKind === 'all') next.delete('kind')
       else next.set('kind', nextKind)
+      setSearchParams(next, { replace: true })
+      hapticTap()
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const setOnly = useCallback(
+    (nextOnly: boolean) => {
+      const next = new URLSearchParams(searchParams)
+      if (!nextOnly) next.delete('only')
+      else next.set('only', '1')
       setSearchParams(next, { replace: true })
       hapticTap()
     },
@@ -304,11 +356,11 @@ export function RelationsPage() {
         </div>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-4">
-          <SectionHeading title="线索簿" subtitle="筛一筛，别让眼睛被“热闹”带跑。" />
+        <div className="grid gap-4 lg:grid-cols-12">
+          <Card className="lg:col-span-4">
+            <SectionHeading title="线索簿" subtitle="筛一筛，别让眼睛被“热闹”带跑。" />
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div
               className={cn(
                 'focus-within:ring-1 focus-within:ring-white/10',
@@ -337,7 +389,10 @@ export function RelationsPage() {
                 </button>
               ) : null}
             </div>
-            <div className="text-xs text-muted/70 sm:shrink-0">命中 {filteredBase.length}</div>
+            <div className="text-xs text-muted/70 sm:shrink-0">
+              命中 {listNodes.length}
+              {onlyRelated ? <span className="ml-1 text-muted/60">· 聚焦</span> : null}
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -350,10 +405,20 @@ export function RelationsPage() {
                 {k}
               </Chip>
             ))}
+            <span className="mx-1 h-4 w-px bg-white/10" aria-hidden="true" />
+            <Chip selected={onlyRelated} aria-pressed={onlyRelated} onClick={() => setOnly(!onlyRelated)}>
+              只看牵连
+            </Chip>
           </div>
 
+          {onlyRelated ? (
+            <div className="mt-2 text-xs leading-6 text-muted/75">
+              聚焦已开启：谱面与线索簿只保留“当前节点”及其牵连，方便把线索走完。
+            </div>
+          ) : null}
+
           <div className="mt-5 grid gap-2">
-            {filteredBase.map((n) => {
+            {listNodes.map((n) => {
               const active = n.id === selectedId
               return (
                 <button
