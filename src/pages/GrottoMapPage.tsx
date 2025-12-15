@@ -82,11 +82,14 @@ export function GrottoMapPage() {
   )
   const [query, setQuery] = useState('')
   const [annoQuery, setAnnoQuery] = useState('')
+  const [annoFindQuery, setAnnoFindQuery] = useState('')
+  const [annoActiveHitIndex, setAnnoActiveHitIndex] = useState(0)
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const keyboardNavRef = useRef(false)
   const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
   const annoImportRef = useRef<HTMLInputElement | null>(null)
+  const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const byId = useMemo(() => new Map(timeline.map((t) => [t.id, t] as const)), [])
   const canonicalAnnotations = useMemo<GrottoAnnotations>(() => {
@@ -158,10 +161,70 @@ export function GrottoMapPage() {
   const annoDraft = selectedId ? (annoDraftById[selectedId] ?? selectedAnnotation?.text ?? '') : ''
   const annoSavedAt = selectedAnnotation?.updatedAt ?? 0
 
+  const annoFindHits = useMemo(() => {
+    const q = annoFindQuery.trim().toLowerCase()
+    if (!q) return [] as number[]
+    const s = annoDraft.toLowerCase()
+    if (!s) return [] as number[]
+
+    const hits: number[] = []
+    let idx = 0
+    while (true) {
+      const at = s.indexOf(q, idx)
+      if (at < 0) break
+      hits.push(at)
+      idx = at + Math.max(1, q.length)
+    }
+    return hits
+  }, [annoDraft, annoFindQuery])
+
+  const annoHitCount = annoFindHits.length
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setAnnoActiveHitIndex(0), 0)
+    return () => window.clearTimeout(t)
+  }, [annoFindQuery, selectedId])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setAnnoActiveHitIndex((prev) => (annoHitCount ? Math.min(prev, annoHitCount - 1) : 0))
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [annoHitCount])
+
   const flashMessage = (msg: string) => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
     setFlash(msg)
     flashTimerRef.current = window.setTimeout(() => setFlash(null), 1000)
+  }
+
+  const jumpAnnoHit = (target: number) => {
+    const q = annoFindQuery.trim()
+    if (!q) {
+      flashMessage('先写一个检索词。')
+      hapticTap()
+      return
+    }
+    if (!annoHitCount) {
+      flashMessage('未命中。')
+      hapticTap()
+      return
+    }
+    if (!selected?.id) return
+
+    const next = ((target % annoHitCount) + annoHitCount) % annoHitCount
+    setAnnoActiveHitIndex(next)
+
+    const start = annoFindHits[next]
+    const end = start + q.length
+    window.setTimeout(() => {
+      const el = annoTextareaRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(start, end)
+    }, 0)
+
+    hapticTap()
   }
 
   const selectId = useCallback(
@@ -773,6 +836,7 @@ export function GrottoMapPage() {
                       </div>
 
                       <textarea
+                        ref={annoTextareaRef}
                         value={annoDraft}
                         onChange={(e) => {
                           if (!selected.id) return
@@ -787,6 +851,74 @@ export function GrottoMapPage() {
                           'focus-ring',
                         )}
                       />
+
+                      <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-semibold text-fg">卷内检索</div>
+                          {annoFindQuery.trim() ? (
+                            <div className="text-xs text-muted/70">
+                              {annoHitCount ? `${Math.min(annoActiveHitIndex + 1, annoHitCount)}/${annoHitCount}` : '未命中'}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-muted/70">输入即点亮</div>
+                          )}
+                        </div>
+
+                        <div
+                          className={cn(
+                            'mt-2 flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+                            'focus-within:ring-1 focus-within:ring-white/10',
+                          )}
+                        >
+                          <Search className="h-4 w-4 text-muted/70" />
+                          <input
+                            value={annoFindQuery}
+                            onChange={(e) => setAnnoFindQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') setAnnoFindQuery('')
+                              if (e.key === 'Enter') jumpAnnoHit(0)
+                            }}
+                            placeholder="搜批注：分寸 / 规矩 / 断桥……（Enter 跳首处，Esc 清空）"
+                            className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+                          />
+                          {annoFindQuery.trim() ? (
+                            <button
+                              type="button"
+                              className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                              onClick={() => setAnnoFindQuery('')}
+                              aria-label="清空卷内检索"
+                              title="清空"
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            className={cn(
+                              'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                              annoHitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                            )}
+                            onClick={() => jumpAnnoHit(annoActiveHitIndex - 1)}
+                            disabled={!annoHitCount}
+                          >
+                            上一处 <span className="text-muted/70">↑</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={cn(
+                              'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                              annoHitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                            )}
+                            onClick={() => jumpAnnoHit(annoActiveHitIndex + 1)}
+                            disabled={!annoHitCount}
+                          >
+                            下一处 <span className="text-muted/70">↓</span>
+                          </button>
+                        </div>
+                      </div>
 
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <Button type="button" variant="ghost" onClick={appendAnnotationToNotes} className="justify-start">
