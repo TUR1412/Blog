@@ -38,7 +38,7 @@ function formatTime(ts: number) {
 }
 
 export function NotesPage() {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useReducedMotion() ?? false
   const [searchParams, setSearchParams] = useSearchParams()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -836,7 +836,20 @@ export function NotesPage() {
             </div>
             <div className="mt-3 flex items-center justify-between">
               <div className="text-xs text-muted/70">最近保存</div>
-              <div className="text-xs text-muted/80">{formatTime(meta.updatedAt)}</div>
+              <div className="text-xs text-muted/80">
+                <AnimatePresence initial={false} mode={reduceMotion ? 'sync' : 'wait'}>
+                  <motion.span
+                    key={meta.updatedAt}
+                    className="inline-block"
+                    initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                    transition={reduceMotion ? { duration: 0.12 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {formatTime(meta.updatedAt)}
+                  </motion.span>
+                </AnimatePresence>
+              </div>
             </div>
             {meta.lastSource ? (
               <div className="mt-3 text-xs text-muted/70">
