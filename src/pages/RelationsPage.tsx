@@ -77,7 +77,7 @@ function toneToken(tone?: RelationTone) {
 
 function nodeChrome(tone?: RelationTone, active?: boolean) {
   const t = toneToken(tone)
-  const base = 'focus-ring tap group absolute -translate-x-1/2 -translate-y-1/2 text-left'
+  const base = 'focus-ring tap group absolute -translate-x-1/2 -translate-y-1/2 text-left relative'
   const box = 'w-[190px] max-w-[44vw] rounded-xl border bg-white/4 px-4 py-3'
   const blur = active ? 'backdrop-blur-xl2' : 'backdrop-blur-lg'
   if (t === 'warn') {
@@ -96,8 +96,8 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
       box,
       blur,
       active
-        ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
-        : 'border-border/60 hover:border-white/15 hover:bg-white/7',
+        ? 'border-[hsl(var(--fg)/.18)] bg-[hsl(var(--fg)/.06)] ring-1 ring-[hsl(var(--fg)/.10)]'
+        : 'border-border/60 hover:border-[hsl(var(--fg)/.14)] hover:bg-[hsl(var(--fg)/.04)]',
     )
   }
   return cn(
@@ -105,8 +105,8 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
     box,
     blur,
     active
-      ? 'border-white/18 bg-white/8 ring-1 ring-white/10'
-      : 'border-border/60 hover:border-white/12 hover:bg-white/7',
+      ? 'border-[hsl(var(--fg)/.16)] bg-[hsl(var(--fg)/.05)] ring-1 ring-[hsl(var(--fg)/.08)]'
+      : 'border-border/60 hover:border-[hsl(var(--fg)/.12)] hover:bg-[hsl(var(--fg)/.03)]',
   )
 }
 
@@ -132,6 +132,7 @@ function formatClock(ts: number) {
 export function RelationsPage() {
   const reduceMotion = useReducedMotion()
   const [searchParams, setSearchParams] = useSearchParams()
+  const [graphEntered, setGraphEntered] = useState(false)
   const [storedSelected, setStoredSelected] = useLocalStorageState<string>(
     STORAGE_KEYS.relationsSelected,
     'xuan',
@@ -291,6 +292,11 @@ export function RelationsPage() {
   useEffect(() => {
     setStoredSelected(selectedId)
   }, [selectedId, setStoredSelected])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setGraphEntered(true), 0)
+    return () => window.clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     setStoredKind(kind)
@@ -913,7 +919,7 @@ export function RelationsPage() {
                     'focus-ring tap flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left',
                     '[content-visibility:auto] [contain-intrinsic-size:240px_96px]',
                     active
-                      ? 'border-white/20 bg-white/10 ring-1 ring-white/10'
+                      ? 'border-[hsl(var(--fg)/.20)] bg-[hsl(var(--fg)/.06)] ring-1 ring-[hsl(var(--fg)/.10)]'
                       : 'border-border/60 bg-white/4 hover:bg-white/7',
                   )}
                 >
@@ -964,36 +970,44 @@ export function RelationsPage() {
                   if (!a || !b) return null
 
                   const connected = selectedId ? e.from === selectedId || e.to === selectedId : false
+                  const hasFocus = Boolean(selectedId)
 
-                  const dim = selectedId ? !connected : false
+                  const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
+                  const showGlow = !reduceMotion && hasFocus && connected
 
-                  if (reduceMotion || heavyGraph) {
-                    return (
+                  const baseOpacity = hasFocus ? (connected ? 0.66 : 0.12) : 0.32
+                  const baseStroke = hasFocus && connected ? 'hsl(var(--accent) / 0.78)' : 'hsl(var(--fg) / 0.55)'
+                  const baseStrokeWidth = hasFocus && connected ? 0.46 : 0.35
+
+                  return (
+                    <g key={e.id}>
+                      {showGlow ? (
+                        <path
+                          d={edgePath(a, b)}
+                          style={{
+                            opacity: 0.18,
+                            stroke: 'hsl(var(--accent2) / 0.72)',
+                            strokeWidth: 0.95,
+                            transition,
+                            filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
+                          }}
+                          fill="none"
+                          strokeLinecap="round"
+                        />
+                      ) : null}
                       <path
-                        key={e.id}
                         d={edgePath(a, b)}
-                        className="transition-opacity duration-300"
-                        opacity={dim ? 0.12 : 0.32}
-                        stroke="rgba(255,255,255,.55)"
-                        strokeWidth={0.35}
+                        style={{
+                          opacity: baseOpacity,
+                          stroke: baseStroke,
+                          strokeWidth: baseStrokeWidth,
+                          transition,
+                          filter: showGlow ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))' : undefined,
+                        }}
                         fill="none"
                         strokeLinecap="round"
                       />
-                    )
-                  }
-
-                  return (
-                    <motion.path
-                      key={e.id}
-                      d={edgePath(a, b)}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: dim ? 0.12 : 0.32 }}
-                      transition={{ duration: 0.35 }}
-                      stroke="rgba(255,255,255,.55)"
-                      strokeWidth={0.35}
-                      fill="none"
-                      strokeLinecap="round"
-                    />
+                    </g>
                   )
                 })}
               </svg>
@@ -1005,16 +1019,24 @@ export function RelationsPage() {
                 const dim = selectedId ? !active && !related : false
 
                 if (reduceMotion || heavyGraph) {
+                  const z = active ? 40 : related ? 30 : 20
                   return (
                     <button
                       key={n.id}
                       type="button"
                       aria-pressed={active}
                       onClick={() => selectId(n.id)}
-                      className={cn(nodeChrome(n.tone, active), dim && 'opacity-60')}
-                      style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%` }}
+                      className={cn(nodeChrome(n.tone, active), 'transition-opacity duration-200', dim && 'opacity-60')}
+                      style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: z }}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      {!reduceMotion && active ? (
+                        <motion.span
+                          layoutId="relationNodeActive"
+                          className="pointer-events-none absolute inset-0 rounded-xl border border-[hsl(var(--accent)/.32)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.16),transparent_66%)] ring-1 ring-[hsl(var(--accent)/.18)]"
+                          transition={{ type: 'spring', stiffness: 560, damping: 38 }}
+                        />
+                      ) : null}
+                      <div className="relative z-10 flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold text-fg">{n.title}</div>
                           <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">
@@ -1033,19 +1055,26 @@ export function RelationsPage() {
                     type="button"
                     aria-pressed={active}
                     onClick={() => selectId(n.id)}
-                    className={cn(nodeChrome(n.tone, active), dim && 'opacity-60')}
-                    style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%` }}
+                    className={cn(nodeChrome(n.tone, active))}
+                    style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: active ? 40 : related ? 30 : 20 }}
                     initial={{ opacity: 0, scale: 0.98, y: 6 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    animate={{ opacity: dim ? 0.6 : 1, scale: 1, y: 0 }}
                     transition={{
-                      delay: idx * 0.015,
+                      delay: graphEntered ? 0 : idx * 0.015,
                       type: 'spring',
                       stiffness: 520,
                       damping: 36,
                       mass: 0.7,
                     }}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    {!reduceMotion && active ? (
+                      <motion.span
+                        layoutId="relationNodeActive"
+                        className="pointer-events-none absolute inset-0 rounded-xl border border-[hsl(var(--accent)/.32)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.16),transparent_66%)] ring-1 ring-[hsl(var(--accent)/.18)]"
+                        transition={{ type: 'spring', stiffness: 560, damping: 38 }}
+                      />
+                    ) : null}
+                    <div className="relative z-10 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-fg">{n.title}</div>
                         <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">

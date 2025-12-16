@@ -122,7 +122,10 @@ html.theme-light {
     transform: translateZ(0);
     transition:
       transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
-      filter 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      filter 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease;
   }
 
   .tap:hover {
