@@ -84,6 +84,17 @@ export const relationNodes: RelationNode[] = [
     keywords: ['印', '公议', '边界', '细则'],
   },
   {
+    id: 'balance-scale',
+    title: '端秤（旧秤杆）',
+    kind: '旧物',
+    summary: '刻度不吓人，能让争端少一半。',
+    detail:
+      '它不是用来“压人”的器物，而是用来把“差不多”拆掉的刻度：校量、范围、复核、落款。秤压的是规矩，不是人。',
+    tone: 'warn',
+    pos: { x: 44, y: 58 },
+    keywords: ['端秤', '旧秤', '刻度', '校量', '差不多', '复核', '对账', '分粮'],
+  },
+  {
     id: 'medicine-ledger',
     title: '药单册',
     kind: '旧物',
@@ -306,6 +317,20 @@ export const relationNodes: RelationNode[] = [
     pos: { x: 90, y: 52 },
     keywords: ['冬至', '封卷', '对账', '归档', '公示', '可查', '落印'],
   },
+  {
+    id: 't-189-1',
+    title: '正月端秤',
+    kind: '关口',
+    summary: '把“差不多”压回刻度里。',
+    detail:
+      '冬至封卷之后最怕松手：他借来一杆旧秤，先校量、再分粮；称量与登记分开，范围与复核写明。刻度不响，却最管用。',
+    tone: 'warn',
+    layer: 4,
+    timelineId: 't-189-1',
+    chronicleSlug: 'new-year-balance-scale',
+    pos: { x: 56, y: 58 },
+    keywords: ['正月', '端秤', '刻度', '校量', '分粮', '对账', '复核', '贴榜'],
+  },
 ]
 
 export const relationEdges: RelationEdge[] = [
@@ -322,6 +347,7 @@ export const relationEdges: RelationEdge[] = [
   edge('xuan', 't-186-2', '落地于'),
   edge('xuan', 't-187-1', '受职于'),
   edge('xuan', 't-188-1', '封卷于'),
+  edge('xuan', 't-189-1', '校秤于'),
 
   edge('t-180-1', 'duanqiao', '发生于'),
   edge('t-182-1', 'clear-spring', '发生于'),
@@ -348,6 +374,11 @@ export const relationEdges: RelationEdge[] = [
   edge('t-188-1', 'notice-board', '公示'),
   edge('t-188-1', 'medicine-ledger', '归档'),
   edge('t-188-1', 'seal', '落印'),
+
+  edge('t-189-1', 'balance-scale', '端秤'),
+  edge('t-189-1', 'notice-board', '贴榜'),
+  edge('t-189-1', 'oath-ledger', '照秤'),
+  edge('t-189-1', 'oath-relief', '依次'),
 ]
 
 export function getRelationNode(id: string) {

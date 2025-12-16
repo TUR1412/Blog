@@ -143,4 +143,14 @@ export const timeline: TimelineEvent[] = [
     tone: 'warn',
     layer: 4,
   },
+  {
+    id: 't-189-1',
+    when: '玄历一八九年 · 正月',
+    title: '正月端秤',
+    detail: '借旧秤校量，拆掉“差不多”；把分粮与对账写成可复核的路。',
+    long: '冬至封卷之后，最容易松的一口气，往往会变成“差不多”。他借来一杆旧秤，先校量再发放：称量与登记分开，范围与复核写明。刻度不吓人，却能让争端少一半。',
+    chronicleSlug: 'new-year-balance-scale',
+    tone: 'warn',
+    layer: 4,
+  },
 ]
