@@ -1,4 +1,7 @@
 <div align="center">
+  <img src="public/cover-dark.svg#gh-dark-mode-only" alt="封面（夜）" style="max-width: 980px; width: 100%; height: auto;" />
+  <img src="public/cover-light.svg#gh-light-mode-only" alt="封面（昼）" style="max-width: 980px; width: 100%; height: auto;" />
+
   <img src="public/favicon.svg" width="108" height="108" alt="玄" />
 
   <h1>轩天帝 · 轩少｜修仙纪事</h1>

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="420" viewBox="0 0 1600 420" role="img" aria-label="轩天帝 · 轩少｜修仙纪事（封面）">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020" />
+      <stop offset="0.55" stop-color="#070a14" />
+      <stop offset="1" stop-color="#05060a" />
+    </linearGradient>
+    <radialGradient id="glowCyan" cx="30%" cy="22%" r="60%">
+      <stop offset="0" stop-color="#34d7ff" stop-opacity="0.42" />
+      <stop offset="0.45" stop-color="#34d7ff" stop-opacity="0.14" />
+      <stop offset="1" stop-color="#34d7ff" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowPurple" cx="78%" cy="30%" r="62%">
+      <stop offset="0" stop-color="#b56bff" stop-opacity="0.38" />
+      <stop offset="0.45" stop-color="#b56bff" stop-opacity="0.12" />
+      <stop offset="1" stop-color="#b56bff" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.20" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.08" />
+    </linearGradient>
+    <linearGradient id="accentLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d7ff" stop-opacity="0.85" />
+      <stop offset="0.42" stop-color="#b56bff" stop-opacity="0.55" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- 背景 -->
+  <rect x="0" y="0" width="1600" height="420" fill="url(#bg)" />
+  <rect x="0" y="0" width="1600" height="420" fill="url(#glowCyan)" />
+  <rect x="0" y="0" width="1600" height="420" fill="url(#glowPurple)" />
+
+  <!-- 微纹理：细线 + 点阵（不依赖滤镜，GitHub 渲染更稳） -->
+  <g opacity="0.35">
+    <path d="M80 92 H1520" stroke="#ffffff" stroke-opacity="0.07" />
+    <path d="M80 328 H1520" stroke="#ffffff" stroke-opacity="0.06" />
+    <path d="M110 70 V350" stroke="#ffffff" stroke-opacity="0.05" />
+    <path d="M1490 70 V350" stroke="#ffffff" stroke-opacity="0.04" />
+  </g>
+  <g opacity="0.18">
+    <circle cx="260" cy="120" r="1.2" fill="#ffffff" />
+    <circle cx="320" cy="168" r="1.1" fill="#ffffff" />
+    <circle cx="420" cy="108" r="1.2" fill="#ffffff" />
+    <circle cx="540" cy="146" r="1.0" fill="#ffffff" />
+    <circle cx="640" cy="118" r="1.1" fill="#ffffff" />
+    <circle cx="780" cy="86" r="1.2" fill="#ffffff" />
+    <circle cx="980" cy="124" r="1.1" fill="#ffffff" />
+    <circle cx="1140" cy="92" r="1.2" fill="#ffffff" />
+    <circle cx="1320" cy="138" r="1.1" fill="#ffffff" />
+  </g>
+
+  <!-- 边框 -->
+  <rect x="56" y="46" width="1488" height="328" rx="28" fill="none" stroke="url(#stroke)" stroke-width="1.2" />
+  <path d="M96 86 H780" stroke="url(#accentLine)" stroke-width="2" stroke-linecap="round" opacity="0.85" />
+
+  <!-- 印记 -->
+  <g transform="translate(1312 110)">
+    <rect x="0" y="0" width="180" height="180" rx="28" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.14" />
+    <circle cx="90" cy="90" r="58" fill="none" stroke="#ffffff" stroke-opacity="0.18" />
+    <path d="M52 92c22-36 74-36 96 0" fill="none" stroke="#34d7ff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M60 110c18 22 62 22 80 0" fill="none" stroke="#b56bff" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
+    <text x="90" y="98" text-anchor="middle" font-size="56" font-weight="700" fill="#ffffff" fill-opacity="0.92"
+      font-family="ui-serif, 'Iowan Old Style', 'Songti SC', 'STSong', 'SimSun', serif">玄</text>
+    <text x="90" y="144" text-anchor="middle" font-size="12" fill="#ffffff" fill-opacity="0.62"
+      font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">修仙纪事</text>
+  </g>
+
+  <!-- 主标题 -->
+  <g transform="translate(120 132)">
+    <text x="0" y="0" font-size="44" font-weight="700" fill="#ffffff" fill-opacity="0.96"
+      font-family="ui-serif, 'Iowan Old Style', 'Songti SC', 'STSong', 'SimSun', serif">轩天帝 · 轩少</text>
+    <text x="0" y="44" font-size="18" fill="#ffffff" fill-opacity="0.70"
+      font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">修仙纪事 · 不夸饰，不旁门 · 写得像真事</text>
+
+    <g transform="translate(0 82)">
+      <rect x="0" y="-16" width="520" height="44" rx="14" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.12" />
+      <text x="18" y="10" font-size="14" fill="#ffffff" fill-opacity="0.78"
+        font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+        行止 · 分寸 · 规矩 · 年表
+      </text>
+      <text x="404" y="10" font-size="12" fill="#ffffff" fill-opacity="0.56"
+        font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace">
+        GitHub Pages
+      </text>
+    </g>
+  </g>
+</svg>
