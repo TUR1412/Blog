@@ -156,6 +156,61 @@ function edgePath(a: { x: number; y: number }, b: { x: number; y: number }, seed
   return `M ${a2.x} ${a2.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b2.x} ${b2.y}`
 }
 
+function edgeKey(a: string, b: string) {
+  return a < b ? `${a}~~${b}` : `${b}~~${a}`
+}
+
+function buildAdjacency(edges: ReadonlyArray<{ from: string; to: string }>) {
+  const map = new Map<string, string[]>()
+  for (const e of edges) {
+    const a = e.from
+    const b = e.to
+    if (!map.has(a)) map.set(a, [])
+    if (!map.has(b)) map.set(b, [])
+    map.get(a)?.push(b)
+    map.get(b)?.push(a)
+  }
+  return map
+}
+
+function shortestPathNodeIds(adjacency: Map<string, readonly string[]>, fromId: string, toId: string) {
+  if (!fromId || !toId) return []
+  if (fromId === toId) return [fromId]
+
+  const prev = new Map<string, string>()
+  const visited = new Set<string>()
+  visited.add(fromId)
+
+  const queue: string[] = [fromId]
+  for (let qi = 0; qi < queue.length; qi++) {
+    const cur = queue[qi]
+    const nexts = adjacency.get(cur) ?? []
+    for (const next of nexts) {
+      if (visited.has(next)) continue
+      visited.add(next)
+      prev.set(next, cur)
+      if (next === toId) {
+        qi = queue.length
+        break
+      }
+      queue.push(next)
+    }
+  }
+
+  if (!visited.has(toId)) return []
+
+  const path: string[] = [toId]
+  let cur = toId
+  while (cur !== fromId) {
+    const p = prev.get(cur)
+    if (!p) return []
+    path.push(p)
+    cur = p
+  }
+  path.reverse()
+  return path
+}
+
 function safeLower(s: string) {
   return s.toLowerCase()
 }
@@ -204,6 +259,15 @@ export function RelationsPage() {
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
+  const relationAdjacency = useMemo(() => buildAdjacency(relationEdges), [])
+  const relationEdgeLabelByKey = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const e of relationEdges) {
+      const k = edgeKey(e.from, e.to)
+      if (!map.has(k)) map.set(k, e.label)
+    }
+    return map
+  }, [])
   const nodeSearchHayById = useMemo(() => {
     const map = new Map<string, string>()
     for (const n of relationNodes) {
@@ -639,6 +703,25 @@ export function RelationsPage() {
     return set
   }, [spotlightId, spotlightRelatedIdSet])
 
+  const spotlightRootPathNodeIds = useMemo(() => {
+    if (!spotlightId) return []
+    return shortestPathNodeIds(relationAdjacency, spotlightId, 'xuan')
+  }, [relationAdjacency, spotlightId])
+
+  const spotlightRootPathNodeIdSet = useMemo(() => new Set(spotlightRootPathNodeIds), [spotlightRootPathNodeIds])
+
+  const spotlightRootPathEdgeKeySet = useMemo(() => {
+    const set = new Set<string>()
+    for (let i = 0; i < spotlightRootPathNodeIds.length - 1; i++) {
+      set.add(edgeKey(spotlightRootPathNodeIds[i], spotlightRootPathNodeIds[i + 1]))
+    }
+    return set
+  }, [spotlightRootPathNodeIds])
+
+  const selectedRootPathNodeIds = useMemo(() => {
+    return shortestPathNodeIds(relationAdjacency, selectedId, 'xuan')
+  }, [relationAdjacency, selectedId])
+
   const annotatedEntries = useMemo(() => {
     const q = safeLower(appliedAnnoQuery.trim())
     const items: { node: (typeof relationNodes)[number]; ann: RelationAnnotation }[] = []
@@ -1000,7 +1083,7 @@ export function RelationsPage() {
 
         <div className="grid gap-4 lg:col-span-8 lg:grid-cols-12">
           <Card className="relative overflow-hidden lg:col-span-7">
-            <SectionHeading title="谱面" subtitle="点节点；相连的线会亮起来。" />
+            <SectionHeading title="谱面" subtitle="点节点；线是直连，发光是牵连圈（不必都直连）。" />
 
             <div className="relative mt-4 h-[520px] rounded-xl border border-border/60 bg-white/3">
               <div className="pointer-events-none absolute inset-0">
@@ -1024,12 +1107,13 @@ export function RelationsPage() {
                   const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
                   const hasFocus = Boolean(spotlightId)
                   const inCluster = hasFocus && spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
+                  const inRootPath = hasFocus && spotlightRootPathEdgeKeySet.has(edgeKey(e.from, e.to))
 
                   const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
                   const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected
                   const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected
 
-                  const tier = connected ? 'primary' : inCluster ? 'secondary' : 'background'
+                  const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
 
                   const idleOpacity = heavyGraph ? 0.12 : 0.18
                   const baseOpacity =
@@ -1037,6 +1121,10 @@ export function RelationsPage() {
                       ? idleOpacity
                       : tier === 'primary'
                         ? 0.9
+                        : tier === 'path'
+                          ? heavyGraph
+                            ? 0.16
+                            : 0.26
                         : tier === 'secondary'
                           ? heavyGraph
                             ? 0.1
@@ -1045,12 +1133,18 @@ export function RelationsPage() {
                   const baseStroke =
                     tier === 'primary'
                       ? 'hsl(var(--accent) / 0.78)'
+                      : tier === 'path'
+                        ? 'hsl(var(--accent2) / 0.62)'
                       : tier === 'secondary'
                         ? 'hsl(var(--muted) / 0.66)'
                         : 'hsl(var(--muted) / 0.52)'
                   const baseStrokeWidth =
                     tier === 'primary'
                       ? 0.5
+                      : tier === 'path'
+                        ? heavyGraph
+                          ? 0.24
+                          : 0.34
                       : tier === 'secondary'
                         ? heavyGraph
                           ? 0.22
@@ -1058,6 +1152,8 @@ export function RelationsPage() {
                         : heavyGraph
                           ? 0.18
                           : 0.2
+
+                  const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
 
                   return (
                     <g key={e.id}>
@@ -1083,7 +1179,11 @@ export function RelationsPage() {
                           stroke: baseStroke,
                           strokeWidth: baseStrokeWidth,
                           transition,
-                          filter: showGlow ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))' : undefined,
+                          filter: showGlow
+                            ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
+                            : showPathGlow
+                              ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
+                              : undefined,
                         }}
                         fill="none"
                         strokeLinecap="round"
@@ -1115,7 +1215,9 @@ export function RelationsPage() {
                 const active = n.id === selectedId
                 const spotlight = n.id === spotlightId
                 const related =
-                  spotlightId && !spotlight ? spotlightRelatedIdSet.has(n.id) || n.id === 'xuan' : true
+                  spotlightId && !spotlight
+                    ? spotlightRelatedIdSet.has(n.id) || spotlightRootPathNodeIdSet.has(n.id) || n.id === 'xuan'
+                    : true
 
                 const dim = spotlightId ? !spotlight && !related : false
 
@@ -1517,6 +1619,46 @@ export function RelationsPage() {
                       <div className="mt-2 text-xs leading-6 text-muted/80">此处线索暂未连到别处。</div>
                     )}
                   </div>
+
+                  {selected.id !== 'xuan' && selectedRootPathNodeIds.length > 1 ? (
+                    <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold text-fg">回轩路</div>
+                        <div className="text-xs text-muted/70">{selectedRootPathNodeIds.length - 1} 跳</div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {selectedRootPathNodeIds.map((id, idx) => {
+                          const node = nodeById.get(id)
+                          if (!node) return null
+                          const nextId = selectedRootPathNodeIds[idx + 1]
+                          const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
+                          const isEnd = idx === selectedRootPathNodeIds.length - 1
+                          return (
+                            <span key={`${id}-${idx}`} className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => selectId(id)}
+                                className={cn(
+                                  'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
+                                  id === 'xuan'
+                                    ? 'border-[hsl(var(--accent)/.32)] bg-[hsl(var(--accent)/.10)] text-fg/95'
+                                    : 'border-border/70 bg-white/5 text-fg/90 hover:bg-white/10',
+                                )}
+                              >
+                                {node.title}
+                              </button>
+                              {!isEnd ? (
+                                <span className="text-[11px] text-muted/70">
+                                  —{label ?? '牵连'}→
+                                </span>
+                              ) : null}
+                            </span>
+                          )
+                        })}
+                      </div>
+                      <div className="mt-2 text-xs leading-6 text-muted/80">谱面会把这条链的线再提亮一点，便于看清来路。</div>
+                    </div>
+                  ) : null}
 
                   <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
                     小提示：点“牵连”里的条目，谱面会把相关节点提亮；再回去读纪事，会更像把路走了一遍。
