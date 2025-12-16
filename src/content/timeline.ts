@@ -133,4 +133,14 @@ export const timeline: TimelineEvent[] = [
     tone: 'bright',
     layer: 4,
   },
+  {
+    id: 't-188-1',
+    when: '玄历一八八年 · 冬至',
+    title: '冬至封卷',
+    detail: '对账归档，公示可查；把次序留给后来人。',
+    long: '冬至雪夜，公议台上灯火未熄。他不许“口头算了”，只让人把账写清：日期、缘由、数目、经手、落印、去向。写得清，才配谈威望；留得住，才配谈长久。',
+    chronicleSlug: 'winter-solstice-archiving',
+    tone: 'warn',
+    layer: 4,
+  },
 ]

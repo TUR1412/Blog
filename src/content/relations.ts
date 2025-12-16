@@ -292,6 +292,20 @@ export const relationNodes: RelationNode[] = [
     pos: { x: 86, y: 38 },
     keywords: ['立冬', '盟约', '天帝', '端秤'],
   },
+  {
+    id: 't-188-1',
+    title: '冬至封卷',
+    kind: '关口',
+    summary: '把账写给后来人。',
+    detail:
+      '雪夜对账归档，不许“口头算了”。他要的不是场面好看，而是可对照：日期、缘由、数目、经手、落印与去向。写得清，才能少争端；留得住，才能让后来人有处可查。',
+    tone: 'warn',
+    layer: 4,
+    timelineId: 't-188-1',
+    chronicleSlug: 'winter-solstice-archiving',
+    pos: { x: 90, y: 52 },
+    keywords: ['冬至', '封卷', '对账', '归档', '公示', '可查', '落印'],
+  },
 ]
 
 export const relationEdges: RelationEdge[] = [
@@ -307,6 +321,7 @@ export const relationEdges: RelationEdge[] = [
   edge('xuan', 't-186-1', '对照于'),
   edge('xuan', 't-186-2', '落地于'),
   edge('xuan', 't-187-1', '受职于'),
+  edge('xuan', 't-188-1', '封卷于'),
 
   edge('t-180-1', 'duanqiao', '发生于'),
   edge('t-182-1', 'clear-spring', '发生于'),
@@ -327,6 +342,12 @@ export const relationEdges: RelationEdge[] = [
   edge('t-185-1', 'notice-board', '张榜'),
   edge('oath-relief', 'notice-board', '需公示'),
   edge('t-182-1', 'oath-ledger', '写成字'),
+
+  edge('t-188-1', 'oath-ledger', '照秤'),
+  edge('t-188-1', 'oath-relief', '对账'),
+  edge('t-188-1', 'notice-board', '公示'),
+  edge('t-188-1', 'medicine-ledger', '归档'),
+  edge('t-188-1', 'seal', '落印'),
 ]
 
 export function getRelationNode(id: string) {

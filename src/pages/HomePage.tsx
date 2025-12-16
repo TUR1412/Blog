@@ -57,7 +57,7 @@ function SparkBurstLayer({ bursts }: { bursts: Burst[] }) {
 
 export function HomePage() {
   const { open } = useCommandPalette()
-  const featured = useMemo(() => chronicles.slice(0, 3), [])
+  const featured = useMemo(() => chronicles.slice(-3).reverse(), [])
   const [qi, setQi] = useState(72)
   const [bursts, setBursts] = useState<Burst[]>([])
   const [quoteIndex, setQuoteIndex] = useState(0)
