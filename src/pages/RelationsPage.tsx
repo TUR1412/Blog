@@ -236,13 +236,14 @@ const LIST_ITEM = {
 }
 
 export function RelationsPage() {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useReducedMotion() ?? false
   const [searchParams, setSearchParams] = useSearchParams()
   const [graphEntered, setGraphEntered] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const graphViewportRef = useRef<HTMLDivElement | null>(null)
   const graphStageRef = useRef<HTMLDivElement | null>(null)
   const graphViewRef = useRef({ x: 0, y: 0, scale: 1 })
+  const graphFlyRef = useRef<{ rafId: number } | null>(null)
   const graphPanRef = useRef<{
     pointerId: number
     startClientX: number
@@ -374,18 +375,69 @@ export function RelationsPage() {
     })
   }, [])
 
+  const cancelGraphFly = useCallback(() => {
+    const cur = graphFlyRef.current
+    if (cur) window.cancelAnimationFrame(cur.rafId)
+    graphFlyRef.current = null
+  }, [])
+
+  const animateGraphViewTo = useCallback(
+    (target: { x: number; y: number; scale: number }, opts?: { duration?: number }) => {
+      cancelGraphFly()
+
+      const duration = Math.max(140, Math.min(520, opts?.duration ?? 280))
+      const from = graphViewRef.current
+      const dist = Math.hypot(target.x - from.x, target.y - from.y) + Math.abs(target.scale - from.scale) * 160
+
+      if (reduceMotion || dist < 0.4) {
+        graphViewRef.current = target
+        scheduleApplyGraphView()
+        return
+      }
+
+      const startedAt = performance.now()
+      const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+
+      const step = (now: number) => {
+        const t = Math.max(0, Math.min(1, (now - startedAt) / duration))
+        const k = easeOut(t)
+
+        graphViewRef.current = {
+          x: from.x + (target.x - from.x) * k,
+          y: from.y + (target.y - from.y) * k,
+          scale: from.scale + (target.scale - from.scale) * k,
+        }
+        scheduleApplyGraphView()
+
+        if (t < 1) {
+          const rafId = window.requestAnimationFrame(step)
+          graphFlyRef.current = { rafId }
+          return
+        }
+
+        graphViewRef.current = target
+        scheduleApplyGraphView()
+        graphFlyRef.current = null
+      }
+
+      const rafId = window.requestAnimationFrame(step)
+      graphFlyRef.current = { rafId }
+    },
+    [cancelGraphFly, reduceMotion, scheduleApplyGraphView],
+  )
+
   const resetGraphView = useCallback(() => {
-    graphViewRef.current = { x: 0, y: 0, scale: 1 }
-    scheduleApplyGraphView()
+    animateGraphViewTo({ x: 0, y: 0, scale: 1 })
     hapticTap()
-  }, [scheduleApplyGraphView])
+  }, [animateGraphViewTo])
 
   useEffect(() => {
     scheduleApplyGraphView()
     return () => {
       if (graphRafRef.current) window.cancelAnimationFrame(graphRafRef.current)
+      cancelGraphFly()
     }
-  }, [scheduleApplyGraphView])
+  }, [cancelGraphFly, scheduleApplyGraphView])
 
   const annoFindRanges = useMemo(() => {
     return findAllMatchRanges(annoDraft, appliedAnnoFindQuery, findOptions)
@@ -432,6 +484,43 @@ export function RelationsPage() {
   }, [visibleIds])
 
   const heavyGraph = !onlyRelated && (visibleEdges.length > 24 || visibleNodes.length > 18)
+
+  const ensureNodeInView = useCallback(
+    (id: string, opts?: { force?: boolean }) => {
+      if (reduceMotion || heavyGraph) return
+      if (graphPanning) return
+      const viewport = graphViewportRef.current
+      if (!viewport) return
+      const node = nodeById.get(id)
+      if (!node?.pos) return
+
+      const rect = viewport.getBoundingClientRect()
+      if (!rect.width || !rect.height) return
+
+      const { x, y, scale } = graphViewRef.current
+      const nx = (node.pos.x / 100) * rect.width
+      const ny = (node.pos.y / 100) * rect.height
+      const px = x + nx * scale
+      const py = y + ny * scale
+
+      const margin = 88
+      const out = px < margin || px > rect.width - margin || py < margin || py > rect.height - margin
+      if (!opts?.force && !out) return
+
+      animateGraphViewTo({
+        x: rect.width / 2 - nx * scale,
+        y: rect.height / 2 - ny * scale,
+        scale,
+      })
+    },
+    [animateGraphViewTo, graphPanning, heavyGraph, nodeById, reduceMotion],
+  )
+
+  useEffect(() => {
+    if (!selectedId) return
+    const t = window.setTimeout(() => ensureNodeInView(selectedId), 0)
+    return () => window.clearTimeout(t)
+  }, [ensureNodeInView, selectedId])
 
   const listNodes = useMemo(() => {
     if (!onlyRelated) return filteredBase
