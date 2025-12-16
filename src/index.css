@@ -119,9 +119,9 @@ html.theme-light {
   }
 
   .tap {
-    transform: translateZ(0);
+    will-change: transform, filter;
     transition:
-      transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      scale 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
       filter 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
       background-color 180ms ease,
       border-color 180ms ease,
@@ -129,12 +129,12 @@ html.theme-light {
   }
 
   .tap:hover {
-    transform: translateZ(0) scale(1.015);
+    scale: 1.015;
     filter: brightness(1.06);
   }
 
   .tap:active {
-    transform: translateY(0px) scale(0.97);
+    scale: 0.985;
   }
 
   /* 经卷观：首段落款（“开卷一字起势”） */
