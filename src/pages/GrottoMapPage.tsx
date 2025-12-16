@@ -783,7 +783,9 @@ export function GrottoMapPage() {
                         'focus-ring tap relative w-full max-w-[520px] rounded-xl border bg-white/4 px-5 py-4 text-left',
                         '[content-visibility:auto] [contain-intrinsic-size:520px_140px]',
                         active
-                          ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
+                          ? reduceMotion
+                            ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
+                            : 'border-white/20 bg-white/8'
                           : 'border-border/60 hover:bg-white/7',
                       )}
                       initial={reduceMotion || heavyTimeline ? false : { opacity: 0, y: 10 }}
@@ -796,6 +798,13 @@ export function GrottoMapPage() {
                         mass: 0.9,
                       }}
                     >
+                      {!reduceMotion && active ? (
+                        <motion.span
+                          layoutId="grottoTimelineActive"
+                          className="pointer-events-none absolute inset-0 rounded-xl border border-white/20 ring-1 ring-white/10"
+                          transition={{ type: 'spring', stiffness: 560, damping: 38 }}
+                        />
+                      ) : null}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-xs text-muted/70">{t.when}</div>
