@@ -54,13 +54,23 @@ export function prefetchCoreRoutes(opts?: { includeNotes?: boolean }) {
     '/treasury',
   ].filter((x): x is string => typeof x === 'string')
 
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
+    .requestIdleCallback
+
+  const scheduleNext = (cb: () => void) => {
+    if (ric) {
+      void ric(cb, { timeout: 1200 })
+      return
+    }
+    window.setTimeout(cb, 420)
+  }
+
   const run = (idx: number) => {
     const target = targets[idx]
     if (!target) return
     prefetchRoute(target)
-    window.setTimeout(() => run(idx + 1), 380)
+    scheduleNext(() => run(idx + 1))
   }
 
   run(0)
 }
-
