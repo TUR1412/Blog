@@ -1,6 +1,7 @@
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight, Download, Filter, GripVertical, Search, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
@@ -17,6 +18,7 @@ import { readString, writeString } from '../lib/storage'
 
 export function ChroniclesPage() {
   const navigate = useNavigate()
+  const reduceMotion = useReducedMotion()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const tags = useMemo(() => ['全部', ...getAllTags()], [])
@@ -64,6 +66,8 @@ export function ChroniclesPage() {
     if (!onlyBookmarks) return []
     return filtered.map((c) => c.slug)
   }, [filtered, onlyBookmarks])
+
+  const heavyList = filtered.length > 64
 
   const exportBookmarks = () => {
     const canonical = bookmarks.filter((s) => chronicleMap.has(s))
@@ -368,37 +372,52 @@ export function ChroniclesPage() {
               </>
             )
           ) : (
-            <div className="grid gap-2">
-              {filtered.map((c) => (
-                <Link
-                  key={c.slug}
-                  to={`/chronicles/${c.slug}`}
-                  className={cn(
-                    'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-5 py-5',
-                    'hover:bg-white/7',
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-fg">{c.title}</div>
-                      <div className="mt-1 text-xs text-muted/70">{c.dateText}</div>
-                      <div className="mt-3 text-sm leading-7 text-muted/85">{c.excerpt}</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {c.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-xs text-muted/80"
-                          >
-                            {t}
-                          </span>
-                        ))}
+            <motion.div layout="position" className="grid gap-2">
+              <AnimatePresence initial={false} mode={reduceMotion || heavyList ? 'sync' : 'popLayout'}>
+                {filtered.map((c, idx) => (
+                  <motion.div
+                    key={c.slug}
+                    layout="position"
+                    style={{ willChange: 'transform, opacity' }}
+                    initial={reduceMotion || heavyList ? false : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion || heavyList ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                    transition={
+                      reduceMotion || heavyList
+                        ? { duration: 0.12 }
+                        : { delay: idx * 0.02, duration: 0.26, ease: [0.22, 1, 0.36, 1] }
+                    }
+                  >
+                    <Link
+                      to={`/chronicles/${c.slug}`}
+                      className={cn(
+                        'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-5 py-5',
+                        'hover:bg-white/7',
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-fg">{c.title}</div>
+                          <div className="mt-1 text-xs text-muted/70">{c.dateText}</div>
+                          <div className="mt-3 text-sm leading-7 text-muted/85">{c.excerpt}</div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {c.tags.map((t) => (
+                              <span
+                                key={t}
+                                className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-xs text-muted/80"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted/70 transition-transform group-hover:translate-x-0.5" />
                       </div>
-                    </div>
-                    <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted/70 transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </Link>
-              ))}
-            </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           )}
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
