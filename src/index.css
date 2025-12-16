@@ -129,7 +129,8 @@ html.theme-light {
   }
 
   .tap:hover {
-    transform: translateY(-2px);
+    transform: translateZ(0) scale(1.015);
+    filter: brightness(1.06);
   }
 
   .tap:active {
