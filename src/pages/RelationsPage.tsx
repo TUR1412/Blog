@@ -80,16 +80,16 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
   const base =
     'focus-ring group absolute -translate-x-1/2 -translate-y-1/2 text-left ' +
     'transition-[background-color,border-color,box-shadow] duration-200 hover:shadow-lift'
-  const box = 'w-[190px] max-w-[44vw] rounded-xl border bg-white/4 px-4 py-3'
-  const blur = active ? 'backdrop-blur-xl2' : 'backdrop-blur-lg'
+  const box = 'w-[170px] max-w-[52vw] rounded-2xl border bg-[hsl(var(--fg)/.03)] px-3 py-2'
+  const blur = ''
   if (t === 'warn') {
     return cn(
       base,
       box,
       blur,
       active
-        ? 'border-[hsl(var(--warn)/.35)] bg-white/8 ring-1 ring-[hsl(var(--warn)/.25)]'
-        : 'border-border/60 hover:border-[hsl(var(--warn)/.25)] hover:bg-white/7',
+        ? 'border-[hsl(var(--warn)/.40)] bg-[hsl(var(--warn)/.10)] ring-1 ring-[hsl(var(--warn)/.16)]'
+        : 'border-border/60 hover:border-[hsl(var(--warn)/.26)] hover:bg-[hsl(var(--fg)/.05)]',
     )
   }
   if (t === 'bright') {
@@ -98,8 +98,8 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
       box,
       blur,
       active
-        ? 'border-[hsl(var(--fg)/.18)] bg-[hsl(var(--fg)/.06)] ring-1 ring-[hsl(var(--fg)/.10)]'
-        : 'border-border/60 hover:border-[hsl(var(--fg)/.14)] hover:bg-[hsl(var(--fg)/.04)]',
+        ? 'border-[hsl(var(--accent)/.36)] bg-[hsl(var(--accent)/.09)] ring-1 ring-[hsl(var(--accent)/.16)]'
+        : 'border-border/60 hover:border-[hsl(var(--fg)/.14)] hover:bg-[hsl(var(--fg)/.05)]',
     )
   }
   return cn(
@@ -107,8 +107,8 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
     box,
     blur,
     active
-      ? 'border-[hsl(var(--fg)/.16)] bg-[hsl(var(--fg)/.05)] ring-1 ring-[hsl(var(--fg)/.08)]'
-      : 'border-border/60 hover:border-[hsl(var(--fg)/.12)] hover:bg-[hsl(var(--fg)/.03)]',
+      ? 'border-[hsl(var(--fg)/.18)] bg-[hsl(var(--fg)/.06)] ring-1 ring-[hsl(var(--fg)/.10)]'
+      : 'border-border/60 hover:border-[hsl(var(--fg)/.12)] hover:bg-[hsl(var(--fg)/.05)]',
   )
 }
 
@@ -135,6 +135,7 @@ export function RelationsPage() {
   const reduceMotion = useReducedMotion()
   const [searchParams, setSearchParams] = useSearchParams()
   const [graphEntered, setGraphEntered] = useState(false)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [storedSelected, setStoredSelected] = useLocalStorageState<string>(
     STORAGE_KEYS.relationsSelected,
     'xuan',
@@ -586,10 +587,12 @@ export function RelationsPage() {
     return getRelationEdgesFor(selected.id)
   }, [selected])
 
-  const selectedRelatedIdSet = useMemo(() => {
-    if (!selected) return new Set<string>()
-    return new Set(getRelatedNodeIds(selected.id))
-  }, [selected])
+  const spotlightId = hoveredId || selectedId
+
+  const spotlightRelatedIdSet = useMemo(() => {
+    if (!spotlightId) return new Set<string>()
+    return new Set(getRelatedNodeIds(spotlightId))
+  }, [spotlightId])
 
   const annotatedEntries = useMemo(() => {
     const q = safeLower(appliedAnnoQuery.trim())
@@ -971,15 +974,15 @@ export function RelationsPage() {
                   const b = nodeById.get(e.to)?.pos
                   if (!a || !b) return null
 
-                  const connected = selectedId ? e.from === selectedId || e.to === selectedId : false
-                  const hasFocus = Boolean(selectedId)
+                  const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
+                  const hasFocus = Boolean(spotlightId)
 
                   const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
                   const showGlow = !reduceMotion && hasFocus && connected
 
-                  const baseOpacity = hasFocus ? (connected ? 0.66 : 0.12) : 0.32
+                  const baseOpacity = hasFocus ? (connected ? 0.88 : 0.06) : 0.26
                   const baseStroke = hasFocus && connected ? 'hsl(var(--accent) / 0.78)' : 'hsl(var(--fg) / 0.55)'
-                  const baseStrokeWidth = hasFocus && connected ? 0.46 : 0.35
+                  const baseStrokeWidth = hasFocus && connected ? 0.62 : 0.32
 
                   return (
                     <g key={e.id}>
@@ -989,7 +992,7 @@ export function RelationsPage() {
                           style={{
                             opacity: 0.18,
                             stroke: 'hsl(var(--accent2) / 0.72)',
-                            strokeWidth: 0.95,
+                            strokeWidth: 1.15,
                             transition,
                             filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
                           }}
@@ -1016,36 +1019,65 @@ export function RelationsPage() {
 
               {visibleNodes.map((n, idx) => {
                 const active = n.id === selectedId
-                const related = selectedId && !active ? selectedRelatedIdSet.has(n.id) || n.id === 'xuan' : true
+                const spotlight = n.id === spotlightId
+                const related =
+                  spotlightId && !spotlight ? spotlightRelatedIdSet.has(n.id) || n.id === 'xuan' : true
 
-                const dim = selectedId ? !active && !related : false
+                const dim = spotlightId ? !spotlight && !related : false
 
                 if (reduceMotion || heavyGraph) {
-                  const z = active ? 40 : related ? 30 : 20
+                  const z = active || spotlight ? 60 : related ? 40 : 20
                   return (
                     <button
                       key={n.id}
                       type="button"
                       aria-pressed={active}
                       onClick={() => selectId(n.id)}
-                      className={cn(nodeChrome(n.tone, active), 'transition-opacity duration-200', dim && 'opacity-60')}
+                      onPointerEnter={() => setHoveredId(n.id)}
+                      onPointerLeave={() => setHoveredId(null)}
+                      className={cn(
+                        nodeChrome(n.tone, active),
+                        'transition-opacity duration-200',
+                        dim ? 'opacity-25' : 'opacity-100',
+                      )}
                       style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: z }}
                     >
                       {!reduceMotion && active ? (
                         <motion.span
                           layoutId="relationNodeActive"
-                          className="pointer-events-none absolute inset-0 rounded-xl border border-[hsl(var(--accent)/.32)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.16),transparent_66%)] ring-1 ring-[hsl(var(--accent)/.18)]"
+                          className="pointer-events-none absolute inset-0 rounded-2xl border border-[hsl(var(--accent)/.32)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.14),transparent_66%)] ring-1 ring-[hsl(var(--accent)/.18)]"
                           transition={{ type: 'spring', stiffness: 560, damping: 38 }}
                         />
                       ) : null}
-                      <div className="relative z-10 flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-fg">{n.title}</div>
-                          <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">
-                            {n.kind} · {n.summary}
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              'h-2 w-2 rounded-full',
+                              toneToken(n.tone) === 'warn'
+                                ? 'bg-[hsl(var(--warn)/.95)]'
+                                : toneToken(n.tone) === 'bright'
+                                  ? 'bg-[hsl(var(--accent2)/.95)]'
+                                  : 'bg-[hsl(var(--fg)/.55)]',
+                            )}
+                            aria-hidden="true"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className="truncate text-xs font-semibold text-fg">{n.title}</div>
+                              {active ? (
+                                <span className="shrink-0 rounded-full border border-[hsl(var(--accent)/.30)] bg-[hsl(var(--accent)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
+                                  当前
+                                </span>
+                              ) : related && spotlightId ? (
+                                <span className="shrink-0 rounded-full border border-border/70 bg-[hsl(var(--fg)/.04)] px-2 py-0.5 text-[10px] text-muted/80">
+                                  牵连
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="mt-0.5 text-[10px] leading-5 text-muted/70">{n.kind}</div>
                           </div>
                         </div>
-                        <div className="mt-0.5 shrink-0 text-xs text-muted/70">{active ? '已按住' : '按'}</div>
                       </div>
                     </button>
                   )
@@ -1057,10 +1089,12 @@ export function RelationsPage() {
                     type="button"
                     aria-pressed={active}
                     onClick={() => selectId(n.id)}
+                    onPointerEnter={() => setHoveredId(n.id)}
+                    onPointerLeave={() => setHoveredId(null)}
                     className={cn(nodeChrome(n.tone, active))}
-                    style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: active ? 40 : related ? 30 : 20 }}
+                    style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: active || spotlight ? 60 : related ? 40 : 20 }}
                     initial={{ opacity: 0, scale: 0.98, y: 6 }}
-                    animate={{ opacity: dim ? 0.6 : 1, scale: 1, y: 0 }}
+                    animate={{ opacity: dim ? 0.25 : 1, scale: 1, y: 0 }}
                     transition={{
                       delay: graphEntered ? 0 : idx * 0.015,
                       type: 'spring',
@@ -1072,18 +1106,39 @@ export function RelationsPage() {
                     {!reduceMotion && active ? (
                       <motion.span
                         layoutId="relationNodeActive"
-                        className="pointer-events-none absolute inset-0 rounded-xl border border-[hsl(var(--accent)/.32)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.16),transparent_66%)] ring-1 ring-[hsl(var(--accent)/.18)]"
+                        className="pointer-events-none absolute inset-0 rounded-2xl border border-[hsl(var(--accent)/.32)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.14),transparent_66%)] ring-1 ring-[hsl(var(--accent)/.18)]"
                         transition={{ type: 'spring', stiffness: 560, damping: 38 }}
                       />
                     ) : null}
-                    <div className="relative z-10 flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-fg">{n.title}</div>
-                        <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">
-                          {n.kind} · {n.summary}
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            'h-2 w-2 rounded-full',
+                            toneToken(n.tone) === 'warn'
+                              ? 'bg-[hsl(var(--warn)/.95)]'
+                              : toneToken(n.tone) === 'bright'
+                                ? 'bg-[hsl(var(--accent2)/.95)]'
+                                : 'bg-[hsl(var(--fg)/.55)]',
+                          )}
+                          aria-hidden="true"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="truncate text-xs font-semibold text-fg">{n.title}</div>
+                            {active ? (
+                              <span className="shrink-0 rounded-full border border-[hsl(var(--accent)/.30)] bg-[hsl(var(--accent)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
+                                当前
+                              </span>
+                            ) : related && spotlightId ? (
+                              <span className="shrink-0 rounded-full border border-border/70 bg-[hsl(var(--fg)/.04)] px-2 py-0.5 text-[10px] text-muted/80">
+                                牵连
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="mt-0.5 text-[10px] leading-5 text-muted/70">{n.kind}</div>
                         </div>
                       </div>
-                      <div className="mt-0.5 shrink-0 text-xs text-muted/70">{active ? '已按住' : '按'}</div>
                     </div>
                   </motion.button>
                 )
