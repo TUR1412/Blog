@@ -89,7 +89,7 @@ function CommandPaletteModal({
   onClose: () => void
 }) {
   const navigate = useNavigate()
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useReducedMotion() ?? false
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const [query, setQuery] = useState('')
@@ -198,6 +198,8 @@ function CommandPaletteModal({
       .map((x) => x.it)
   }, [items, query])
 
+  const enableActiveMotion = !reduceMotion && filtered.length <= 48
+
   useEffect(() => {
     const t = window.setTimeout(() => inputRef.current?.focus(), 0)
     return () => window.clearTimeout(t)
@@ -304,10 +306,8 @@ function CommandPaletteModal({
                       data-cmd-index={idx}
                       type="button"
                       className={cn(
-                        'tap focus-ring flex w-full items-center justify-between gap-4 rounded-xl px-3 py-3 text-left',
-                        idx === activeIndex
-                          ? 'bg-white/10 ring-1 ring-white/10'
-                          : 'bg-transparent hover:bg-white/5',
+                        'tap focus-ring relative w-full rounded-xl px-3 py-3 text-left',
+                        idx === activeIndex ? 'text-fg' : 'bg-transparent hover:bg-white/5',
                       )}
                       onMouseEnter={() => setActiveIndex(idx)}
                       onClick={() => {
@@ -315,28 +315,38 @@ function CommandPaletteModal({
                         onClose()
                       }}
                     >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div
-                          className={cn(
-                            'grid h-9 w-9 place-items-center rounded-xl border border-border/70',
-                            idx === activeIndex ? 'bg-white/10' : 'bg-white/5',
-                          )}
-                        >
-                          {it.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-[14px] font-medium text-fg">{it.title}</div>
-                          {it.subtitle ? (
-                            <div className="truncate text-xs text-muted/80">{it.subtitle}</div>
-                          ) : null}
-                        </div>
-                      </div>
+                      {idx === activeIndex ? (
+                        enableActiveMotion ? (
+                          <motion.span
+                            layoutId="cmdActive"
+                            className="pointer-events-none absolute inset-0 rounded-xl bg-white/10 ring-1 ring-white/10"
+                            transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                          />
+                        ) : (
+                          <span className="pointer-events-none absolute inset-0 rounded-xl bg-white/10 ring-1 ring-white/10" />
+                        )
+                      ) : null}
 
-                      <div className="hidden shrink-0 items-center gap-2 text-xs text-muted/70 sm:flex">
-                        <span className="rounded-lg border border-border/70 bg-white/5 px-2 py-1">
-                          Enter
-                        </span>
-                        <span>入</span>
+                      <div className="relative z-10 flex w-full items-center justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div
+                            className={cn(
+                              'grid h-9 w-9 place-items-center rounded-xl border border-border/70',
+                              idx === activeIndex ? 'bg-white/10' : 'bg-white/5',
+                            )}
+                          >
+                            {it.icon}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-[14px] font-medium text-fg">{it.title}</div>
+                            {it.subtitle ? <div className="truncate text-xs text-muted/80">{it.subtitle}</div> : null}
+                          </div>
+                        </div>
+
+                        <div className="hidden shrink-0 items-center gap-2 text-xs text-muted/70 sm:flex">
+                          <span className="rounded-lg border border-border/70 bg-white/5 px-2 py-1">Enter</span>
+                          <span>入</span>
+                        </div>
                       </div>
                     </button>
                   ))}
