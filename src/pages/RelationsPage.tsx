@@ -222,6 +222,19 @@ function formatClock(ts: number) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
+const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1]
+
+const LIST_STAGGER = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.03, delayChildren: 0.02 } },
+}
+
+const LIST_ITEM = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: EASE_OUT } },
+  exit: { opacity: 0, y: -6, transition: { duration: 0.16, ease: EASE_OUT } },
+}
+
 export function RelationsPage() {
   const reduceMotion = useReducedMotion()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1745,26 +1758,57 @@ export function RelationsPage() {
                     <div className="text-sm font-semibold text-fg">牵连</div>
                     {selectedEdges.length ? (
                       <div className="mt-3 grid gap-2">
-                        {selectedEdges.map((e) => {
-                          const otherId = e.from === selected.id ? e.to : e.from
-                          const other = nodeById.get(otherId)
-                          if (!other) return null
-                          return (
-                            <button
-                              key={e.id}
-                              type="button"
-                              onClick={() => selectId(other.id)}
-                              className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
-                            >
-                              <div className="min-w-0">
-                                <div className="text-xs text-muted/70">{e.label}</div>
-                                <div className="mt-0.5 truncate text-sm font-medium text-fg/90">{other.title}</div>
-                                <div className="mt-1 text-xs text-muted/80">{other.kind} · {other.summary}</div>
-                              </div>
-                              <span className="mt-0.5 shrink-0 text-xs text-muted/70">→</span>
-                            </button>
-                          )
-                        })}
+                        {!reduceMotion && selectedEdges.length <= 18 ? (
+                          <motion.div
+                            variants={LIST_STAGGER}
+                            initial="hidden"
+                            animate="show"
+                            className="grid gap-2"
+                          >
+                            {selectedEdges.map((e) => {
+                              const otherId = e.from === selected.id ? e.to : e.from
+                              const other = nodeById.get(otherId)
+                              if (!other) return null
+                              return (
+                                <motion.button
+                                  key={e.id}
+                                  type="button"
+                                  variants={LIST_ITEM}
+                                  onClick={() => selectId(other.id)}
+                                  className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-xs text-muted/70">{e.label}</div>
+                                    <div className="mt-0.5 truncate text-sm font-medium text-fg/90">{other.title}</div>
+                                    <div className="mt-1 text-xs text-muted/80">{other.kind} · {other.summary}</div>
+                                  </div>
+                                  <span className="mt-0.5 shrink-0 text-xs text-muted/70">→</span>
+                                </motion.button>
+                              )
+                            })}
+                          </motion.div>
+                        ) : (
+                          selectedEdges.map((e) => {
+                            const otherId = e.from === selected.id ? e.to : e.from
+                            const other = nodeById.get(otherId)
+                            if (!other) return null
+                            return (
+                              <button
+                                key={e.id}
+                                type="button"
+                                onClick={() => selectId(other.id)}
+                                className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-xs text-muted/70">{e.label}</div>
+                                  <div className="mt-0.5 truncate text-sm font-medium text-fg/90">{other.title}</div>
+                                  <div className="mt-1 text-xs text-muted/80">{other.kind} · {other.summary}</div>
+                                </div>
+                                <span className="mt-0.5 shrink-0 text-xs text-muted/70">→</span>
+                              </button>
+                            )
+                          })
+                        )}
                       </div>
                     ) : (
                       <div className="mt-2 text-xs leading-6 text-muted/80">此处线索暂未连到别处。</div>
@@ -1777,36 +1821,78 @@ export function RelationsPage() {
                         <div className="text-sm font-semibold text-fg">回轩路</div>
                         <div className="text-xs text-muted/70">{selectedRootPathNodeIds.length - 1} 跳</div>
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {selectedRootPathNodeIds.map((id, idx) => {
-                          const node = nodeById.get(id)
-                          if (!node) return null
-                          const nextId = selectedRootPathNodeIds[idx + 1]
-                          const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
-                          const isEnd = idx === selectedRootPathNodeIds.length - 1
-                          return (
-                            <span key={`${id}-${idx}`} className="inline-flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => selectId(id)}
-                                className={cn(
-                                  'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
-                                  id === 'xuan'
-                                    ? 'border-[hsl(var(--accent)/.32)] bg-[hsl(var(--accent)/.10)] text-fg/95'
-                                    : 'border-border/70 bg-white/5 text-fg/90 hover:bg-white/10',
-                                )}
+                      {!reduceMotion && selectedRootPathNodeIds.length <= 14 ? (
+                        <motion.div
+                          variants={LIST_STAGGER}
+                          initial="hidden"
+                          animate="show"
+                          className="mt-3 flex flex-wrap items-center gap-2"
+                        >
+                          {selectedRootPathNodeIds.map((id, idx) => {
+                            const node = nodeById.get(id)
+                            if (!node) return null
+                            const nextId = selectedRootPathNodeIds[idx + 1]
+                            const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
+                            const isEnd = idx === selectedRootPathNodeIds.length - 1
+                            return (
+                              <motion.span
+                                key={`${id}-${idx}`}
+                                variants={LIST_ITEM}
+                                className="inline-flex items-center gap-2"
                               >
-                                {node.title}
-                              </button>
-                              {!isEnd ? (
-                                <span className="text-[11px] text-muted/70">
-                                  —{label ?? '牵连'}→
-                                </span>
-                              ) : null}
-                            </span>
-                          )
-                        })}
-                      </div>
+                                <button
+                                  type="button"
+                                  onClick={() => selectId(id)}
+                                  className={cn(
+                                    'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
+                                    id === 'xuan'
+                                      ? 'border-[hsl(var(--accent)/.32)] bg-[hsl(var(--accent)/.10)] text-fg/95'
+                                      : 'border-border/70 bg-white/5 text-fg/90 hover:bg-white/10',
+                                  )}
+                                >
+                                  {node.title}
+                                </button>
+                                {!isEnd ? (
+                                  <span className="text-[11px] text-muted/70">
+                                    —{label ?? '牵连'}→
+                                  </span>
+                                ) : null}
+                              </motion.span>
+                            )
+                          })}
+                        </motion.div>
+                      ) : (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {selectedRootPathNodeIds.map((id, idx) => {
+                            const node = nodeById.get(id)
+                            if (!node) return null
+                            const nextId = selectedRootPathNodeIds[idx + 1]
+                            const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
+                            const isEnd = idx === selectedRootPathNodeIds.length - 1
+                            return (
+                              <span key={`${id}-${idx}`} className="inline-flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => selectId(id)}
+                                  className={cn(
+                                    'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
+                                    id === 'xuan'
+                                      ? 'border-[hsl(var(--accent)/.32)] bg-[hsl(var(--accent)/.10)] text-fg/95'
+                                      : 'border-border/70 bg-white/5 text-fg/90 hover:bg-white/10',
+                                  )}
+                                >
+                                  {node.title}
+                                </button>
+                                {!isEnd ? (
+                                  <span className="text-[11px] text-muted/70">
+                                    —{label ?? '牵连'}→
+                                  </span>
+                                ) : null}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
                       <div className="mt-2 text-xs leading-6 text-muted/80">谱面会把这条链的线再提亮一点，便于看清来路。</div>
                     </div>
                   ) : null}
