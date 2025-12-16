@@ -26,6 +26,7 @@ type ReadingLast = {
 }
 
 function SparkBurstLayer({ bursts }: { bursts: Burst[] }) {
+  if (bursts.length === 0) return null
   return (
     <div className="pointer-events-none fixed inset-0 z-[75]">
       {bursts.map((b) => (
