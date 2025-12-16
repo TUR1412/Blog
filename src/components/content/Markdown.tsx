@@ -5,6 +5,7 @@ import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import { cn } from '../../lib/cn'
 import { buildFindRegExp, DEFAULT_FIND_OPTIONS, type FindOptions } from '../../lib/find'
+import { prefetchRoute } from '../../routes/prefetch'
 
 export type MarkdownHighlightOptions = Partial<FindOptions>
 export const DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS = DEFAULT_FIND_OPTIONS
@@ -329,7 +330,12 @@ function buildComponents(opts: { idPrefix: string }): Components {
 
     if (isInternal) {
       return (
-        <Link to={h} className="focus-ring tap">
+        <Link
+          to={h}
+          onPointerEnter={() => prefetchRoute(h)}
+          onFocus={() => prefetchRoute(h)}
+          className="focus-ring tap"
+        >
           {children}
         </Link>
       )
