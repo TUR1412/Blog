@@ -530,6 +530,8 @@ export function RelationsPage() {
     return [selected, ...nodes]
   }, [filteredBase, onlyRelated, relatedIds, selected])
 
+  const enableClueListMotion = !reduceMotion && listNodes.length <= 42
+
   useEffect(() => {
     setStoredSelected(selectedId)
   }, [selectedId, setStoredSelected])
@@ -1203,33 +1205,49 @@ export function RelationsPage() {
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-2">
-            {listNodes.map((n) => {
-              const active = n.id === selectedId
-              return (
-                <button
-                  key={n.id}
-                  type="button"
-                  id={`relation-list-${n.id}`}
-                  onClick={() => selectId(n.id)}
-                  className={cn(
-                    'focus-ring tap flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left',
-                    '[content-visibility:auto] [contain-intrinsic-size:240px_96px]',
-                    active
-                      ? 'border-[hsl(var(--fg)/.20)] bg-[hsl(var(--fg)/.06)] ring-1 ring-[hsl(var(--fg)/.10)]'
-                      : 'border-border/60 bg-white/4 hover:bg-white/7',
-                  )}
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-fg">{n.title}</div>
-                    <div className="mt-1 text-xs text-muted/80">{n.kind} · {n.summary}</div>
-                  </div>
-                  <span className="mt-0.5 shrink-0 rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
-                    {toneToken(n.tone) === 'warn' ? '警' : toneToken(n.tone) === 'bright' ? '明' : '平'}
-                  </span>
-                </button>
-              )
-            })}
+          <div className="mt-5">
+            <motion.div layout={enableClueListMotion ? 'position' : undefined} className="grid gap-2">
+              <AnimatePresence initial={false} mode={enableClueListMotion ? 'popLayout' : 'sync'}>
+                {listNodes.map((n, idx) => {
+                  const active = n.id === selectedId
+                  return (
+                    <motion.button
+                      key={n.id}
+                      type="button"
+                      id={`relation-list-${n.id}`}
+                      onClick={() => selectId(n.id)}
+                      className={cn(
+                        'focus-ring tap flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left',
+                        '[content-visibility:auto] [contain-intrinsic-size:240px_96px]',
+                        active
+                          ? 'border-[hsl(var(--fg)/.20)] bg-[hsl(var(--fg)/.06)] ring-1 ring-[hsl(var(--fg)/.10)]'
+                          : 'border-border/60 bg-white/4 hover:bg-white/7',
+                      )}
+                      layout={enableClueListMotion ? 'position' : undefined}
+                      style={enableClueListMotion ? { willChange: 'transform, opacity' } : undefined}
+                      initial={reduceMotion || !enableClueListMotion ? false : { opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduceMotion || !enableClueListMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                      transition={
+                        reduceMotion || !enableClueListMotion
+                          ? { duration: 0.12 }
+                          : { delay: idx * 0.012, duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+                      }
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-fg">{n.title}</div>
+                        <div className="mt-1 text-xs text-muted/80">
+                          {n.kind} · {n.summary}
+                        </div>
+                      </div>
+                      <span className="mt-0.5 shrink-0 rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
+                        {toneToken(n.tone) === 'warn' ? '警' : toneToken(n.tone) === 'bright' ? '明' : '平'}
+                      </span>
+                    </motion.button>
+                  )
+                })}
+              </AnimatePresence>
+            </motion.div>
           </div>
 
           <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
