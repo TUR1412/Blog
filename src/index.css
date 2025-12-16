@@ -107,7 +107,7 @@ html.theme-light {
     background: linear-gradient(180deg, var(--glass), var(--glass2));
     border: 1px solid var(--stroke);
     box-shadow: theme('boxShadow.glass');
-    backdrop-filter: blur(theme('backdropBlur.xl2'));
+    backdrop-filter: blur(theme('backdropBlur.lg'));
   }
 
   .focus-ring {

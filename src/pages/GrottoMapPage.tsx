@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, BookOpen, Compass, Layers, NotebookPen, PencilLine, ScrollText, Search, Trash2, X } from 'lucide-react'
+import { ArrowRight, BookOpen, Compass, Copy, Layers, NotebookPen, PencilLine, ScrollText, Search, Trash2, X } from 'lucide-react'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS, type MarkdownHighlightOptions, Markdown } from '../components/content/Markdown'
@@ -370,6 +370,29 @@ export function GrottoMapPage() {
     },
     [searchParams, setSearchParams],
   )
+
+  const copyLocation = async () => {
+    if (!selectedId) {
+      flashMessage('暂无可复制定位。')
+      hapticTap()
+      return
+    }
+
+    const params = new URLSearchParams()
+    params.set('id', selectedId)
+    if (toneFilter !== 'all') params.set('tone', toneFilter)
+    if (layerFilter !== 'all') params.set('layer', String(layerFilter))
+
+    const line = `定位：/grotto?${params.toString()}`
+    try {
+      await navigator.clipboard.writeText(line)
+      hapticSuccess()
+      flashMessage('已复制定位。')
+    } catch {
+      flashMessage('复制失败：剪贴板不可用。')
+      hapticTap()
+    }
+  }
 
   const addSelectedToNotes = (includeAnnotation: boolean) => {
     if (!selected) return
@@ -1074,6 +1097,12 @@ export function GrottoMapPage() {
                           <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
                         </Link>
                       ) : null}
+
+                      <Button type="button" variant="ghost" onClick={copyLocation} className="justify-start">
+                        <Copy className="h-4 w-4" />
+                        复制定位
+                        <span className="ml-auto text-muted/70">⎘</span>
+                      </Button>
 
                       <Button
                         type="button"

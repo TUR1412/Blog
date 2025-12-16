@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowRight,
   BookOpen,
+  Copy,
   Map as MapIcon,
   NotebookPen,
   PencilLine,
@@ -77,12 +78,13 @@ function toneToken(tone?: RelationTone) {
 function nodeChrome(tone?: RelationTone, active?: boolean) {
   const t = toneToken(tone)
   const base = 'focus-ring tap group absolute -translate-x-1/2 -translate-y-1/2 text-left'
-  const box =
-    'w-[190px] max-w-[44vw] rounded-xl border bg-white/4 px-4 py-3 backdrop-blur-xl2'
+  const box = 'w-[190px] max-w-[44vw] rounded-xl border bg-white/4 px-4 py-3'
+  const blur = active ? 'backdrop-blur-xl2' : 'backdrop-blur-lg'
   if (t === 'warn') {
     return cn(
       base,
       box,
+      blur,
       active
         ? 'border-[hsl(var(--warn)/.35)] bg-white/8 ring-1 ring-[hsl(var(--warn)/.25)]'
         : 'border-border/60 hover:border-[hsl(var(--warn)/.25)] hover:bg-white/7',
@@ -92,6 +94,7 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
     return cn(
       base,
       box,
+      blur,
       active
         ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
         : 'border-border/60 hover:border-white/15 hover:bg-white/7',
@@ -100,6 +103,7 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
   return cn(
     base,
     box,
+    blur,
     active
       ? 'border-white/18 bg-white/8 ring-1 ring-white/10'
       : 'border-border/60 hover:border-white/12 hover:bg-white/7',
@@ -154,6 +158,7 @@ export function RelationsPage() {
   const [annoActiveHitIndex, setAnnoActiveHitIndex] = useState(0)
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const keyboardNavRef = useRef(false)
   const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
   const annoImportRef = useRef<HTMLInputElement | null>(null)
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -272,6 +277,8 @@ export function RelationsPage() {
   const visibleEdges = useMemo(() => {
     return relationEdges.filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to))
   }, [visibleIds])
+
+  const heavyGraph = !onlyRelated && (visibleEdges.length > 24 || visibleNodes.length > 18)
 
   const listNodes = useMemo(() => {
     if (!onlyRelated) return filteredBase
@@ -409,6 +416,15 @@ export function RelationsPage() {
     return () => window.clearTimeout(t)
   }, [annoDraft, annoDraftById, flashMessage, selectedAnnotation, selectedId, setAnnotations])
 
+  useEffect(() => {
+    if (!keyboardNavRef.current) return
+    keyboardNavRef.current = false
+    if (!selectedId) return
+    const el = document.getElementById(`relation-list-${selectedId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+  }, [reduceMotion, selectedId])
+
   const selectId = useCallback(
     (id: string) => {
       if (!id) return
@@ -420,6 +436,29 @@ export function RelationsPage() {
     },
     [nodeById, searchParams, setSearchParams],
   )
+
+  const copyLocation = useCallback(async () => {
+    if (!selectedId) {
+      flashMessage('暂无可复制定位。')
+      hapticTap()
+      return
+    }
+
+    const params = new URLSearchParams()
+    params.set('id', selectedId)
+    if (kind !== 'all') params.set('kind', kind)
+    if (onlyRelated) params.set('only', '1')
+    const line = `定位：/relations?${params.toString()}`
+
+    try {
+      await navigator.clipboard.writeText(line)
+      hapticSuccess()
+      flashMessage('已复制定位。')
+    } catch {
+      flashMessage('复制失败：剪贴板不可用。')
+      hapticTap()
+    }
+  }, [flashMessage, kind, onlyRelated, selectedId])
 
   const setKind = useCallback(
     (nextKind: KindFilter) => {
@@ -787,9 +826,38 @@ export function RelationsPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape') setQuery('')
+                  if (e.key === 'Escape') {
+                    setQuery('')
+                    return
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    keyboardNavRef.current = true
+                    const idx = listNodes.findIndex((n) => n.id === selectedId)
+                    const base = idx >= 0 ? idx : -1
+                    const next = listNodes[Math.min(listNodes.length - 1, base + 1)]
+                    if (next) selectId(next.id)
+                    return
+                  }
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    keyboardNavRef.current = true
+                    const idx = listNodes.findIndex((n) => n.id === selectedId)
+                    const base = idx >= 0 ? idx : listNodes.length
+                    const next = listNodes[Math.max(0, base - 1)]
+                    if (next) selectId(next.id)
+                    return
+                  }
+                  if (e.key === 'Enter') {
+                    const el = annoTextareaRef.current
+                    if (el) {
+                      el.focus()
+                      el.setSelectionRange(el.value.length, el.value.length)
+                    }
+                    return
+                  }
                 }}
-                placeholder="搜：断桥 / 誓词 / 药单 / 青冥……（Esc 清空）"
+                placeholder="搜：断桥 / 誓词 / 药单 / 青冥……（↑↓ 走位，Enter 落笔，Esc 清空）"
                 className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
               />
               {query.trim() ? (
@@ -839,6 +907,7 @@ export function RelationsPage() {
                 <button
                   key={n.id}
                   type="button"
+                  id={`relation-list-${n.id}`}
                   onClick={() => selectId(n.id)}
                   className={cn(
                     'focus-ring tap flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left',
@@ -898,11 +967,26 @@ export function RelationsPage() {
 
                   const dim = selectedId ? !connected : false
 
+                  if (reduceMotion || heavyGraph) {
+                    return (
+                      <path
+                        key={e.id}
+                        d={edgePath(a, b)}
+                        className="transition-opacity duration-300"
+                        opacity={dim ? 0.12 : 0.32}
+                        stroke="rgba(255,255,255,.55)"
+                        strokeWidth={0.35}
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                    )
+                  }
+
                   return (
                     <motion.path
                       key={e.id}
                       d={edgePath(a, b)}
-                      initial={reduceMotion ? false : { opacity: 0 }}
+                      initial={{ opacity: 0 }}
                       animate={{ opacity: dim ? 0.12 : 0.32 }}
                       transition={{ duration: 0.35 }}
                       stroke="rgba(255,255,255,.55)"
@@ -920,6 +1004,29 @@ export function RelationsPage() {
 
                 const dim = selectedId ? !active && !related : false
 
+                if (reduceMotion || heavyGraph) {
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => selectId(n.id)}
+                      className={cn(nodeChrome(n.tone, active), dim && 'opacity-60')}
+                      style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%` }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-fg">{n.title}</div>
+                          <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">
+                            {n.kind} · {n.summary}
+                          </div>
+                        </div>
+                        <div className="mt-0.5 shrink-0 text-xs text-muted/70">{active ? '已按住' : '按'}</div>
+                      </div>
+                    </button>
+                  )
+                }
+
                 return (
                   <motion.button
                     key={n.id}
@@ -928,10 +1035,10 @@ export function RelationsPage() {
                     onClick={() => selectId(n.id)}
                     className={cn(nodeChrome(n.tone, active), dim && 'opacity-60')}
                     style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%` }}
-                    initial={reduceMotion ? false : { opacity: 0, scale: 0.98, y: 6 }}
+                    initial={{ opacity: 0, scale: 0.98, y: 6 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{
-                      delay: reduceMotion ? 0 : idx * 0.015,
+                      delay: idx * 0.015,
                       type: 'spring',
                       stiffness: 520,
                       damping: 36,
@@ -1162,6 +1269,12 @@ export function RelationsPage() {
                       <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
                     </Link>
                   ) : null}
+
+                  <Button type="button" variant="ghost" onClick={copyLocation} className="justify-start">
+                    <Copy className="h-4 w-4" />
+                    复制定位
+                    <span className="ml-auto text-muted/70">⎘</span>
+                  </Button>
 
                   <Button
                     type="button"
