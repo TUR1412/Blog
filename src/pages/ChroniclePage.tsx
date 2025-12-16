@@ -386,107 +386,116 @@ export function ChroniclePage() {
           </Card>
         </div>
 
-        {!immersive ? (
-          <aside className="lg:col-span-4">
-            <div className="sticky top-24 space-y-4">
-            {resumeHint ? (
+        <AnimatePresence initial={false}>
+          {!immersive ? (
+            <motion.aside
+              key="chronicleAside"
+              className="lg:col-span-4"
+              initial={reduceMotion ? false : { opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 12 }}
+              transition={reduceMotion ? { duration: 0.12 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="sticky top-24 space-y-4">
+              {resumeHint ? (
+                <Card className="p-5">
+                  <SectionHeading
+                    title="续读提示"
+                    subtitle={`${Math.max(0, Math.min(100, resumeHint.progress))}% · ${resumeHint.anchorHeading ?? '上次位置'}`}
+                  />
+                  <div className="text-xs leading-6 text-muted/80">
+                    上次停在《{resumeHint.title}》的某一处。
+                    {resumeHint.anchorSnippet ? (
+                      <span className="mt-2 block text-muted/70">“{resumeHint.anchorSnippet}”</span>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        scrollToAnchor(resumeHint.anchorId ?? resumeHint.sectionId ?? 'h-1')
+                        setResumeDismissed(true)
+                      }}
+                      className="w-full justify-start"
+                    >
+                      跳到上次位置
+                      <span className="ml-auto text-muted/70">↘</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        window.scrollTo({ top: 0, left: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
+                        setResumeDismissed(true)
+                      }}
+                      className="w-full justify-start"
+                    >
+                      从头读
+                      <span className="ml-auto text-muted/70">↑</span>
+                    </Button>
+                  </div>
+                </Card>
+              ) : null}
               <Card className="p-5">
-                <SectionHeading
-                  title="续读提示"
-                  subtitle={`${Math.max(0, Math.min(100, resumeHint.progress))}% · ${resumeHint.anchorHeading ?? '上次位置'}`}
-                />
-                <div className="text-xs leading-6 text-muted/80">
-                  上次停在《{resumeHint.title}》的某一处。
-                  {resumeHint.anchorSnippet ? (
-                    <span className="mt-2 block text-muted/70">“{resumeHint.anchorSnippet}”</span>
-                  ) : null}
-                </div>
-                <div className="mt-3 grid gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      scrollToAnchor(resumeHint.anchorId ?? resumeHint.sectionId ?? 'h-1')
-                      setResumeDismissed(true)
-                    }}
-                    className="w-full justify-start"
-                  >
-                    跳到上次位置
-                    <span className="ml-auto text-muted/70">↘</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      window.scrollTo({ top: 0, left: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
-                      setResumeDismissed(true)
-                    }}
-                    className="w-full justify-start"
-                  >
-                    从头读
-                    <span className="ml-auto text-muted/70">↑</span>
-                  </Button>
+                <SectionHeading title="提纲" subtitle="跟着章法走，读起来更稳。" />
+                <div className="grid gap-2">
+                  {toc.map((t) => (
+                    <a
+                       key={t.id}
+                       href={`#${t.id}`}
+                       className={cn(
+                         'focus-ring tap relative overflow-hidden rounded-xl border border-border/60 px-3 py-2 text-sm',
+                         t.id === activeSectionId
+                           ? 'bg-white/10 text-fg ring-1 ring-white/10'
+                           : 'bg-white/4 text-fg/90 hover:bg-white/7',
+                       )}
+                       onClick={(e) => {
+                         e.preventDefault()
+                         scrollToAnchor(t.id)
+                       }}
+                       aria-current={t.id === activeSectionId ? 'true' : undefined}
+                     >
+                       {!reduceMotion && t.id === activeSectionId ? (
+                         <motion.span
+                           layoutId="chronicleTocActive"
+                           className="pointer-events-none absolute inset-0 rounded-xl border border-[hsl(var(--accent)/.20)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.12),transparent_72%)] ring-1 ring-[hsl(var(--accent)/.12)]"
+                           transition={{ type: 'spring', stiffness: 560, damping: 40 }}
+                         />
+                       ) : null}
+                       <span className="relative z-10">{t.heading}</span>
+                     </a>
+                   ))}
                 </div>
               </Card>
-            ) : null}
-            <Card className="p-5">
-              <SectionHeading title="提纲" subtitle="跟着章法走，读起来更稳。" />
-              <div className="grid gap-2">
-                {toc.map((t) => (
-                  <a
-                     key={t.id}
-                     href={`#${t.id}`}
-                     className={cn(
-                       'focus-ring tap relative overflow-hidden rounded-xl border border-border/60 px-3 py-2 text-sm',
-                       t.id === activeSectionId
-                         ? 'bg-white/10 text-fg ring-1 ring-white/10'
-                         : 'bg-white/4 text-fg/90 hover:bg-white/7',
-                     )}
-                     onClick={(e) => {
-                       e.preventDefault()
-                       scrollToAnchor(t.id)
-                     }}
-                     aria-current={t.id === activeSectionId ? 'true' : undefined}
-                   >
-                     {!reduceMotion && t.id === activeSectionId ? (
-                       <motion.span
-                         layoutId="chronicleTocActive"
-                         className="pointer-events-none absolute inset-0 rounded-xl border border-[hsl(var(--accent)/.20)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.12),transparent_72%)] ring-1 ring-[hsl(var(--accent)/.12)]"
-                         transition={{ type: 'spring', stiffness: 560, damping: 40 }}
-                       />
-                     ) : null}
-                     <span className="relative z-10">{t.heading}</span>
-                   </a>
-                 ))}
-              </div>
-            </Card>
 
-            <Card className="p-5">
-              <SectionHeading title="读后可做" subtitle="把所得变成自己的心法。" />
-              <div className="grid gap-2">
-                <Button type="button" variant="ghost" onClick={appendToNotes} className="w-full justify-start">
-                  <BookMarkToNotesIcon />
-                  把这一篇收入札记
-                </Button>
-                <ButtonLinkToNotes />
-              </div>
+              <Card className="p-5">
+                <SectionHeading title="读后可做" subtitle="把所得变成自己的心法。" />
+                <div className="grid gap-2">
+                  <Button type="button" variant="ghost" onClick={appendToNotes} className="w-full justify-start">
+                    <BookMarkToNotesIcon />
+                    把这一篇收入札记
+                  </Button>
+                  <ButtonLinkToNotes />
+                </div>
 
-              <AnimatePresence>
-                {copied ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
-                  >
-                    {copied === 'outline' ? '已复制提纲。' : '已复制定位。'}
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </Card>
-            </div>
-          </aside>
-        ) : null}
+                <AnimatePresence>
+                  {copied ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
+                    >
+                      {copied === 'outline' ? '已复制提纲。' : '已复制定位。'}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </Card>
+              </div>
+            </motion.aside>
+          ) : null}
+        </AnimatePresence>
       </div>
     </>
   )
