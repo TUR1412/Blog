@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -10,6 +10,7 @@ import { chronicles } from '../content/chronicles'
 import { timeline, timelineLayerLabel } from '../content/timeline'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
+import { hapticTap } from '../lib/haptics'
 import { readJson, writeString } from '../lib/storage'
 import { useCommandPalette } from '../providers/command/CommandPaletteProvider'
 
@@ -57,6 +58,7 @@ function SparkBurstLayer({ bursts }: { bursts: Burst[] }) {
 
 export function HomePage() {
   const { open } = useCommandPalette()
+  const reduceMotion = useReducedMotion() ?? false
   const featured = useMemo(() => chronicles.slice(-3).reverse(), [])
   const [qi, setQi] = useState(72)
   const [bursts, setBursts] = useState<Burst[]>([])
@@ -126,6 +128,7 @@ export function HomePage() {
                     const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
                     triggerBurst(rect.left + rect.width / 2, rect.top + rect.height / 2)
                     setQuoteIndex((i) => i + 1)
+                    hapticTap()
                   }}
                 >
                   顿悟一下
@@ -135,7 +138,20 @@ export function HomePage() {
 
               <div className="mt-6 text-sm text-muted/85">
                 <span className="mr-2 text-xs text-muted/70">箴言</span>
-                <span className="font-medium text-fg/90">“{quote}”</span>
+                <span className="font-medium text-fg/90">
+                  <AnimatePresence initial={false} mode={reduceMotion ? 'sync' : 'wait'}>
+                    <motion.span
+                      key={quote}
+                      className="inline-block"
+                      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      “{quote}”
+                    </motion.span>
+                  </AnimatePresence>
+                </span>
               </div>
             </div>
 
@@ -192,54 +208,61 @@ export function HomePage() {
                     </div>
                   </div>
 
-                  {readingLast ? (
-                    <div className="mt-2">
-                      <div className="text-sm font-semibold text-fg line-clamp-2">
-                        {readingLast.title}
-                      </div>
-                      <div className="mt-1 text-xs text-muted/70">{readingLast.dateText}</div>
-                      {readingLast.anchorHeading ? (
-                        <div className="mt-1 text-xs text-muted/70">
-                          上次停在：{readingLast.anchorHeading}
+                  <AnimatePresence initial={false} mode={reduceMotion ? 'sync' : 'wait'}>
+                    {readingLast ? (
+                      <motion.div
+                        key="readingLast"
+                        className="mt-2"
+                        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                        transition={reduceMotion ? { duration: 0.12 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        <div className="text-sm font-semibold text-fg line-clamp-2">{readingLast.title}</div>
+                        <div className="mt-1 text-xs text-muted/70">{readingLast.dateText}</div>
+                        {readingLast.anchorHeading ? (
+                          <div className="mt-1 text-xs text-muted/70">上次停在：{readingLast.anchorHeading}</div>
+                        ) : null}
+                        {readingLast.anchorSnippet ? (
+                          <div className="mt-1 line-clamp-2 text-xs text-muted/70">“{readingLast.anchorSnippet}”</div>
+                        ) : null}
+                        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/6">
+                          <div
+                            className="h-full bg-[linear-gradient(90deg,hsl(var(--accent)),hsl(var(--accent2)))] transition-[width] duration-300 ease-out"
+                            style={{ width: `${Math.max(2, Math.min(100, readingLast.progress))}%` }}
+                          />
                         </div>
-                      ) : null}
-                      {readingLast.anchorSnippet ? (
-                        <div className="mt-1 line-clamp-2 text-xs text-muted/70">
-                          “{readingLast.anchorSnippet}”
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <ButtonLink to={`/chronicles/${readingLast.slug}`} variant="ghost" className="w-full">
+                            续读 <ArrowRight className="h-4 w-4" />
+                          </ButtonLink>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => {
+                              writeString(STORAGE_KEYS.readingLast, '')
+                              setReadingLast(null)
+                              hapticTap()
+                            }}
+                          >
+                            清除
+                          </Button>
                         </div>
-                      ) : null}
-                      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/6">
-                        <div
-                          className="h-full bg-[linear-gradient(90deg,hsl(var(--accent)),hsl(var(--accent2)))]"
-                          style={{ width: `${Math.max(2, Math.min(100, readingLast.progress))}%` }}
-                        />
-                      </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <ButtonLink
-                          to={`/chronicles/${readingLast.slug}`}
-                          variant="ghost"
-                          className="w-full"
-                        >
-                          续读 <ArrowRight className="h-4 w-4" />
-                        </ButtonLink>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full"
-                          onClick={() => {
-                            writeString(STORAGE_KEYS.readingLast, '')
-                            setReadingLast(null)
-                          }}
-                        >
-                          清除
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-xs leading-6 text-muted/70">
-                      打开任意一篇纪事阅读片刻，系统会自动记住“上次读到哪里”。
-                    </div>
-                  )}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="readingEmpty"
+                        className="mt-2 text-xs leading-6 text-muted/70"
+                        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                        transition={reduceMotion ? { duration: 0.12 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        打开任意一篇纪事阅读片刻，系统会自动记住“上次读到哪里”。
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </Card>
               </div>
             </div>
