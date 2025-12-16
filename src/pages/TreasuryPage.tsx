@@ -1,7 +1,7 @@
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { GripVertical, RotateCcw } from 'lucide-react'
 import { useMemo, useState, type CSSProperties } from 'react'
 import { Badge } from '../components/ui/Badge'
@@ -21,6 +21,7 @@ export function TreasuryPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const [order, setOrder] = useLocalStorageState<string[]>(STORAGE_KEYS.treasureOrder, buildDefaultOrder())
   const [openId, setOpenId] = useState<string | null>(null)
+  const reduceMotion = useReducedMotion() ?? false
 
   const list = useMemo(() => {
     const map = new Map(defaultTreasures.map((t) => [t.id, t] as const))
@@ -96,6 +97,7 @@ export function TreasuryPage() {
                     treasure={t}
                     open={openId === t.id}
                     onToggle={() => setOpenId((cur) => (cur === t.id ? null : t.id))}
+                    reduceMotion={reduceMotion}
                   />
                 ))}
               </div>
@@ -111,22 +113,34 @@ function SortableTreasureCard({
   treasure,
   open,
   onToggle,
+  reduceMotion,
 }: {
   treasure: Treasure
   open: boolean
   onToggle: () => void
+  reduceMotion: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: treasure.id,
   })
 
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
+  const hasDndTransform = Boolean(transform)
+  const allowLayout = !reduceMotion && !isDragging && !hasDndTransform
+
+  const style: CSSProperties | undefined = hasDndTransform
+    ? { transform: CSS.Transform.toString(transform), transition }
+    : allowLayout
+      ? { willChange: 'transform' }
+      : undefined
 
   return (
-    <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-70')}>
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && 'opacity-70')}
+      layout={allowLayout ? 'position' : undefined}
+      transition={allowLayout ? { duration: 0.22, ease: [0.22, 1, 0.36, 1] } : undefined}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -177,6 +191,6 @@ function SortableTreasureCard({
           </div>
         </div>
       </button>
-    </div>
+    </motion.div>
   )
 }
