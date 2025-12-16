@@ -32,10 +32,11 @@ function RouteTransition({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion()
   return (
     <motion.div
-      initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.985 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.985 }}
-      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      style={{ willChange: 'transform, opacity' }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>
@@ -67,7 +68,13 @@ export function AppRouter() {
   const location = useLocation()
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence
+      mode="wait"
+      initial={false}
+      onExitComplete={() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+      }}
+    >
       <RouteTransition key={location.pathname}>
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />

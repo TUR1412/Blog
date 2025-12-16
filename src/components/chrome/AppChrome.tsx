@@ -1,18 +1,6 @@
-import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
 import { AuroraBackdrop } from '../visual/AuroraBackdrop'
 import { Footer } from './Footer'
 import { TopNav } from './TopNav'
-
-function ScrollToTop() {
-  const location = useLocation()
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-  }, [location.pathname])
-
-  return null
-}
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
   return (
@@ -26,7 +14,6 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
 
       <AuroraBackdrop />
       <TopNav />
-      <ScrollToTop />
 
       <main id="content" className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-24 lg:px-10">
         {children}
