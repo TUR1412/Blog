@@ -199,6 +199,7 @@ function CommandPaletteModal({
   }, [items, query])
 
   const enableActiveMotion = !reduceMotion && filtered.length <= 48
+  const enableListMotion = !reduceMotion && filtered.length <= 42
 
   useEffect(() => {
     const t = window.setTimeout(() => inputRef.current?.focus(), 0)
@@ -299,9 +300,10 @@ function CommandPaletteModal({
                   没搜到相符条目。换个词试试：例如“问剑 / 霜月 / 洞府 / 札记”。
                 </div>
               ) : (
-                <div className="grid gap-1">
-                  {filtered.map((it, idx) => (
-                    <button
+                <motion.div layout={enableListMotion ? 'position' : undefined} className="grid gap-1">
+                  <AnimatePresence initial={false} mode={enableListMotion ? 'popLayout' : 'sync'}>
+                    {filtered.map((it, idx) => (
+                    <motion.button
                       key={it.id}
                       data-cmd-index={idx}
                       type="button"
@@ -309,6 +311,16 @@ function CommandPaletteModal({
                         'tap focus-ring relative w-full rounded-xl px-3 py-3 text-left',
                         idx === activeIndex ? 'text-fg' : 'bg-transparent hover:bg-white/5',
                       )}
+                      layout={enableListMotion ? 'position' : undefined}
+                      style={enableListMotion ? { willChange: 'transform, opacity' } : undefined}
+                      initial={reduceMotion || !enableListMotion ? false : { opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduceMotion || !enableListMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                      transition={
+                        reduceMotion || !enableListMotion
+                          ? { duration: 0.12 }
+                          : { delay: idx * 0.012, duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+                      }
                       onMouseEnter={() => setActiveIndex(idx)}
                       onClick={() => {
                         it.run()
@@ -348,9 +360,10 @@ function CommandPaletteModal({
                           <span>入</span>
                         </div>
                       </div>
-                    </button>
+                    </motion.button>
                   ))}
-                </div>
+                  </AnimatePresence>
+                </motion.div>
               )}
             </div>
           </motion.div>
