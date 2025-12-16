@@ -1451,9 +1451,9 @@ export function AnnotationsPage() {
                       layout={enableHallMotion ? 'position' : undefined}
                       style={enableHallMotion ? { willChange: 'transform, opacity' } : undefined}
                       className={cn(
-                        'rounded-xl border border-border/60 bg-white/4 px-5 py-4',
+                        'relative rounded-xl border border-border/60 bg-white/4 px-5 py-4',
                         '[content-visibility:auto] [contain-intrinsic-size:280px_220px]',
-                        entryKey === activeEntryKey && 'ring-1 ring-[hsl(var(--ring)/.25)]',
+                        entryKey === activeEntryKey && (reduceMotion ? 'ring-1 ring-[hsl(var(--ring)/.25)]' : ''),
                       )}
                       initial={
                         reduceMotion || heavyList
@@ -1476,6 +1476,13 @@ export function AnnotationsPage() {
                         ease: reduceMotion || heavyList ? undefined : [0.22, 1, 0.36, 1],
                       }}
                     >
+                      {!reduceMotion && entryKey === activeEntryKey ? (
+                        <motion.span
+                          layoutId="hallActiveEntry"
+                          className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-[hsl(var(--ring)/.25)]"
+                          transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                        />
+                      ) : null}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
