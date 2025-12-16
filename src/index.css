@@ -128,7 +128,6 @@ html.theme-light {
   }
 
   .tap {
-    will-change: transform, filter;
     transition:
       scale 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
       filter 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -138,11 +137,13 @@ html.theme-light {
   }
 
   .tap:hover {
+    will-change: transform, filter;
     scale: 1.015;
     filter: brightness(1.06);
   }
 
   .tap:active {
+    will-change: transform, filter;
     scale: 0.985;
   }
 
