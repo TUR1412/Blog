@@ -1,8 +1,9 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Route, Routes, useLocation } from 'react-router-dom'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { Card } from '../components/ui/Card'
 import { HomePage } from '../pages/HomePage'
+import { prefetchCoreRoutes } from './prefetch'
 
 const ChroniclesPage = lazy(() =>
   import('../pages/ChroniclesPage').then((m) => ({ default: m.ChroniclesPage })),
@@ -32,12 +33,22 @@ function RouteTransition({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion()
   return (
     <motion.div
+      className="relative"
       style={{ willChange: 'transform, opacity' }}
       initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
+      {!reduceMotion ? (
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 right-0 top-0 h-[2px] origin-left bg-[linear-gradient(90deg,transparent,hsl(var(--accent)/.70),hsl(var(--accent2)/.60),transparent)] opacity-0"
+          initial={{ opacity: 0, scaleX: 0.62 }}
+          animate={{ opacity: [0, 1, 0], scaleX: [0.62, 1, 1] }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        />
+      ) : null}
       {children}
     </motion.div>
   )
@@ -66,6 +77,20 @@ function PageFallback() {
 
 export function AppRouter() {
   const location = useLocation()
+
+  useEffect(() => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
+      .requestIdleCallback
+    const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
+
+    if (ric) {
+      const id = ric(() => prefetchCoreRoutes({ includeNotes: true }), { timeout: 2000 })
+      return () => cic?.(id)
+    }
+
+    const t = window.setTimeout(() => prefetchCoreRoutes({ includeNotes: true }), 1200)
+    return () => window.clearTimeout(t)
+  }, [])
 
   return (
     <AnimatePresence
