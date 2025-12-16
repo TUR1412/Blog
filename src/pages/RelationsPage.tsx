@@ -79,8 +79,10 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
   const t = toneToken(tone)
   const base =
     'focus-ring group absolute -translate-x-1/2 -translate-y-1/2 text-left ' +
-    'transition-[background-color,border-color,box-shadow] duration-200 hover:shadow-lift'
-  const box = 'w-[170px] max-w-[52vw] rounded-2xl border bg-[hsl(var(--fg)/.03)] px-3 py-2'
+    'transition-[background-color,border-color,box-shadow,filter] duration-200 hover:shadow-lift'
+  const box =
+    'w-[170px] max-w-[52vw] rounded-2xl border px-3 py-2 ' +
+    'bg-[linear-gradient(180deg,hsl(var(--card)/.92),hsl(var(--bg)/.72))]'
   const blur = ''
   if (t === 'warn') {
     return cn(
@@ -88,8 +90,8 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
       box,
       blur,
       active
-        ? 'border-[hsl(var(--warn)/.40)] bg-[hsl(var(--warn)/.10)] ring-1 ring-[hsl(var(--warn)/.16)]'
-        : 'border-border/60 hover:border-[hsl(var(--warn)/.26)] hover:bg-[hsl(var(--fg)/.05)]',
+        ? 'border-[hsl(var(--warn)/.40)] ring-1 ring-[hsl(var(--warn)/.16)]'
+        : 'border-border/60 hover:border-[hsl(var(--warn)/.26)] hover:brightness-110',
     )
   }
   if (t === 'bright') {
@@ -98,8 +100,8 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
       box,
       blur,
       active
-        ? 'border-[hsl(var(--accent)/.36)] bg-[hsl(var(--accent)/.09)] ring-1 ring-[hsl(var(--accent)/.16)]'
-        : 'border-border/60 hover:border-[hsl(var(--fg)/.14)] hover:bg-[hsl(var(--fg)/.05)]',
+        ? 'border-[hsl(var(--accent)/.36)] ring-1 ring-[hsl(var(--accent)/.16)]'
+        : 'border-border/60 hover:border-[hsl(var(--fg)/.14)] hover:brightness-110',
     )
   }
   return cn(
@@ -107,17 +109,51 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
     box,
     blur,
     active
-      ? 'border-[hsl(var(--fg)/.18)] bg-[hsl(var(--fg)/.06)] ring-1 ring-[hsl(var(--fg)/.10)]'
-      : 'border-border/60 hover:border-[hsl(var(--fg)/.12)] hover:bg-[hsl(var(--fg)/.05)]',
+      ? 'border-[hsl(var(--fg)/.18)] ring-1 ring-[hsl(var(--fg)/.10)]'
+      : 'border-border/60 hover:border-[hsl(var(--fg)/.12)] hover:brightness-110',
   )
 }
 
-function edgePath(a: { x: number; y: number }, b: { x: number; y: number }) {
-  const midX = (a.x + b.x) / 2
-  const dy = Math.max(6, Math.min(22, Math.abs(b.y - a.y)))
-  const c1 = { x: midX, y: a.y + Math.sign(b.y - a.y) * (dy * 0.35) }
-  const c2 = { x: midX, y: b.y - Math.sign(b.y - a.y) * (dy * 0.35) }
-  return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`
+function hash01(input: string) {
+  let h = 2166136261
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return ((h >>> 0) % 1000) / 1000
+}
+
+function edgePath(a: { x: number; y: number }, b: { x: number; y: number }, seed?: string) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const dist = Math.hypot(dx, dy)
+  if (!Number.isFinite(dist) || dist <= 0.001) return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
+
+  const maxInset = Math.max(0, dist / 2 - 0.25)
+  const inset = Math.min(6.8, maxInset)
+  const ux = dx / dist
+  const uy = dy / dist
+
+  const a2 = { x: a.x + ux * inset, y: a.y + uy * inset }
+  const b2 = { x: b.x - ux * inset, y: b.y - uy * inset }
+
+  const ddx = b2.x - a2.x
+  const ddy = b2.y - a2.y
+  const d2 = Math.hypot(ddx, ddy) || 0.001
+  const u2x = ddx / d2
+  const u2y = ddy / d2
+  const px = -u2y
+  const py = u2x
+
+  const s1 = seed ? hash01(seed) : 0.5
+  const s2 = seed ? hash01(`${seed}.m`) : 0.5
+  const signed = s1 * 2 - 1
+  const magnitude = Math.min(11, Math.max(3.2, d2 * 0.18)) * (0.65 + s2 * 0.55)
+  const bend = signed * magnitude
+
+  const c1 = { x: a2.x + ddx * 0.33 + px * bend, y: a2.y + ddy * 0.33 + py * bend }
+  const c2 = { x: a2.x + ddx * 0.66 + px * bend, y: a2.y + ddy * 0.66 + py * bend }
+  return `M ${a2.x} ${a2.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b2.x} ${b2.y}`
 }
 
 function safeLower(s: string) {
@@ -974,34 +1010,39 @@ export function RelationsPage() {
                   const b = nodeById.get(e.to)?.pos
                   if (!a || !b) return null
 
+                  const d = edgePath(a, b, e.id)
+
                   const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
                   const hasFocus = Boolean(spotlightId)
 
                   const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
-                  const showGlow = !reduceMotion && hasFocus && connected
+                  const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected
+                  const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected
 
-                  const baseOpacity = hasFocus ? (connected ? 0.88 : 0.06) : 0.26
-                  const baseStroke = hasFocus && connected ? 'hsl(var(--accent) / 0.78)' : 'hsl(var(--fg) / 0.55)'
-                  const baseStrokeWidth = hasFocus && connected ? 0.62 : 0.32
+                  const idleOpacity = heavyGraph ? 0.12 : 0.18
+                  const baseOpacity = hasFocus ? (connected ? 0.9 : 0.02) : idleOpacity
+                  const baseStroke = hasFocus && connected ? 'hsl(var(--accent) / 0.78)' : 'hsl(var(--muted) / 0.62)'
+                  const baseStrokeWidth = hasFocus && connected ? 0.5 : heavyGraph ? 0.22 : 0.26
 
                   return (
                     <g key={e.id}>
                       {showGlow ? (
                         <path
-                          d={edgePath(a, b)}
+                          d={d}
                           style={{
-                            opacity: 0.18,
+                            opacity: 0.12,
                             stroke: 'hsl(var(--accent2) / 0.72)',
-                            strokeWidth: 1.15,
+                            strokeWidth: 0.9,
                             transition,
                             filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
                           }}
                           fill="none"
                           strokeLinecap="round"
+                          strokeLinejoin="round"
                         />
                       ) : null}
                       <path
-                        d={edgePath(a, b)}
+                        d={d}
                         style={{
                           opacity: baseOpacity,
                           stroke: baseStroke,
@@ -1011,7 +1052,25 @@ export function RelationsPage() {
                         }}
                         fill="none"
                         strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
+                      {showFlow ? (
+                        <path
+                          d={d}
+                          className="xuantian-edge-flow"
+                          style={{
+                            opacity: 0.82,
+                            stroke: 'hsl(var(--accent2) / 0.70)',
+                            strokeWidth: baseStrokeWidth + 0.08,
+                            strokeDasharray: '1.2 2.1',
+                            transition,
+                            filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
+                          }}
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      ) : null}
                     </g>
                   )
                 })}

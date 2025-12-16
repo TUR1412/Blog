@@ -14,6 +14,15 @@
   }
 }
 
+@keyframes xuantian-edge-flow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -12;
+  }
+}
+
 :root {
   --bg: 231 38% 7%;
   --fg: 210 40% 98%;
@@ -135,6 +144,10 @@ html.theme-light {
 
   .tap:active {
     scale: 0.985;
+  }
+
+  .xuantian-edge-flow {
+    animation: xuantian-edge-flow 1.25s linear infinite;
   }
 
   /* 经卷观：首段落款（“开卷一字起势”） */
