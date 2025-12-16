@@ -311,6 +311,7 @@ export function AnnotationsPage() {
   }, [appliedQuery, entries, layer, relKind, source, tone])
 
   const heavyList = filtered.length > 80
+  const enableHallMotion = !reduceMotion && !heavyList && filtered.length <= 48
 
   const hitTrackKey = useMemo(() => {
     if (!appliedFindQuery.trim()) return ''
@@ -1422,8 +1423,13 @@ export function AnnotationsPage() {
             <SectionHeading title="批注条目" subtitle="每条都可定位回原处，也可一键并入札记。" />
 
             {filtered.length ? (
-              <div ref={hallRef} className="grid gap-3 lg:grid-cols-2">
-                {filtered.map((it, idx) => {
+              <motion.div
+                ref={hallRef}
+                layout={enableHallMotion ? 'position' : undefined}
+                className="grid gap-3 lg:grid-cols-2"
+              >
+                <AnimatePresence initial={false} mode={enableHallMotion ? 'popLayout' : 'sync'}>
+                  {filtered.map((it, idx) => {
                   const tone = toneToken(it.tone)
                   const label = it.source === 'grotto' ? '洞府图' : '关系谱'
                   const sub =
@@ -1442,18 +1448,32 @@ export function AnnotationsPage() {
                     <motion.div
                       key={entryKey}
                       data-hall-entry={entryKey}
+                      layout={enableHallMotion ? 'position' : undefined}
+                      style={enableHallMotion ? { willChange: 'transform, opacity' } : undefined}
                       className={cn(
                         'rounded-xl border border-border/60 bg-white/4 px-5 py-4',
                         '[content-visibility:auto] [contain-intrinsic-size:280px_220px]',
                         entryKey === activeEntryKey && 'ring-1 ring-[hsl(var(--ring)/.25)]',
                       )}
-                      initial={reduceMotion || heavyList ? false : { opacity: 0, y: 10 }}
+                      initial={
+                        reduceMotion || heavyList
+                          ? false
+                          : enableHallMotion
+                            ? { opacity: 0, y: 10 }
+                            : { opacity: 0 }
+                      }
                       animate={{ opacity: 1, y: 0 }}
+                      exit={
+                        reduceMotion || heavyList
+                          ? { opacity: 0 }
+                          : enableHallMotion
+                            ? { opacity: 0, y: -8 }
+                            : { opacity: 0 }
+                      }
                       transition={{
-                        delay: reduceMotion || heavyList ? 0 : idx * 0.015,
-                        type: 'spring',
-                        stiffness: 420,
-                        damping: 34,
+                        delay: reduceMotion || heavyList ? 0 : enableHallMotion ? idx * 0.015 : 0,
+                        duration: reduceMotion || heavyList ? 0.12 : enableHallMotion ? 0.26 : 0.18,
+                        ease: reduceMotion || heavyList ? undefined : [0.22, 1, 0.36, 1],
                       }}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1547,7 +1567,8 @@ export function AnnotationsPage() {
                     </motion.div>
                   )
                 })}
-              </div>
+                </AnimatePresence>
+              </motion.div>
             ) : (
               <div className="rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
                 <div className="text-sm font-semibold text-fg">暂无批注</div>
