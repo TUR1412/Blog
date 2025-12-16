@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { BookOpen, Scale, ShieldCheck, Snowflake } from 'lucide-react'
 import { useMemo } from 'react'
 import { Badge } from '../components/ui/Badge'
@@ -13,6 +13,8 @@ const TIMELINE_OPEN_KEY = 'xuantian.timeline.open.v1'
 
 export function AboutPage() {
   const [openIds, setOpenIds] = useLocalStorageState<Record<string, boolean>>(TIMELINE_OPEN_KEY, {})
+  const reduceMotion = useReducedMotion()
+  const enableTimelineMotion = !reduceMotion && timeline.length <= 72
 
   const principles = useMemo(
     () => [
@@ -119,8 +121,11 @@ export function AboutPage() {
                     : 'from-white/8 to-transparent'
 
               return (
-                <div
+                <motion.div
                   key={t.id}
+                  layout={enableTimelineMotion ? 'position' : undefined}
+                  transition={enableTimelineMotion ? { duration: 0.22, ease: [0.22, 1, 0.36, 1] } : undefined}
+                  style={enableTimelineMotion ? { willChange: 'transform' } : undefined}
                   className={cn(
                     'rounded-xl border border-border/60 bg-white/4 text-left',
                   )}
@@ -178,7 +183,7 @@ export function AboutPage() {
                       </div>
                     </div>
                   </motion.div>
-                </div>
+                </motion.div>
               )
             })}
           </div>
