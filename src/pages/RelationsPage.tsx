@@ -227,6 +227,18 @@ export function RelationsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [graphEntered, setGraphEntered] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const graphViewportRef = useRef<HTMLDivElement | null>(null)
+  const graphStageRef = useRef<HTMLDivElement | null>(null)
+  const graphViewRef = useRef({ x: 0, y: 0, scale: 1 })
+  const graphPanRef = useRef<{
+    pointerId: number
+    startClientX: number
+    startClientY: number
+    startX: number
+    startY: number
+  } | null>(null)
+  const graphRafRef = useRef<number | null>(null)
+  const [graphPanning, setGraphPanning] = useState(false)
   const [storedSelected, setStoredSelected] = useLocalStorageState<string>(
     STORAGE_KEYS.relationsSelected,
     'xuan',
@@ -337,6 +349,30 @@ export function RelationsPage() {
   const selectedAnnotation = selectedId ? canonicalAnnotations[selectedId] ?? null : null
   const annoDraft = selectedId ? (annoDraftById[selectedId] ?? selectedAnnotation?.text ?? '') : ''
   const annoSavedAt = selectedAnnotation?.updatedAt ?? 0
+
+  const scheduleApplyGraphView = useCallback(() => {
+    if (graphRafRef.current) return
+    graphRafRef.current = window.requestAnimationFrame(() => {
+      graphRafRef.current = null
+      const stage = graphStageRef.current
+      if (!stage) return
+      const { x, y, scale } = graphViewRef.current
+      stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
+    })
+  }, [])
+
+  const resetGraphView = useCallback(() => {
+    graphViewRef.current = { x: 0, y: 0, scale: 1 }
+    scheduleApplyGraphView()
+    hapticTap()
+  }, [scheduleApplyGraphView])
+
+  useEffect(() => {
+    scheduleApplyGraphView()
+    return () => {
+      if (graphRafRef.current) window.cancelAnimationFrame(graphRafRef.current)
+    }
+  }, [scheduleApplyGraphView])
 
   const annoFindRanges = useMemo(() => {
     return findAllMatchRanges(annoDraft, appliedAnnoFindQuery, findOptions)
@@ -1085,139 +1121,235 @@ export function RelationsPage() {
           <Card className="relative overflow-hidden lg:col-span-7">
             <SectionHeading title="谱面" subtitle="点节点；线是直连，发光是牵连圈（不必都直连）。" />
 
-            <div className="relative mt-4 h-[520px] rounded-xl border border-border/60 bg-white/3">
+            <div
+              ref={graphViewportRef}
+              className={cn(
+                'relative mt-4 h-[520px] overflow-hidden rounded-xl border border-border/60 bg-white/3',
+                'select-none touch-none',
+                graphPanning ? 'cursor-grabbing' : 'cursor-grab',
+              )}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return
+                const target = e.target as HTMLElement | null
+                if (target?.closest('button, a, input, textarea, select, [data-graph-no-pan]')) return
+
+                const viewport = graphViewportRef.current
+                if (!viewport) return
+
+                graphPanRef.current = {
+                  pointerId: e.pointerId,
+                  startClientX: e.clientX,
+                  startClientY: e.clientY,
+                  startX: graphViewRef.current.x,
+                  startY: graphViewRef.current.y,
+                }
+
+                setGraphPanning(true)
+                try {
+                  viewport.setPointerCapture(e.pointerId)
+                } catch {
+                  // ignore
+                }
+                e.preventDefault()
+              }}
+              onPointerMove={(e) => {
+                const pan = graphPanRef.current
+                if (!pan) return
+                if (pan.pointerId !== e.pointerId) return
+                const dx = e.clientX - pan.startClientX
+                const dy = e.clientY - pan.startClientY
+                graphViewRef.current = { ...graphViewRef.current, x: pan.startX + dx, y: pan.startY + dy }
+                scheduleApplyGraphView()
+              }}
+              onPointerUp={(e) => {
+                const pan = graphPanRef.current
+                if (!pan) return
+                if (pan.pointerId !== e.pointerId) return
+                graphPanRef.current = null
+                setGraphPanning(false)
+                try {
+                  graphViewportRef.current?.releasePointerCapture(e.pointerId)
+                } catch {
+                  // ignore
+                }
+              }}
+              onPointerCancel={(e) => {
+                const pan = graphPanRef.current
+                if (!pan) return
+                if (pan.pointerId !== e.pointerId) return
+                graphPanRef.current = null
+                setGraphPanning(false)
+                try {
+                  graphViewportRef.current?.releasePointerCapture(e.pointerId)
+                } catch {
+                  // ignore
+                }
+              }}
+              onWheel={(e) => {
+                if (!(e.ctrlKey || e.metaKey)) return
+                const viewport = graphViewportRef.current
+                if (!viewport) return
+                const rect = viewport.getBoundingClientRect()
+                const px = e.clientX - rect.left
+                const py = e.clientY - rect.top
+
+                const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+                const { x, y, scale } = graphViewRef.current
+
+                const nextScale = clamp(scale * Math.exp(-e.deltaY * 0.0012), 0.82, 1.65)
+                if (Math.abs(nextScale - scale) < 0.0005) return
+
+                const ratio = nextScale / scale
+                graphViewRef.current = {
+                  x: x + (px - x) * (1 - ratio),
+                  y: y + (py - y) * (1 - ratio),
+                  scale: nextScale,
+                }
+
+                scheduleApplyGraphView()
+                e.preventDefault()
+              }}
+              onDoubleClick={(e) => {
+                const target = e.target as HTMLElement | null
+                if (target?.closest('button, a, input, textarea, select, [data-graph-no-pan]')) return
+                resetGraphView()
+              }}
+            >
               <div className="pointer-events-none absolute inset-0">
                 <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.18),transparent_62%)] blur-3xl" />
                 <div className="absolute -right-24 top-10 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.16),transparent_62%)] blur-3xl" />
                 <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.08),transparent_70%)] blur-3xl" />
               </div>
 
-              <svg
-                className="pointer-events-none absolute inset-0"
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-              >
-                {visibleEdges.map((e) => {
-                  const a = nodeById.get(e.from)?.pos
-                  const b = nodeById.get(e.to)?.pos
-                  if (!a || !b) return null
+              <div ref={graphStageRef} className="absolute inset-0 origin-top-left will-change-transform">
+                <svg
+                  className="pointer-events-none absolute inset-0"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                >
+                  {visibleEdges.map((e) => {
+                    const a = nodeById.get(e.from)?.pos
+                    const b = nodeById.get(e.to)?.pos
+                    if (!a || !b) return null
 
-                  const d = edgePath(a, b, e.id)
+                    const d = edgePath(a, b, e.id)
 
-                  const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
-                  const hasFocus = Boolean(spotlightId)
-                  const inCluster = hasFocus && spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
-                  const inRootPath = hasFocus && spotlightRootPathEdgeKeySet.has(edgeKey(e.from, e.to))
+                    const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
+                    const hasFocus = Boolean(spotlightId)
+                    const inCluster = hasFocus && spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
+                    const inRootPath = hasFocus && spotlightRootPathEdgeKeySet.has(edgeKey(e.from, e.to))
 
-                  const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
-                  const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected
-                  const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected
+                    const transition = reduceMotion
+                      ? undefined
+                      : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
+                    const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected
+                    const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected
 
-                  const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
+                    const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
 
-                  const idleOpacity = heavyGraph ? 0.12 : 0.18
-                  const baseOpacity =
-                    !hasFocus
-                      ? idleOpacity
-                      : tier === 'primary'
-                        ? 0.9
+                    const idleOpacity = heavyGraph ? 0.12 : 0.18
+                    const baseOpacity =
+                      !hasFocus
+                        ? idleOpacity
+                        : tier === 'primary'
+                          ? 0.9
+                          : tier === 'path'
+                            ? heavyGraph
+                              ? 0.16
+                              : 0.26
+                          : tier === 'secondary'
+                            ? heavyGraph
+                              ? 0.1
+                              : 0.14
+                            : 0.012
+                    const baseStroke =
+                      tier === 'primary'
+                        ? 'hsl(var(--accent) / 0.78)'
+                        : tier === 'path'
+                          ? 'hsl(var(--accent2) / 0.62)'
+                        : tier === 'secondary'
+                          ? 'hsl(var(--muted) / 0.66)'
+                          : 'hsl(var(--muted) / 0.52)'
+                    const baseStrokeWidth =
+                      tier === 'primary'
+                        ? 0.5
                         : tier === 'path'
                           ? heavyGraph
-                            ? 0.16
-                            : 0.26
+                            ? 0.24
+                            : 0.34
                         : tier === 'secondary'
                           ? heavyGraph
-                            ? 0.1
-                            : 0.14
-                          : 0.012
-                  const baseStroke =
-                    tier === 'primary'
-                      ? 'hsl(var(--accent) / 0.78)'
-                      : tier === 'path'
-                        ? 'hsl(var(--accent2) / 0.62)'
-                      : tier === 'secondary'
-                        ? 'hsl(var(--muted) / 0.66)'
-                        : 'hsl(var(--muted) / 0.52)'
-                  const baseStrokeWidth =
-                    tier === 'primary'
-                      ? 0.5
-                      : tier === 'path'
-                        ? heavyGraph
-                          ? 0.24
-                          : 0.34
-                      : tier === 'secondary'
-                        ? heavyGraph
-                          ? 0.22
-                          : 0.24
-                        : heavyGraph
-                          ? 0.18
-                          : 0.2
+                            ? 0.22
+                            : 0.24
+                          : heavyGraph
+                            ? 0.18
+                            : 0.2
 
-                  const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
+                    const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
 
-                  return (
-                    <g key={e.id}>
-                      {showGlow ? (
+                    return (
+                      <g key={e.id}>
+                        {showGlow ? (
+                          <path
+                            d={d}
+                            style={{
+                              opacity: 0.12,
+                              stroke: 'hsl(var(--accent2) / 0.72)',
+                              strokeWidth: 0.9,
+                              transition,
+                              filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
+                            }}
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ) : null}
                         <path
                           d={d}
                           style={{
-                            opacity: 0.12,
-                            stroke: 'hsl(var(--accent2) / 0.72)',
-                            strokeWidth: 0.9,
+                            opacity: baseOpacity,
+                            stroke: baseStroke,
+                            strokeWidth: baseStrokeWidth,
                             transition,
-                            filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
+                            filter: showGlow
+                              ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
+                              : showPathGlow
+                                ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
+                                : undefined,
                           }}
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
-                      ) : null}
-                      <path
-                        d={d}
-                        style={{
-                          opacity: baseOpacity,
-                          stroke: baseStroke,
-                          strokeWidth: baseStrokeWidth,
-                          transition,
-                          filter: showGlow
-                            ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
-                            : showPathGlow
-                              ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
-                              : undefined,
-                        }}
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {showFlow ? (
-                        <path
-                          d={d}
-                          className="xuantian-edge-flow"
-                          style={{
-                            opacity: 0.82,
-                            stroke: 'hsl(var(--accent2) / 0.70)',
-                            strokeWidth: baseStrokeWidth + 0.08,
-                            strokeDasharray: '1.2 2.1',
-                            transition,
-                            filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
-                          }}
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      ) : null}
-                    </g>
-                  )
-                })}
-              </svg>
+                        {showFlow ? (
+                          <path
+                            d={d}
+                            className="xuantian-edge-flow"
+                            style={{
+                              opacity: 0.82,
+                              stroke: 'hsl(var(--accent2) / 0.70)',
+                              strokeWidth: baseStrokeWidth + 0.08,
+                              strokeDasharray: '1.2 2.1',
+                              transition,
+                              filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
+                            }}
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        ) : null}
+                      </g>
+                    )
+                  })}
+                </svg>
 
-              {visibleNodes.map((n, idx) => {
-                const active = n.id === selectedId
-                const spotlight = n.id === spotlightId
-                const related =
-                  spotlightId && !spotlight
-                    ? spotlightRelatedIdSet.has(n.id) || spotlightRootPathNodeIdSet.has(n.id) || n.id === 'xuan'
-                    : true
+                {visibleNodes.map((n, idx) => {
+                  const active = n.id === selectedId
+                  const spotlight = n.id === spotlightId
+                  const related =
+                    spotlightId && !spotlight
+                      ? spotlightRelatedIdSet.has(n.id) || spotlightRootPathNodeIdSet.has(n.id) || n.id === 'xuan'
+                      : true
 
                 const dim = spotlightId ? !spotlight && !related : false
 
@@ -1338,7 +1470,26 @@ export function RelationsPage() {
                     </div>
                   </motion.button>
                 )
-              })}
+                })}
+              </div>
+
+              <div
+                className="absolute bottom-3 right-3 flex items-center gap-2"
+                data-graph-no-pan
+              >
+                <button
+                  type="button"
+                  onClick={resetGraphView}
+                  className="focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-xs font-medium text-fg/90 hover:bg-white/10"
+                  aria-label="归位"
+                  title="归位（双击空白处也可归位；Ctrl/⌘ + 滚轮缩放）"
+                >
+                  归位
+                </button>
+                <div className="hidden rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-[11px] text-muted/80 sm:block">
+                  拖拽空白处移动 · Ctrl/⌘ + 滚轮缩放 · 双击归位
+                </div>
+              </div>
             </div>
           </Card>
 
