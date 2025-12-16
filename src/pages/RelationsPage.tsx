@@ -1157,17 +1157,43 @@ export function RelationsPage() {
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="text-xs text-muted/70">类别</div>
-            <Chip selected={kind === 'all'} onClick={() => setKind('all')}>
-              全部
+            <Chip selected={kind === 'all'} className="relative overflow-hidden" onClick={() => setKind('all')}>
+              {!reduceMotion && kind === 'all' ? (
+                <motion.span
+                  layoutId="relationsKindActive"
+                  className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                  transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                />
+              ) : null}
+              <span className="relative z-10">全部</span>
             </Chip>
             {RELATION_KINDS.map((k) => (
-              <Chip key={k} selected={kind === k} onClick={() => setKind(k)}>
-                {k}
+              <Chip key={k} selected={kind === k} className="relative overflow-hidden" onClick={() => setKind(k)}>
+                {!reduceMotion && kind === k ? (
+                  <motion.span
+                    layoutId="relationsKindActive"
+                    className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                    transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                  />
+                ) : null}
+                <span className="relative z-10">{k}</span>
               </Chip>
             ))}
             <span className="mx-1 h-4 w-px bg-white/10" aria-hidden="true" />
-            <Chip selected={onlyRelated} aria-pressed={onlyRelated} onClick={() => setOnly(!onlyRelated)}>
-              只看牵连
+            <Chip
+              selected={onlyRelated}
+              aria-pressed={onlyRelated}
+              className="relative overflow-hidden"
+              onClick={() => setOnly(!onlyRelated)}
+            >
+              {!reduceMotion && onlyRelated ? (
+                <motion.span
+                  layoutId="relationsOnlyActive"
+                  className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                  transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                />
+              ) : null}
+              <span className="relative z-10">只看牵连</span>
             </Chip>
           </div>
 
