@@ -723,17 +723,40 @@ export function GrottoMapPage() {
             </div>
           </div>
 
-          <div className="mt-3 grid gap-2">
+            <div className="mt-3 grid gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <div className="text-xs text-muted/70">洞府层</div>
-              <Chip selected={layerFilter === 'all'} onClick={() => setLayer('all')}>
-                全部
+              <Chip
+                selected={layerFilter === 'all'}
+                className="relative overflow-hidden"
+                onClick={() => setLayer('all')}
+              >
+                {!reduceMotion && layerFilter === 'all' ? (
+                  <motion.span
+                    layoutId="grottoLayerActive"
+                    className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                    transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                  />
+                ) : null}
+                <span className="relative z-10">全部</span>
               </Chip>
               {([1, 2, 3, 4] as TimelineLayer[]).map((layer) => {
                 const meta = TIMELINE_LAYER_META[layer]
                 return (
-                  <Chip key={String(layer)} selected={layerFilter === layer} onClick={() => setLayer(layer)}>
-                    {meta.label}
+                  <Chip
+                    key={String(layer)}
+                    selected={layerFilter === layer}
+                    className="relative overflow-hidden"
+                    onClick={() => setLayer(layer)}
+                  >
+                    {!reduceMotion && layerFilter === layer ? (
+                      <motion.span
+                        layoutId="grottoLayerActive"
+                        className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                        transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                      />
+                    ) : null}
+                    <span className="relative z-10">{meta.label}</span>
                   </Chip>
                 )
               })}
@@ -741,17 +764,57 @@ export function GrottoMapPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               <div className="text-xs text-muted/70">气象</div>
-              <Chip selected={toneFilter === 'all'} onClick={() => setTone('all')}>
-                全部
+              <Chip selected={toneFilter === 'all'} className="relative overflow-hidden" onClick={() => setTone('all')}>
+                {!reduceMotion && toneFilter === 'all' ? (
+                  <motion.span
+                    layoutId="grottoToneActive"
+                    className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                    transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                  />
+                ) : null}
+                <span className="relative z-10">全部</span>
               </Chip>
-              <Chip selected={toneFilter === 'calm'} onClick={() => setTone('calm')}>
-                平
+              <Chip
+                selected={toneFilter === 'calm'}
+                className="relative overflow-hidden"
+                onClick={() => setTone('calm')}
+              >
+                {!reduceMotion && toneFilter === 'calm' ? (
+                  <motion.span
+                    layoutId="grottoToneActive"
+                    className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                    transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                  />
+                ) : null}
+                <span className="relative z-10">平</span>
               </Chip>
-              <Chip selected={toneFilter === 'bright'} onClick={() => setTone('bright')}>
-                明
+              <Chip
+                selected={toneFilter === 'bright'}
+                className="relative overflow-hidden"
+                onClick={() => setTone('bright')}
+              >
+                {!reduceMotion && toneFilter === 'bright' ? (
+                  <motion.span
+                    layoutId="grottoToneActive"
+                    className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                    transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                  />
+                ) : null}
+                <span className="relative z-10">明</span>
               </Chip>
-              <Chip selected={toneFilter === 'warn'} onClick={() => setTone('warn')}>
-                警
+              <Chip
+                selected={toneFilter === 'warn'}
+                className="relative overflow-hidden"
+                onClick={() => setTone('warn')}
+              >
+                {!reduceMotion && toneFilter === 'warn' ? (
+                  <motion.span
+                    layoutId="grottoToneActive"
+                    className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                    transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                  />
+                ) : null}
+                <span className="relative z-10">警</span>
               </Chip>
             </div>
           </div>
