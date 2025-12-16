@@ -28,19 +28,14 @@ const NotFoundPage = lazy(() =>
   import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
-function Page({ children }: { children: React.ReactNode }) {
+function RouteTransition({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion()
   return (
     <motion.div
-      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-      transition={{
-        type: 'spring',
-        stiffness: 420,
-        damping: 34,
-        mass: 0.8,
-      }}
+      initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.985 }}
+      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>
@@ -73,106 +68,83 @@ export function AppRouter() {
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route
-          path="/"
-          element={
-            <Page>
-              <HomePage />
-            </Page>
-          }
-        />
-        <Route
-          path="/chronicles"
-          element={
-            <Page>
+      <RouteTransition key={location.pathname}>
+        <Routes location={location}>
+          <Route path="/" element={<HomePage />} />
+          <Route
+            path="/chronicles"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <ChroniclesPage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="/chronicles/:slug"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="/chronicles/:slug"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <ChroniclePage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="/grotto"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="/grotto"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <GrottoMapPage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="/about"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="/about"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <AboutPage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="/relations"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="/relations"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <RelationsPage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="/treasury"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="/treasury"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <TreasuryPage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="/notes"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="/notes"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <NotesPage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="/annotations"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="/annotations"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <AnnotationsPage />
               </Suspense>
-            </Page>
-          }
-        />
-        <Route
-          path="*"
-          element={
-            <Page>
+            }
+          />
+          <Route
+            path="*"
+            element={
               <Suspense fallback={<PageFallback />}>
                 <NotFoundPage />
               </Suspense>
-            </Page>
-          }
-        />
-      </Routes>
+            }
+          />
+        </Routes>
+      </RouteTransition>
     </AnimatePresence>
   )
 }

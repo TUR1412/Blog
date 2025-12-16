@@ -1063,297 +1063,312 @@ export function RelationsPage() {
           <Card className="relative overflow-hidden lg:col-span-5">
             <SectionHeading title="详记" subtitle="不做“神话”，只做“对照”。" />
 
-            {selected ? (
-              <>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge>{selected.kind}</Badge>
-                  <span className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-[11px] text-muted/80">
-                    {toneToken(selected.tone) === 'warn' ? '警' : toneToken(selected.tone) === 'bright' ? '明' : '平'}
-                  </span>
-                </div>
+            <AnimatePresence mode="wait">
+              {selected ? (
+                <motion.div
+                  key={selected.id}
+                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.9 }}
+                >
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge>{selected.kind}</Badge>
+                    <span className="rounded-full border border-border/70 bg-white/5 px-2 py-1 text-[11px] text-muted/80">
+                      {toneToken(selected.tone) === 'warn' ? '警' : toneToken(selected.tone) === 'bright' ? '明' : '平'}
+                    </span>
+                  </div>
 
-                <div className="mt-4 text-lg font-semibold tracking-tight text-fg">{selected.title}</div>
-                <div className="mt-2 text-sm leading-7 text-muted/85">{selected.detail}</div>
+                  <div className="mt-4 text-lg font-semibold tracking-tight text-fg">{selected.title}</div>
+                  <div className="mt-2 text-sm leading-7 text-muted/85">{selected.detail}</div>
 
-                <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className="grid h-9 w-9 place-items-center rounded-xl border border-border/70 bg-white/5 text-fg/90">
-                          <PencilLine className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-semibold text-fg">节点批注</div>
-                          <div className="text-xs text-muted/70">写一句你自己的对照（自动保存）。</div>
+                  <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <div className="grid h-9 w-9 place-items-center rounded-xl border border-border/70 bg-white/5 text-fg/90">
+                            <PencilLine className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-fg">节点批注</div>
+                            <div className="text-xs text-muted/70">写一句你自己的对照（自动保存）。</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-xs text-muted/70">最近：{formatClock(annoSavedAt)}</div>
-                  </div>
-
-                  <textarea
-                    ref={annoTextareaRef}
-                    value={annoDraft}
-                    onChange={(e) => {
-                      if (!selected.id) return
-                      const nextText = e.target.value
-                      setAnnoDraftById((prev) => ({ ...prev, [selected.id]: nextText }))
-                    }}
-                    rows={3}
-                    placeholder="例如：这条牵连不是靠声势，而是靠能被对照的细则。"
-                    className={cn(
-                      'mt-3 w-full resize-y rounded-xl border border-border/70 bg-white/4 px-4 py-3',
-                      'text-sm leading-7 text-fg placeholder:text-muted/70',
-                      'focus-ring',
-                    )}
-                  />
-
-                  <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-semibold text-fg">卷内检索</div>
-                      {annoFindQuery.trim() ? (
-                        <div className="text-xs text-muted/70">
-                          {annoFindQuery.trim() !== appliedAnnoFindQuery.trim()
-                            ? '点亮中…'
-                            : annoHitCount
-                              ? `${Math.min(annoActiveHitIndex + 1, annoHitCount)}/${annoHitCount}`
-                              : '未命中'}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted/70">输入即点亮</div>
-                      )}
+                      <div className="text-xs text-muted/70">最近：{formatClock(annoSavedAt)}</div>
                     </div>
 
-                    <div
+                    <textarea
+                      ref={annoTextareaRef}
+                      value={annoDraft}
+                      onChange={(e) => {
+                        if (!selected.id) return
+                        const nextText = e.target.value
+                        setAnnoDraftById((prev) => ({ ...prev, [selected.id]: nextText }))
+                      }}
+                      rows={3}
+                      placeholder="例如：这条牵连不是靠声势，而是靠能被对照的细则。"
                       className={cn(
-                        'mt-2 flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
-                        'focus-within:ring-1 focus-within:ring-white/10',
+                        'mt-3 w-full resize-y rounded-xl border border-border/70 bg-white/4 px-4 py-3',
+                        'text-sm leading-7 text-fg placeholder:text-muted/70',
+                        'focus-ring',
                       )}
-                    >
-                      <Search className="h-4 w-4 text-muted/70" />
-                      <input
-                        value={annoFindQuery}
-                        onChange={(e) => setAnnoFindQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') setAnnoFindQuery('')
-                          if (e.key === 'Enter') jumpAnnoHit(0)
-                        }}
-                        placeholder="搜批注：誓词 / 旧物 / 端秤……（Enter 跳首处，Esc 清空）"
-                        className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
-                      />
-                      {annoFindQuery.trim() ? (
+                    />
+
+                    <div className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold text-fg">卷内检索</div>
+                        {annoFindQuery.trim() ? (
+                          <div className="text-xs text-muted/70">
+                            {annoFindQuery.trim() !== appliedAnnoFindQuery.trim()
+                              ? '点亮中…'
+                              : annoHitCount
+                                ? `${Math.min(annoActiveHitIndex + 1, annoHitCount)}/${annoHitCount}`
+                                : '未命中'}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted/70">输入即点亮</div>
+                        )}
+                      </div>
+
+                      <div
+                        className={cn(
+                          'mt-2 flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/4 px-3 py-2',
+                          'focus-within:ring-1 focus-within:ring-white/10',
+                        )}
+                      >
+                        <Search className="h-4 w-4 text-muted/70" />
+                        <input
+                          value={annoFindQuery}
+                          onChange={(e) => setAnnoFindQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') setAnnoFindQuery('')
+                            if (e.key === 'Enter') jumpAnnoHit(0)
+                          }}
+                          placeholder="搜批注：誓词 / 旧物 / 端秤……（Enter 跳首处，Esc 清空）"
+                          className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
+                        />
+                        {annoFindQuery.trim() ? (
+                          <button
+                            type="button"
+                            className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
+                            onClick={() => setAnnoFindQuery('')}
+                            aria-label="清空卷内检索"
+                            title="清空"
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Chip
+                          selected={findOptions.matchCase}
+                          onClick={() => toggleFindOption('matchCase')}
+                          title="区分大小写（默认不区分）"
+                        >
+                          区分大小写
+                        </Chip>
+                        <Chip
+                          selected={findOptions.wholeWord}
+                          onClick={() => toggleFindOption('wholeWord')}
+                          title="整词匹配（仅对字母/数字/下划线有效）"
+                        >
+                          整词
+                        </Chip>
+                        <Chip
+                          selected={findOptions.ignorePunctuation}
+                          onClick={() => toggleFindOption('ignorePunctuation')}
+                          title="忽略空格与标点：可跨「、·—」等符号命中"
+                        >
+                          忽略标点
+                        </Chip>
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          className="focus-ring tap inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90 hover:bg-white/10"
-                          onClick={() => setAnnoFindQuery('')}
-                          aria-label="清空卷内检索"
-                          title="清空"
+                          className={cn(
+                            'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                            annoHitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                          )}
+                          onClick={() => jumpAnnoHit(annoActiveHitIndex - 1)}
+                          disabled={!annoHitCount}
                         >
-                          ×
+                          上一处 <span className="text-muted/70">↑</span>
                         </button>
-                      ) : null}
+                        <button
+                          type="button"
+                          className={cn(
+                            'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
+                            annoHitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
+                          )}
+                          onClick={() => jumpAnnoHit(annoActiveHitIndex + 1)}
+                          disabled={!annoHitCount}
+                        >
+                          下一处 <span className="text-muted/70">↓</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Chip
-                        selected={findOptions.matchCase}
-                        onClick={() => toggleFindOption('matchCase')}
-                        title="区分大小写（默认不区分）"
-                      >
-                        区分大小写
-                      </Chip>
-                      <Chip
-                        selected={findOptions.wholeWord}
-                        onClick={() => toggleFindOption('wholeWord')}
-                        title="整词匹配（仅对字母/数字/下划线有效）"
-                      >
-                        整词
-                      </Chip>
-                      <Chip
-                        selected={findOptions.ignorePunctuation}
-                        onClick={() => toggleFindOption('ignorePunctuation')}
-                        title="忽略空格与标点：可跨「、·—」等符号命中"
-                      >
-                        忽略标点
-                      </Chip>
-                    </div>
-
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <button
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <Button
                         type="button"
-                        className={cn(
-                          'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
-                          annoHitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
-                        )}
-                        onClick={() => jumpAnnoHit(annoActiveHitIndex - 1)}
-                        disabled={!annoHitCount}
+                        variant="ghost"
+                        onClick={() => appendRelationAnnotationToNotes(selected.id, annoDraft)}
+                        className="justify-start"
+                        disabled={!annoDraft.trim()}
                       >
-                        上一处 <span className="text-muted/70">↑</span>
-                      </button>
-                      <button
+                        <NotebookPen className="h-4 w-4" />
+                        并入札记
+                        <span className="ml-auto text-muted/70">＋</span>
+                      </Button>
+                      <Button
                         type="button"
-                        className={cn(
-                          'focus-ring tap inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-3 py-2 text-xs font-medium',
-                          annoHitCount ? 'bg-white/5 text-fg/90 hover:bg-white/10' : 'bg-white/3 text-muted/60',
-                        )}
-                        onClick={() => jumpAnnoHit(annoActiveHitIndex + 1)}
-                        disabled={!annoHitCount}
+                        variant="outline"
+                        onClick={() => {
+                          if (!selected.id) return
+                          const has = Boolean(annoDraft.trim() || canonicalAnnotations[selected.id])
+                          if (!has) return
+                          const ok = window.confirm('确定清空此处批注？')
+                          if (!ok) return
+                          setAnnotations((prev) => {
+                            const next = { ...prev }
+                            delete next[selected.id]
+                            return next
+                          })
+                          setAnnoDraftById((prev) => {
+                            const next = { ...prev }
+                            delete next[selected.id]
+                            return next
+                          })
+                          hapticTap()
+                          flashMessage('已清空批注。')
+                        }}
+                        className="justify-start"
+                        disabled={!annoDraft.trim() && !canonicalAnnotations[selected.id]}
                       >
-                        下一处 <span className="text-muted/70">↓</span>
-                      </button>
+                        <Trash2 className="h-4 w-4" />
+                        清空
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <div className="mt-5 grid gap-2">
+                    {selected.chronicleSlug ? (
+                      <Link
+                        to={`/chronicles/${selected.chronicleSlug}`}
+                        className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                        去读对应纪事
+                        <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
+                      </Link>
+                    ) : null}
+
+                    {selected.timelineId ? (
+                      <Link
+                        to={`/grotto?id=${selected.timelineId}`}
+                        className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
+                      >
+                        <MapIcon className="h-4 w-4" />
+                        在洞府图定位
+                        <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
+                      </Link>
+                    ) : null}
+
+                    <Button type="button" variant="ghost" onClick={copyLocation} className="justify-start">
+                      <Copy className="h-4 w-4" />
+                      复制定位
+                      <span className="ml-auto text-muted/70">⎘</span>
+                    </Button>
+
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => appendRelationAnnotationToNotes(selected.id, annoDraft)}
+                      onClick={() => appendSelectedToNotes(false)}
                       className="justify-start"
-                      disabled={!annoDraft.trim()}
                     >
                       <NotebookPen className="h-4 w-4" />
-                      并入札记
+                      收入札记
                       <span className="ml-auto text-muted/70">＋</span>
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        if (!selected.id) return
-                        const has = Boolean(annoDraft.trim() || canonicalAnnotations[selected.id])
-                        if (!has) return
-                        const ok = window.confirm('确定清空此处批注？')
-                        if (!ok) return
-                        setAnnotations((prev) => {
-                          const next = { ...prev }
-                          delete next[selected.id]
-                          return next
-                        })
-                        setAnnoDraftById((prev) => {
-                          const next = { ...prev }
-                          delete next[selected.id]
-                          return next
-                        })
-                        hapticTap()
-                        flashMessage('已清空批注。')
-                      }}
-                      className="justify-start"
-                      disabled={!annoDraft.trim() && !canonicalAnnotations[selected.id]}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      清空
-                    </Button>
+
+                    {annoDraft.trim() ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => appendSelectedToNotes(true)}
+                        className="justify-start"
+                      >
+                        <NotebookPen className="h-4 w-4" />
+                        收入札记（含批注）
+                        <span className="ml-auto text-muted/70">＋</span>
+                      </Button>
+                    ) : null}
                   </div>
-                </div>
 
-                <div className="mt-5 grid gap-2">
-                  {selected.chronicleSlug ? (
-                    <Link
-                      to={`/chronicles/${selected.chronicleSlug}`}
-                      className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
-                    >
-                      <BookOpen className="h-4 w-4" />
-                      去读对应纪事
-                      <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
-                    </Link>
-                  ) : null}
+                  <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
+                    <div className="text-sm font-semibold text-fg">牵连</div>
+                    {selectedEdges.length ? (
+                      <div className="mt-3 grid gap-2">
+                        {selectedEdges.map((e) => {
+                          const otherId = e.from === selected.id ? e.to : e.from
+                          const other = nodeById.get(otherId)
+                          if (!other) return null
+                          return (
+                            <button
+                              key={e.id}
+                              type="button"
+                              onClick={() => selectId(other.id)}
+                              className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-xs text-muted/70">{e.label}</div>
+                                <div className="mt-0.5 truncate text-sm font-medium text-fg/90">{other.title}</div>
+                                <div className="mt-1 text-xs text-muted/80">{other.kind} · {other.summary}</div>
+                              </div>
+                              <span className="mt-0.5 shrink-0 text-xs text-muted/70">→</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs leading-6 text-muted/80">此处线索暂未连到别处。</div>
+                    )}
+                  </div>
 
-                  {selected.timelineId ? (
-                    <Link
-                      to={`/grotto?id=${selected.timelineId}`}
-                      className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
-                    >
-                      <MapIcon className="h-4 w-4" />
-                      在洞府图定位
-                      <ArrowRight className="ml-auto h-4 w-4 text-muted/70" />
-                    </Link>
-                  ) : null}
+                  <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
+                    小提示：点“牵连”里的条目，谱面会把相关节点提亮；再回去读纪事，会更像把路走了一遍。
+                  </div>
 
-                  <Button type="button" variant="ghost" onClick={copyLocation} className="justify-start">
-                    <Copy className="h-4 w-4" />
-                    复制定位
-                    <span className="ml-auto text-muted/70">⎘</span>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => appendSelectedToNotes(false)}
-                    className="justify-start"
-                  >
-                    <NotebookPen className="h-4 w-4" />
-                    收入札记
-                    <span className="ml-auto text-muted/70">＋</span>
-                  </Button>
-
-                  {annoDraft.trim() ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => appendSelectedToNotes(true)}
-                      className="justify-start"
-                    >
-                      <NotebookPen className="h-4 w-4" />
-                      收入札记（含批注）
-                      <span className="ml-auto text-muted/70">＋</span>
-                    </Button>
-                  ) : null}
-                </div>
-
-                <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4">
-                  <div className="text-sm font-semibold text-fg">牵连</div>
-                  {selectedEdges.length ? (
-                    <div className="mt-3 grid gap-2">
-                      {selectedEdges.map((e) => {
-                        const otherId = e.from === selected.id ? e.to : e.from
-                        const other = nodeById.get(otherId)
-                        if (!other) return null
-                        return (
-                          <button
-                            key={e.id}
-                            type="button"
-                            onClick={() => selectId(other.id)}
-                            className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
-                          >
-                            <div className="min-w-0">
-                              <div className="text-xs text-muted/70">{e.label}</div>
-                              <div className="mt-0.5 truncate text-sm font-medium text-fg/90">{other.title}</div>
-                              <div className="mt-1 text-xs text-muted/80">{other.kind} · {other.summary}</div>
-                            </div>
-                            <span className="mt-0.5 shrink-0 text-xs text-muted/70">→</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-xs leading-6 text-muted/80">此处线索暂未连到别处。</div>
-                  )}
-                </div>
-
-                <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
-                  小提示：点“牵连”里的条目，谱面会把相关节点提亮；再回去读纪事，会更像把路走了一遍。
-                </div>
-
-                <AnimatePresence>
-                  {flash ? (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 6 }}
-                      className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
-                    >
-                      {flash}
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </>
-            ) : (
-              <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
-                <div className="text-sm font-semibold text-fg">暂无线索</div>
-                <div className="mt-2 text-xs leading-6 text-muted/80">筛选过严时，这里会保持安静。</div>
-              </div>
-            )}
+                  <AnimatePresence>
+                    {flash ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 6 }}
+                        className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
+                      >
+                        {flash}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                  className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center"
+                >
+                  <div className="text-sm font-semibold text-fg">暂无线索</div>
+                  <div className="mt-2 text-xs leading-6 text-muted/80">筛选过严时，这里会保持安静。</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         </div>
       </div>
