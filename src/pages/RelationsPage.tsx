@@ -487,7 +487,7 @@ export function RelationsPage() {
 
   const ensureNodeInView = useCallback(
     (id: string, opts?: { force?: boolean }) => {
-      if (reduceMotion || heavyGraph) return
+      if (heavyGraph && !opts?.force) return
       if (graphPanning) return
       const viewport = graphViewportRef.current
       if (!viewport) return
@@ -511,9 +511,9 @@ export function RelationsPage() {
         x: rect.width / 2 - nx * scale,
         y: rect.height / 2 - ny * scale,
         scale,
-      })
+      }, opts?.force || heavyGraph ? { duration: 200 } : undefined)
     },
-    [animateGraphViewTo, graphPanning, heavyGraph, nodeById, reduceMotion],
+    [animateGraphViewTo, graphPanning, heavyGraph, nodeById],
   )
 
   useEffect(() => {
@@ -1579,6 +1579,19 @@ export function RelationsPage() {
                 className="absolute bottom-3 right-3 flex items-center gap-2"
                 data-graph-no-pan
               >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedId) return
+                    ensureNodeInView(selectedId, { force: true })
+                    hapticTap()
+                  }}
+                  className="focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-xs font-medium text-fg/90 hover:bg-white/10"
+                  aria-label="对中"
+                  title="对中当前节点"
+                >
+                  对中
+                </button>
                 <button
                   type="button"
                   onClick={resetGraphView}
