@@ -18,7 +18,7 @@ import { readString, writeString } from '../lib/storage'
 
 export function ChroniclesPage() {
   const navigate = useNavigate()
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useReducedMotion() ?? false
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const tags = useMemo(() => ['全部', ...getAllTags()], [])
@@ -177,23 +177,39 @@ export function ChroniclesPage() {
           <div className="mt-3 flex flex-wrap gap-2">
             <Chip
               selected={!onlyBookmarks}
+              className="relative overflow-hidden"
               onClick={() => {
                 const next = new URLSearchParams(searchParams)
                 next.delete('only')
                 setSearchParams(next, { replace: true })
               }}
             >
-              全部
+              {!reduceMotion && !onlyBookmarks ? (
+                <motion.span
+                  layoutId="chroniclesRangeActive"
+                  className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                  transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                />
+              ) : null}
+              <span className="relative z-10">全部</span>
             </Chip>
             <Chip
               selected={onlyBookmarks}
+              className="relative overflow-hidden"
               onClick={() => {
                 const next = new URLSearchParams(searchParams)
                 next.set('only', 'bookmarks')
                 setSearchParams(next, { replace: true })
               }}
             >
-              收藏（{bookmarks.length}）
+              {!reduceMotion && onlyBookmarks ? (
+                <motion.span
+                  layoutId="chroniclesRangeActive"
+                  className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                  transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                />
+              ) : null}
+              <span className="relative z-10">收藏（{bookmarks.length}）</span>
             </Chip>
           </div>
 
@@ -207,6 +223,7 @@ export function ChroniclesPage() {
               <Chip
                 key={t}
                 selected={selectedTag === t}
+                className="relative overflow-hidden"
                 onClick={() => {
                   const next = new URLSearchParams(searchParams)
                   if (t === '全部') next.delete('tag')
@@ -215,7 +232,14 @@ export function ChroniclesPage() {
                   if (t !== '全部') writeString(STORAGE_KEYS.tagFilter, t)
                 }}
               >
-                {t}
+                {!reduceMotion && selectedTag === t ? (
+                  <motion.span
+                    layoutId="chroniclesTagActive"
+                    className="pointer-events-none absolute inset-0 rounded-full border border-white/18 bg-white/8"
+                    transition={{ type: 'spring', stiffness: 520, damping: 36 }}
+                  />
+                ) : null}
+                <span className="relative z-10">{t}</span>
               </Chip>
             ))}
           </div>
