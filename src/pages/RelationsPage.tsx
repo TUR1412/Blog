@@ -630,6 +630,15 @@ export function RelationsPage() {
     return new Set(getRelatedNodeIds(spotlightId))
   }, [spotlightId])
 
+  const spotlightClusterIdSet = useMemo(() => {
+    if (!spotlightId) return new Set<string>()
+    const set = new Set<string>()
+    set.add('xuan')
+    set.add(spotlightId)
+    for (const id of spotlightRelatedIdSet) set.add(id)
+    return set
+  }, [spotlightId, spotlightRelatedIdSet])
+
   const annotatedEntries = useMemo(() => {
     const q = safeLower(appliedAnnoQuery.trim())
     const items: { node: (typeof relationNodes)[number]; ann: RelationAnnotation }[] = []
@@ -1014,15 +1023,41 @@ export function RelationsPage() {
 
                   const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
                   const hasFocus = Boolean(spotlightId)
+                  const inCluster = hasFocus && spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
 
                   const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
                   const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected
                   const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected
 
+                  const tier = connected ? 'primary' : inCluster ? 'secondary' : 'background'
+
                   const idleOpacity = heavyGraph ? 0.12 : 0.18
-                  const baseOpacity = hasFocus ? (connected ? 0.9 : 0.02) : idleOpacity
-                  const baseStroke = hasFocus && connected ? 'hsl(var(--accent) / 0.78)' : 'hsl(var(--muted) / 0.62)'
-                  const baseStrokeWidth = hasFocus && connected ? 0.5 : heavyGraph ? 0.22 : 0.26
+                  const baseOpacity =
+                    !hasFocus
+                      ? idleOpacity
+                      : tier === 'primary'
+                        ? 0.9
+                        : tier === 'secondary'
+                          ? heavyGraph
+                            ? 0.1
+                            : 0.14
+                          : 0.012
+                  const baseStroke =
+                    tier === 'primary'
+                      ? 'hsl(var(--accent) / 0.78)'
+                      : tier === 'secondary'
+                        ? 'hsl(var(--muted) / 0.66)'
+                        : 'hsl(var(--muted) / 0.52)'
+                  const baseStrokeWidth =
+                    tier === 'primary'
+                      ? 0.5
+                      : tier === 'secondary'
+                        ? heavyGraph
+                          ? 0.22
+                          : 0.24
+                        : heavyGraph
+                          ? 0.18
+                          : 0.2
 
                   return (
                     <g key={e.id}>
