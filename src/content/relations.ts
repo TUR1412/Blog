@@ -331,6 +331,20 @@ export const relationNodes: RelationNode[] = [
     pos: { x: 56, y: 58 },
     keywords: ['正月', '端秤', '刻度', '校量', '分粮', '对账', '复核', '贴榜'],
   },
+  {
+    id: 't-190-1',
+    title: '清明渡口立簿',
+    kind: '关口',
+    summary: '把“先后”写成名单，渡口不靠吼也能走。',
+    detail:
+      '春汛水涨，人多易乱。他不借名头插队，只写三条并逐趟落勾：先后可见、限重可查、理由可对照。',
+    tone: 'warn',
+    layer: 4,
+    timelineId: 't-190-1',
+    chronicleSlug: 'spring-flood-ferry-ledger',
+    pos: { x: 64, y: 66 },
+    keywords: ['清明', '渡口', '名单', '先后', '限重', '落勾', '可对照', '不插队'],
+  },
 ]
 
 export const relationEdges: RelationEdge[] = [
@@ -348,6 +362,7 @@ export const relationEdges: RelationEdge[] = [
   edge('xuan', 't-187-1', '受职于'),
   edge('xuan', 't-188-1', '封卷于'),
   edge('xuan', 't-189-1', '校秤于'),
+  edge('xuan', 't-190-1', '立簿于'),
 
   edge('t-180-1', 'duanqiao', '发生于'),
   edge('t-182-1', 'clear-spring', '发生于'),
@@ -379,6 +394,10 @@ export const relationEdges: RelationEdge[] = [
   edge('t-189-1', 'notice-board', '贴榜'),
   edge('t-189-1', 'oath-ledger', '照秤'),
   edge('t-189-1', 'oath-relief', '依次'),
+
+  edge('t-190-1', 'notice-board', '贴榜'),
+  edge('t-190-1', 'oath-ledger', '照秤'),
+  edge('t-190-1', 'oath-relief', '依次'),
 ]
 
 export function getRelationNode(id: string) {
