@@ -77,7 +77,9 @@ function toneToken(tone?: RelationTone) {
 
 function nodeChrome(tone?: RelationTone, active?: boolean) {
   const t = toneToken(tone)
-  const base = 'focus-ring tap group absolute -translate-x-1/2 -translate-y-1/2 text-left'
+  const base =
+    'focus-ring group absolute -translate-x-1/2 -translate-y-1/2 text-left ' +
+    'transition-[background-color,border-color,box-shadow] duration-200 hover:shadow-lift'
   const box = 'w-[190px] max-w-[44vw] rounded-xl border bg-white/4 px-4 py-3'
   const blur = active ? 'backdrop-blur-xl2' : 'backdrop-blur-lg'
   if (t === 'warn') {
