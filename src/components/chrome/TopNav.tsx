@@ -50,7 +50,7 @@ export function TopNav() {
 
   return (
     <header className="fixed left-0 top-0 z-[60] w-full">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bg/85 via-bg/55 to-transparent backdrop-blur-xl2" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bg/85 via-bg/55 to-transparent backdrop-blur-lg" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/10" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-white/8" />
 

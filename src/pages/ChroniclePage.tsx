@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowLeft, Bookmark, BookmarkCheck, Copy, Maximize2, Minimize2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft, Bookmark, BookmarkCheck, Copy, Maximize2, Minimize2, Waypoints } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -30,9 +30,10 @@ export function ChroniclePage() {
   const { slug } = useParams()
   const chronicle = useMemo(() => (slug ? getChronicleBySlug(slug) : null), [slug])
   const reduceMotion = useReducedMotion()
+  const [searchParams] = useSearchParams()
 
   const [progress, setProgress] = useState(0)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<null | 'outline' | 'location'>(null)
   const [activeSectionId, setActiveSectionId] = useState('h-1')
   const [activeParagraphId, setActiveParagraphId] = useState('p-1-1')
   const [resumeFrom] = useState<ReadingLast | null>(() =>
@@ -178,6 +179,23 @@ export function ChroniclePage() {
       ? resumeFrom
       : null
 
+  const scrollToAnchor = useCallback(
+    (id: string) => {
+      const el = document.getElementById(id)
+      if (!el) return
+      el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    },
+    [reduceMotion],
+  )
+
+  useEffect(() => {
+    if (!chronicle) return
+    const target = (searchParams.get('h') ?? '').trim()
+    if (!target) return
+    const t = window.setTimeout(() => scrollToAnchor(target), 0)
+    return () => window.clearTimeout(t)
+  }, [chronicle, scrollToAnchor, searchParams])
+
   if (!chronicle) {
     return (
       <div className="mx-auto max-w-[820px]">
@@ -202,11 +220,26 @@ export function ChroniclePage() {
     try {
       await navigator.clipboard.writeText(outline)
       hapticTap()
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 900)
+      setCopied('outline')
+      window.setTimeout(() => setCopied(null), 900)
     } catch {
       // clipboard 可能被禁用：不强求，只保持静默
-      setCopied(false)
+      setCopied(null)
+    }
+  }
+
+  const copyLocation = async () => {
+    const anchor = activeParagraphId || activeSectionId || 'h-1'
+    const line = `定位：/chronicles/${chronicle.slug}?h=${encodeURIComponent(anchor)}`
+
+    try {
+      await navigator.clipboard.writeText(line)
+      hapticSuccess()
+      setCopied('location')
+      window.setTimeout(() => setCopied(null), 900)
+    } catch {
+      // clipboard 可能被禁用：不强求
+      setCopied(null)
     }
   }
 
@@ -227,12 +260,6 @@ export function ChroniclePage() {
     const meta = readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 })
     writeJson<NotesMeta>(STORAGE_KEYS.notesMeta, { ...meta, updatedAt: now, lastSource: chronicle.slug })
     hapticSuccess()
-  }
-
-  const scrollToAnchor = (id: string) => {
-    const el = document.getElementById(id)
-    if (!el) return
-    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
   }
 
   return (
@@ -292,6 +319,10 @@ export function ChroniclePage() {
                 <Button type="button" variant="ghost" onClick={appendToNotes}>
                   <BookMarkToNotesIcon />
                   收入札记
+                </Button>
+                <Button type="button" variant="ghost" onClick={copyLocation}>
+                  <Waypoints className="h-4 w-4" />
+                  复制定位
                 </Button>
                 <Button type="button" variant="ghost" onClick={copyOutline}>
                   <Copy className="h-4 w-4" />
@@ -440,7 +471,7 @@ export function ChroniclePage() {
                     exit={{ opacity: 0, y: 6 }}
                     className="mt-3 rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-xs text-muted/80"
                   >
-                    已复制提纲。
+                    {copied === 'outline' ? '已复制提纲。' : '已复制定位。'}
                   </motion.div>
                 ) : null}
               </AnimatePresence>

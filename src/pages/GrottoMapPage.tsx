@@ -683,6 +683,7 @@ export function GrottoMapPage() {
                     const base = idx >= 0 ? idx : -1
                     const next = filtered[Math.min(filtered.length - 1, base + 1)]
                     if (next) selectId(next.id)
+                    return
                   }
                   if (e.key === 'ArrowUp') {
                     e.preventDefault()
@@ -691,9 +692,17 @@ export function GrottoMapPage() {
                     const base = idx >= 0 ? idx : filtered.length
                     const next = filtered[Math.max(0, base - 1)]
                     if (next) selectId(next.id)
+                    return
+                  }
+                  if (e.key === 'Enter') {
+                    const el = annoTextareaRef.current
+                    if (!el) return
+                    el.focus()
+                    el.setSelectionRange(el.value.length, el.value.length)
+                    return
                   }
                 }}
-                placeholder="搜路标：霜月 / 抄经 / 断桥 / 北境 / 公议……（↑↓ 走位，Esc 清空）"
+                placeholder="搜路标：霜月 / 抄经 / 断桥 / 北境 / 公议……（↑↓ 走位，Enter 落笔，Esc 清空）"
                 className="w-full bg-transparent text-sm text-fg placeholder:text-muted/70 focus:outline-none"
               />
               {query.trim() ? (
