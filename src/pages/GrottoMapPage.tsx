@@ -70,7 +70,7 @@ function toneClass(tone: TimelineEvent['tone']) {
 }
 
 export function GrottoMapPage() {
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useReducedMotion() ?? false
   const [searchParams, setSearchParams] = useSearchParams()
   const [storedSelectedId, setStoredSelectedId] = useLocalStorageState<string>(
     STORAGE_KEYS.grottoSelected,
@@ -154,6 +154,7 @@ export function GrottoMapPage() {
   }, [appliedQuery, eventSearchHayById, layerFilter, toneFilter])
 
   const heavyTimeline = filtered.length > 80
+  const enableTimelineListMotion = !reduceMotion && !heavyTimeline
 
   const annotatedEntries = useMemo(() => {
     const q = appliedAnnoQuery.trim().toLowerCase()
@@ -822,89 +823,103 @@ export function GrottoMapPage() {
           <div className="relative">
             <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/10" />
 
-            <div className="grid gap-3">
-              {filtered.map((t, idx) => {
-                const left = idx % 2 === 0
-                const active = t.id === selectedId
-                return (
-                  <div
-                    key={t.id}
-                    className={cn(
-                      'relative flex',
-                      left ? 'justify-start pr-12' : 'justify-end pl-12',
-                    )}
-                  >
-                    <motion.button
-                      type="button"
-                      id={`grotto-${t.id}`}
-                      aria-pressed={active}
-                      onClick={() => {
-                        keyboardNavRef.current = false
-                        selectId(t.id)
-                      }}
+            <motion.div layout={enableTimelineListMotion ? 'position' : undefined} className="grid gap-3">
+              <AnimatePresence initial={false} mode={enableTimelineListMotion ? 'popLayout' : 'sync'}>
+                {filtered.map((t, idx) => {
+                  const left = idx % 2 === 0
+                  const active = t.id === selectedId
+                  return (
+                    <motion.div
+                      key={t.id}
                       className={cn(
-                        'focus-ring tap relative w-full max-w-[520px] rounded-xl border bg-white/4 px-5 py-4 text-left',
-                        '[content-visibility:auto] [contain-intrinsic-size:520px_140px]',
-                        active
-                          ? reduceMotion
-                            ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
-                            : 'border-white/20 bg-white/8'
-                          : 'border-border/60 hover:bg-white/7',
+                        'relative flex',
+                        left ? 'justify-start pr-12' : 'justify-end pl-12',
                       )}
-                      initial={reduceMotion || heavyTimeline ? false : { opacity: 0, y: 10 }}
+                      layout={enableTimelineListMotion ? 'position' : undefined}
+                      style={enableTimelineListMotion ? { willChange: 'transform, opacity' } : undefined}
+                      initial={reduceMotion || !enableTimelineListMotion ? false : { opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        delay: reduceMotion || heavyTimeline ? 0 : idx * 0.02,
-                        type: 'spring',
-                        stiffness: 420,
-                        damping: 34,
-                        mass: 0.9,
-                      }}
+                      exit={reduceMotion || !enableTimelineListMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                      transition={
+                        reduceMotion || !enableTimelineListMotion
+                          ? { duration: 0.12 }
+                          : { delay: idx * 0.014, duration: 0.24, ease: [0.22, 1, 0.36, 1] }
+                      }
                     >
-                      {!reduceMotion && active ? (
-                        <motion.span
-                          layoutId="grottoTimelineActive"
-                          className="pointer-events-none absolute inset-0 rounded-xl border border-white/20 ring-1 ring-white/10"
-                          transition={{ type: 'spring', stiffness: 560, damping: 38 }}
-                        />
-                      ) : null}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-xs text-muted/70">{t.when}</div>
-                          <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
-                          <div className="mt-2 text-xs leading-6 text-muted/80">{t.detail}</div>
-                        </div>
-                        <div className="mt-1 shrink-0 text-right">
-                          <div className="text-xs text-muted/70">{active ? '已选' : '选'}</div>
-                          <div className="mt-1 inline-flex items-center rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
-                            {timelineLayerLabel(t.layer)}
+                      <button
+                        type="button"
+                        id={`grotto-${t.id}`}
+                        aria-pressed={active}
+                        onClick={() => {
+                          keyboardNavRef.current = false
+                          selectId(t.id)
+                        }}
+                        className={cn(
+                          'focus-ring tap relative w-full max-w-[520px] rounded-xl border bg-white/4 px-5 py-4 text-left',
+                          '[content-visibility:auto] [contain-intrinsic-size:520px_140px]',
+                          active
+                            ? reduceMotion
+                              ? 'border-white/20 bg-white/8 ring-1 ring-white/10'
+                              : 'border-white/20 bg-white/8'
+                            : 'border-border/60 hover:bg-white/7',
+                        )}
+                      >
+                        {!reduceMotion && active ? (
+                          <motion.span
+                            layoutId="grottoTimelineActive"
+                            className="pointer-events-none absolute inset-0 rounded-xl border border-white/20 ring-1 ring-white/10"
+                            transition={{ type: 'spring', stiffness: 560, damping: 38 }}
+                          />
+                        ) : null}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs text-muted/70">{t.when}</div>
+                            <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
+                            <div className="mt-2 text-xs leading-6 text-muted/80">{t.detail}</div>
+                          </div>
+                          <div className="mt-1 shrink-0 text-right">
+                            <div className="text-xs text-muted/70">{active ? '已选' : '选'}</div>
+                            <div className="mt-1 inline-flex items-center rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
+                              {timelineLayerLabel(t.layer)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </motion.button>
+                      </button>
 
-                    <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2">
-                      <motion.div
-                        className={cn(
-                          'grid h-8 w-8 place-items-center rounded-full border',
-                          active
-                            ? 'border-white/20 bg-white/10 text-fg'
-                            : 'border-white/12 bg-white/6 text-muted/70',
-                        )}
-                        animate={
-                          reduceMotion || !active
-                            ? undefined
-                            : { scale: [1, 1.08, 1], boxShadow: ['0 0 0 rgba(0,0,0,0)', '0 0 26px rgba(255,255,255,.12)', '0 0 0 rgba(0,0,0,0)'] }
-                        }
-                        transition={{ duration: 2.6, repeat: reduceMotion || !active ? 0 : Infinity, ease: 'easeInOut' }}
-                      >
-                        <Compass className={cn('h-4 w-4', active && 'text-fg')} />
-                      </motion.div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                      <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2">
+                        <motion.div
+                          className={cn(
+                            'grid h-8 w-8 place-items-center rounded-full border',
+                            active
+                              ? 'border-white/20 bg-white/10 text-fg'
+                              : 'border-white/12 bg-white/6 text-muted/70',
+                          )}
+                          animate={
+                            reduceMotion || !active
+                              ? undefined
+                              : {
+                                  scale: [1, 1.08, 1],
+                                  boxShadow: [
+                                    '0 0 0 rgba(0,0,0,0)',
+                                    '0 0 26px rgba(255,255,255,.12)',
+                                    '0 0 0 rgba(0,0,0,0)',
+                                  ],
+                                }
+                          }
+                          transition={{
+                            duration: 2.6,
+                            repeat: reduceMotion || !active ? 0 : Infinity,
+                            ease: 'easeInOut',
+                          }}
+                        >
+                          <Compass className={cn('h-4 w-4', active && 'text-fg')} />
+                        </motion.div>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            </motion.div>
           </div>
         </Card>
 
