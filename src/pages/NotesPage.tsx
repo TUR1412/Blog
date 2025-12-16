@@ -513,38 +513,56 @@ export function NotesPage() {
             </div>
           ) : null}
 
-          {view === 'edit' ? (
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={12}
-              placeholder="写点真话：你今天守住了什么？你今天差点偏到哪里？"
-              className={cn(
-                'mt-4 w-full rounded-xl border border-border/70 bg-white/4 px-4 py-4',
-                'text-sm leading-7 text-fg placeholder:text-muted/70',
-                'focus-ring overflow-hidden',
-              )}
-            />
-          ) : (
-            <div className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-5">
-              {text.trim() ? (
-                <div ref={scrollRef}>
-                  <Markdown
-                    text={text}
-                    idPrefix="notes-"
-                    highlightQuery={appliedFindQuery}
-                    highlightOptions={findOptions}
-                    highlightScope="notes"
-                    highlightIdPrefix="notes-hit-"
-                    activeHighlightIndex={-1}
-                  />
-                </div>
-              ) : (
-                <div className="text-sm leading-7 text-muted/85">此卷尚空。切回“执笔”，先落一句。</div>
-              )}
-            </div>
-          )}
+          <AnimatePresence initial={false} mode={reduceMotion ? 'sync' : 'popLayout'}>
+            {view === 'edit' ? (
+              <motion.textarea
+                key="edit"
+                ref={textareaRef}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={12}
+                placeholder="写点真话：你今天守住了什么？你今天差点偏到哪里？"
+                className={cn(
+                  'mt-4 w-full rounded-xl border border-border/70 bg-white/4 px-4 py-4',
+                  'text-sm leading-7 text-fg placeholder:text-muted/70',
+                  'focus-ring overflow-hidden',
+                )}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                transition={
+                  reduceMotion ? { duration: 0.12 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }
+                }
+              />
+            ) : (
+              <motion.div
+                key="scroll"
+                className="mt-4 rounded-xl border border-border/60 bg-white/4 px-5 py-5"
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                transition={
+                  reduceMotion ? { duration: 0.12 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }
+                }
+              >
+                {text.trim() ? (
+                  <div ref={scrollRef}>
+                    <Markdown
+                      text={text}
+                      idPrefix="notes-"
+                      highlightQuery={appliedFindQuery}
+                      highlightOptions={findOptions}
+                      highlightScope="notes"
+                      highlightIdPrefix="notes-hit-"
+                      activeHighlightIndex={-1}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-sm leading-7 text-muted/85">此卷尚空。切回“执笔”，先落一句。</div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Card>
 
         <Card className="lg:col-span-4">
