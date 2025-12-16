@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { chronicles } from '../../content/chronicles'
 import { cn } from '../../lib/cn'
+import { prefetchRoute } from '../../routes/prefetch'
 
 type CommandItem = {
   id: string
@@ -12,6 +13,7 @@ type CommandItem = {
   subtitle?: string
   keywords: string[]
   icon?: React.ReactNode
+  prefetchTo?: string
   run: () => void
 }
 
@@ -103,6 +105,7 @@ function CommandPaletteModal({
         subtitle: '回到卷首',
         keywords: ['首页', '洞天', '卷首'],
         icon: <Home className="h-4 w-4" />,
+        prefetchTo: '/',
         run: () => navigate('/'),
       },
       {
@@ -111,6 +114,7 @@ function CommandPaletteModal({
         subtitle: '按章入卷',
         keywords: ['纪事', '卷', '章', '故事', '纪要'],
         icon: <BookOpen className="h-4 w-4" />,
+        prefetchTo: '/chronicles',
         run: () => navigate('/chronicles'),
       },
       {
@@ -119,6 +123,7 @@ function CommandPaletteModal({
         subtitle: '只看你标记过的篇章',
         keywords: ['收藏', '书签', '标记', '纪事', '篇章'],
         icon: <BookmarkCheck className="h-4 w-4" />,
+        prefetchTo: '/chronicles?only=bookmarks',
         run: () => navigate('/chronicles?only=bookmarks'),
       },
       {
@@ -127,6 +132,7 @@ function CommandPaletteModal({
         subtitle: '把年表写成路',
         keywords: ['洞府', '地图', '年表', '路标', '灵脉', '关口'],
         icon: <Map className="h-4 w-4" />,
+        prefetchTo: '/grotto',
         run: () => navigate('/grotto'),
       },
       {
@@ -135,6 +141,7 @@ function CommandPaletteModal({
         subtitle: '轩少其人',
         keywords: ['人物', '人物志', '轩少', '轩天帝', '其人'],
         icon: <User className="h-4 w-4" />,
+        prefetchTo: '/about',
         run: () => navigate('/about'),
       },
       {
@@ -143,6 +150,7 @@ function CommandPaletteModal({
         subtitle: '把人、誓词、旧物与关口连成网',
         keywords: ['关系', '关系谱', '牵连', '誓词', '旧物', '关口', '对照'],
         icon: <Waypoints className="h-4 w-4" />,
+        prefetchTo: '/relations',
         run: () => navigate('/relations'),
       },
       {
@@ -151,6 +159,7 @@ function CommandPaletteModal({
         subtitle: '把路标与牵连的批注汇在一起',
         keywords: ['批注', '批注馆', '对照', '分寸', '复盘', '归拢', '札记'],
         icon: <ScrollText className="h-4 w-4" />,
+        prefetchTo: '/annotations',
         run: () => navigate('/annotations'),
       },
       {
@@ -159,6 +168,7 @@ function CommandPaletteModal({
         subtitle: '法宝与旧物（可拖拽排序）',
         keywords: ['藏品', '法宝', '旧物', '排序', '拖拽'],
         icon: <Gem className="h-4 w-4" />,
+        prefetchTo: '/treasury',
         run: () => navigate('/treasury'),
       },
       {
@@ -167,6 +177,7 @@ function CommandPaletteModal({
         subtitle: '写下当日心法（自动保存）',
         keywords: ['札记', '笔记', '心法', '记录', '保存'],
         icon: <NotebookPen className="h-4 w-4" />,
+        prefetchTo: '/notes',
         run: () => navigate('/notes'),
       },
     ]
@@ -177,6 +188,7 @@ function CommandPaletteModal({
       subtitle: c.dateText,
       keywords: [c.title, c.excerpt, c.dateText, ...c.tags],
       icon: <BookOpen className="h-4 w-4" />,
+      prefetchTo: `/chronicles/${c.slug}`,
       run: () => navigate(`/chronicles/${c.slug}`),
     }))
 
@@ -205,6 +217,11 @@ function CommandPaletteModal({
     const t = window.setTimeout(() => inputRef.current?.focus(), 0)
     return () => window.clearTimeout(t)
   }, [])
+
+  useEffect(() => {
+    const it = filtered[activeIndex]
+    if (it?.prefetchTo) prefetchRoute(it.prefetchTo)
+  }, [activeIndex, filtered])
 
   useEffect(() => {
     const el = listRef.current
@@ -316,17 +333,24 @@ function CommandPaletteModal({
                       initial={reduceMotion || !enableListMotion ? false : { opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={reduceMotion || !enableListMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-                      transition={
-                        reduceMotion || !enableListMotion
-                          ? { duration: 0.12 }
-                          : { delay: idx * 0.012, duration: 0.22, ease: [0.22, 1, 0.36, 1] }
-                      }
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      onClick={() => {
-                        it.run()
-                        onClose()
-                      }}
-                    >
+                       transition={
+                         reduceMotion || !enableListMotion
+                           ? { duration: 0.12 }
+                           : { delay: idx * 0.012, duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+                       }
+                       onMouseEnter={() => {
+                         setActiveIndex(idx)
+                         if (it.prefetchTo) prefetchRoute(it.prefetchTo)
+                       }}
+                       onFocus={() => {
+                         setActiveIndex(idx)
+                         if (it.prefetchTo) prefetchRoute(it.prefetchTo)
+                       }}
+                       onClick={() => {
+                         it.run()
+                         onClose()
+                       }}
+                     >
                       {idx === activeIndex ? (
                         enableActiveMotion ? (
                           <motion.span
