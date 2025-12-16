@@ -29,7 +29,7 @@ type ReadingLast = {
 export function ChroniclePage() {
   const { slug } = useParams()
   const chronicle = useMemo(() => (slug ? getChronicleBySlug(slug) : null), [slug])
-  const reduceMotion = useReducedMotion()
+  const reduceMotion = useReducedMotion() ?? false
   const [searchParams] = useSearchParams()
 
   const [progress, setProgress] = useState(0)
@@ -434,22 +434,30 @@ export function ChroniclePage() {
               <div className="grid gap-2">
                 {toc.map((t) => (
                   <a
-                    key={t.id}
-                    href={`#${t.id}`}
-                    className={cn(
-                      'focus-ring tap rounded-xl border border-border/60 px-3 py-2 text-sm',
-                      t.id === activeSectionId
-                        ? 'bg-white/10 text-fg ring-1 ring-white/10'
-                        : 'bg-white/4 text-fg/90 hover:bg-white/7',
-                    )}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      scrollToAnchor(t.id)
-                    }}
-                  >
-                    {t.heading}
-                  </a>
-                ))}
+                     key={t.id}
+                     href={`#${t.id}`}
+                     className={cn(
+                       'focus-ring tap relative overflow-hidden rounded-xl border border-border/60 px-3 py-2 text-sm',
+                       t.id === activeSectionId
+                         ? 'bg-white/10 text-fg ring-1 ring-white/10'
+                         : 'bg-white/4 text-fg/90 hover:bg-white/7',
+                     )}
+                     onClick={(e) => {
+                       e.preventDefault()
+                       scrollToAnchor(t.id)
+                     }}
+                     aria-current={t.id === activeSectionId ? 'true' : undefined}
+                   >
+                     {!reduceMotion && t.id === activeSectionId ? (
+                       <motion.span
+                         layoutId="chronicleTocActive"
+                         className="pointer-events-none absolute inset-0 rounded-xl border border-[hsl(var(--accent)/.20)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.12),transparent_72%)] ring-1 ring-[hsl(var(--accent)/.12)]"
+                         transition={{ type: 'spring', stiffness: 560, damping: 40 }}
+                       />
+                     ) : null}
+                     <span className="relative z-10">{t.heading}</span>
+                   </a>
+                 ))}
               </div>
             </Card>
 
