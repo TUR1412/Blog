@@ -44,6 +44,8 @@ export function NotesPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const flashTimerRef = useRef<number | null>(null)
+  const anchorFlashTimerRef = useRef<number | null>(null)
+  const lastFlashedIdRef = useRef('')
   const [text, setText] = useState(() => readString(STORAGE_KEYS.notes, ''))
   const [meta, setMeta] = useState<NotesMeta>(() =>
     readJson<NotesMeta>(STORAGE_KEYS.notesMeta, { updatedAt: 0 }),
@@ -75,7 +77,26 @@ export function NotesPage() {
   useEffect(() => {
     return () => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+      if (anchorFlashTimerRef.current) window.clearTimeout(anchorFlashTimerRef.current)
+      anchorFlashTimerRef.current = null
     }
+  }, [])
+
+  const flashAnchor = useCallback((el: HTMLElement) => {
+    const id = el.id || ''
+    const prevId = lastFlashedIdRef.current
+    if (prevId && prevId !== id) {
+      const prevEl = document.getElementById(prevId)
+      prevEl?.removeAttribute('data-x-flash')
+    }
+    lastFlashedIdRef.current = id
+
+    const token = String(Date.now())
+    el.setAttribute('data-x-flash', token)
+    if (anchorFlashTimerRef.current != null) window.clearTimeout(anchorFlashTimerRef.current)
+    anchorFlashTimerRef.current = window.setTimeout(() => {
+      if (el.getAttribute('data-x-flash') === token) el.removeAttribute('data-x-flash')
+    }, 950)
   }, [])
 
   const wordCount = useMemo(() => {
@@ -99,6 +120,7 @@ export function NotesPage() {
     const el = document.getElementById(id)
     if (!el) return
     el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    flashAnchor(el)
   }
 
   const getMarks = useCallback(() => {
@@ -212,12 +234,15 @@ export function NotesPage() {
 
     const t = window.setTimeout(() => {
       const el = document.getElementById(h)
-      if (el) el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+      if (el) {
+        el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+        flashAnchor(el)
+      }
       setHandledAnchor(h)
     }, 0)
 
     return () => window.clearTimeout(t)
-  }, [handledAnchor, reduceMotion, searchParams, view])
+  }, [flashAnchor, handledAnchor, reduceMotion, searchParams, view])
 
   useEffect(() => {
     if (view !== 'scroll') return
