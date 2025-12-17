@@ -1,15 +1,38 @@
 import { ASSET_VERSION } from '../../lib/constants'
+import { useEffect, useState } from 'react'
 
 export function AuroraBackdrop() {
   const noiseUrl = `${import.meta.env.BASE_URL}noise.svg?v=${ASSET_VERSION}`
+  const [enhanced, setEnhanced] = useState(false)
+
+  useEffect(() => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
+      .requestIdleCallback
+    const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
+
+    if (ric) {
+      const id = ric(() => setEnhanced(true), { timeout: 1400 })
+      return () => cic?.(id)
+    }
+
+    const t = window.setTimeout(() => setEnhanced(true), 980)
+    return () => window.clearTimeout(t)
+  }, [])
+
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       <div className="absolute inset-0 bg-bg" />
 
       <div className="absolute inset-0">
-        <div className="absolute -left-24 -top-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.55),transparent_62%)] blur-3xl" />
-        <div className="absolute -right-32 top-10 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.50),transparent_62%)] blur-3xl" />
-        <div className="absolute left-1/2 top-[42vh] h-[720px] w-[980px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.10),transparent_66%)] blur-3xl" />
+        <div className="absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.40),transparent_62%)] blur-2xl" />
+        <div className="absolute -right-32 top-10 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.36),transparent_62%)] blur-2xl" />
+        {enhanced ? (
+          <>
+            <div className="absolute -left-28 -top-28 h-[560px] w-[560px] rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.50),transparent_62%)] blur-3xl" />
+            <div className="absolute -right-36 top-10 h-[560px] w-[560px] rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.46),transparent_62%)] blur-3xl" />
+            <div className="absolute left-1/2 top-[42vh] h-[720px] w-[980px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.10),transparent_66%)] blur-3xl" />
+          </>
+        ) : null}
       </div>
 
       <div
