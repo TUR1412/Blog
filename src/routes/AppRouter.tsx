@@ -85,17 +85,68 @@ export function AppRouter() {
   }, [])
 
   useEffect(() => {
+    const startedAt = performance.now()
+    const lastInputAtRef = { current: startedAt }
+    const markInput = () => {
+      lastInputAtRef.current = performance.now()
+    }
+
+    const opts: AddEventListenerOptions = { passive: true }
+    window.addEventListener('pointerdown', markInput, opts)
+    window.addEventListener('wheel', markInput, opts)
+    window.addEventListener('touchstart', markInput, opts)
+    window.addEventListener('keydown', markInput)
+
+    const guard = () => {
+      const now = performance.now()
+      if (now - startedAt < 1600) return false
+      if (now - lastInputAtRef.current < 900) return false
+      return true
+    }
+
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
       .requestIdleCallback
     const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
 
-    if (ric) {
-      const id = ric(() => prefetchCoreRoutes({ includeNotes: true }), { timeout: 900 })
-      return () => cic?.(id)
+    const idleIds: number[] = []
+    const timeoutIds: number[] = []
+
+    const scheduleIdle = (cb: () => void, sched?: { timeout?: number; fallbackDelay?: number }) => {
+      if (ric) {
+        const id = ric(cb, { timeout: sched?.timeout ?? 2400 })
+        idleIds.push(id)
+        return
+      }
+      const t = window.setTimeout(cb, sched?.fallbackDelay ?? 1200)
+      timeoutIds.push(t)
     }
 
-    const t = window.setTimeout(() => prefetchCoreRoutes({ includeNotes: true }), 680)
-    return () => window.clearTimeout(t)
+    const run = (priority: 'light' | 'all') => {
+      prefetchCoreRoutes({ includeNotes: true, priority, guard })
+    }
+
+    const start = () => {
+      scheduleIdle(() => run('light'), { timeout: 2400, fallbackDelay: 1200 })
+      scheduleIdle(() => run('all'), { timeout: 3400, fallbackDelay: 4200 })
+    }
+
+    if (document.readyState === 'complete') {
+      start()
+    } else {
+      window.addEventListener('load', start, { once: true })
+      timeoutIds.push(window.setTimeout(start, 5200))
+    }
+
+    return () => {
+      window.removeEventListener('pointerdown', markInput, opts)
+      window.removeEventListener('wheel', markInput, opts)
+      window.removeEventListener('touchstart', markInput, opts)
+      window.removeEventListener('keydown', markInput)
+      window.removeEventListener('load', start)
+
+      for (const id of idleIds) cic?.(id)
+      for (const t of timeoutIds) window.clearTimeout(t)
+    }
   }, [])
 
   return (

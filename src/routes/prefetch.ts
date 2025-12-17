@@ -2,6 +2,9 @@ type Importer = () => Promise<unknown>
 
 const imported = new Set<string>()
 
+type PrefetchPriority = 'light' | 'all'
+type PrefetchGuard = () => boolean
+
 function safeKey(raw: string) {
   return raw.trim() || '/'
 }
@@ -42,32 +45,43 @@ export function prefetchRoute(to: string) {
   void importer()
 }
 
-export function prefetchCoreRoutes(opts?: { includeNotes?: boolean }) {
+export function prefetchCoreRoutes(opts?: {
+  includeNotes?: boolean
+  priority?: PrefetchPriority
+  guard?: PrefetchGuard
+}) {
   const includeNotes = opts?.includeNotes ?? false
-  const targets = [
-    '/chronicles',
-    '/grotto',
+  const priority: PrefetchPriority = opts?.priority ?? 'all'
+  const guard = opts?.guard
+
+  const lightTargets = ['/chronicles', '/grotto', '/about'] satisfies string[]
+  const restTargets = [
     '/relations',
-    '/about',
-    includeNotes ? '/notes' : null,
     '/annotations',
     '/treasury',
+    includeNotes ? '/notes' : null,
   ].filter((x): x is string => typeof x === 'string')
+
+  const targets = (priority === 'light' ? lightTargets : [...lightTargets, ...restTargets]) satisfies string[]
 
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
     .requestIdleCallback
 
-  const scheduleNext = (cb: () => void) => {
+  const scheduleNext = (cb: () => void, opts2?: { timeout?: number; fallbackDelay?: number }) => {
     if (ric) {
-      void ric(cb, { timeout: 1200 })
+      void ric(cb, { timeout: opts2?.timeout ?? 1200 })
       return
     }
-    window.setTimeout(cb, 420)
+    window.setTimeout(cb, opts2?.fallbackDelay ?? 420)
   }
 
   const run = (idx: number) => {
     const target = targets[idx]
     if (!target) return
+    if (guard && !guard()) {
+      scheduleNext(() => run(idx), { timeout: 1800, fallbackDelay: 680 })
+      return
+    }
     prefetchRoute(target)
     scheduleNext(() => run(idx + 1))
   }
