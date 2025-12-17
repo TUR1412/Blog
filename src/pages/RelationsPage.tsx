@@ -445,6 +445,7 @@ export function RelationsPage() {
   const pulseTimerRef = useRef<number | null>(null)
   const [edgePulse, setEdgePulse] = useState<{ id: string; at: number } | null>(null)
   const edgePulseTimerRef = useRef<number | null>(null)
+  const [previewEdge, setPreviewEdge] = useState<{ edgeId: string; anchorId: string } | null>(null)
 
   const [graphNodeBox, setGraphNodeBox] = useState<EdgeNodeBox>({ halfW: 9.2, halfH: 3.8, pad: 1.0 })
 
@@ -612,6 +613,8 @@ export function RelationsPage() {
     if (storedSelected && nodeById.has(storedSelected)) return storedSelected
     return filteredBase[0]?.id ?? 'xuan'
   }, [filteredBase, nodeById, searchParams, storedSelected])
+
+  const previewEdgeId = previewEdge?.anchorId === selectedId ? previewEdge.edgeId : null
 
   const selected = selectedId ? nodeById.get(selectedId) ?? null : null
   const selectedAnnotation = selectedId ? canonicalAnnotations[selectedId] ?? null : null
@@ -1303,8 +1306,11 @@ export function RelationsPage() {
     const transition = reduceMotion
       ? undefined
       : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease, filter 260ms ease'
-    const showGlow = !reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus
-    const showFlow = !reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))
+    const isPreview = Boolean(previewEdgeId && previewEdgeId === e.id)
+    const previewing = Boolean(previewEdgeId)
+    const showPreview = Boolean(!reduceMotion && !heavyGraph && isPreview)
+    const showGlow = (!reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus) || showPreview
+    const showFlow = (!reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))) || showPreview
 
     const idleOpacity = heavyGraph ? 0.1 : 0.16
     const baseOpacityRaw =
@@ -1330,8 +1336,10 @@ export function RelationsPage() {
     if (hideSecondary) baseOpacity = 0
     if (revealSecondary) baseOpacity = Math.min(0.4, baseOpacity * 2.1)
     if (opts?.unmasked && hasFocus) baseOpacity = Math.min(1, baseOpacity * 1.08)
+    if (previewing && hasFocus && tier === 'primary' && !isPreview) baseOpacity *= heavyGraph ? 0.55 : 0.38
+    if (previewing && isPreview) baseOpacity = Math.max(baseOpacity, 0.92)
 
-    const baseStroke =
+    let baseStroke =
       tier === 'primary'
         ? crowdedFocus
           ? 'hsl(var(--accent) / 0.62)'
@@ -1341,7 +1349,7 @@ export function RelationsPage() {
         : tier === 'secondary'
           ? 'hsl(var(--muted) / 0.62)'
           : 'hsl(var(--muted) / 0.50)'
-    const baseStrokeWidth =
+    let baseStrokeWidth =
       tier === 'primary'
         ? 0.52
         : tier === 'path'
@@ -1355,6 +1363,14 @@ export function RelationsPage() {
           : heavyGraph
             ? 0.16
             : 0.18
+
+    if (previewing && hasFocus && tier === 'primary' && !isPreview) {
+      baseStroke = 'hsl(var(--muted) / 0.62)'
+    }
+    if (isPreview) {
+      baseStroke = 'hsl(var(--accent2) / 0.84)'
+      baseStrokeWidth += heavyGraph ? 0.12 : 0.22
+    }
 
     const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
     const dash =
@@ -2724,16 +2740,19 @@ export function RelationsPage() {
                                   onClick={() => selectId(other.id)}
                                   onPointerEnter={() => {
                                     if (graphPanning) return
+                                    setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
                                     scheduleHoveredId(other.id)
                                   }}
                                   onPointerLeave={() => {
-                                    if (graphPanning) return
+                                    setPreviewEdge(null)
                                     scheduleHoveredId(null)
                                   }}
                                   onFocus={() => {
+                                    setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
                                     scheduleHoveredId(other.id)
                                   }}
                                   onBlur={() => {
+                                    setPreviewEdge(null)
                                     scheduleHoveredId(null)
                                   }}
                                   className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
@@ -2760,16 +2779,19 @@ export function RelationsPage() {
                                 onClick={() => selectId(other.id)}
                                 onPointerEnter={() => {
                                   if (graphPanning) return
+                                  setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
                                   scheduleHoveredId(other.id)
                                 }}
                                 onPointerLeave={() => {
-                                  if (graphPanning) return
+                                  setPreviewEdge(null)
                                   scheduleHoveredId(null)
                                 }}
                                 onFocus={() => {
+                                  setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
                                   scheduleHoveredId(other.id)
                                 }}
                                 onBlur={() => {
+                                  setPreviewEdge(null)
                                   scheduleHoveredId(null)
                                 }}
                                 className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
