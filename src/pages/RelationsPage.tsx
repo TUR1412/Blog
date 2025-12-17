@@ -83,7 +83,7 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
     'transform-gpu transition-[background-color,border-color,box-shadow,filter,transform] duration-200 hover:shadow-lift'
   const box =
     'w-[170px] max-w-[52vw] rounded-2xl border px-3 py-2 ' +
-    'bg-[linear-gradient(180deg,hsl(var(--card)/.995),hsl(var(--card)/.96))]'
+    'bg-[linear-gradient(180deg,hsl(var(--card)/1),hsl(var(--card)/.98))]'
   const blur = ''
   if (t === 'warn') {
     return cn(
@@ -1186,7 +1186,9 @@ export function RelationsPage() {
 
     const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
 
-    const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
+    const transition = reduceMotion
+      ? undefined
+      : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease, filter 260ms ease'
     const showGlow = !reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus
     const showFlow = !reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))
 
