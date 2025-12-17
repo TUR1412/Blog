@@ -198,12 +198,17 @@ function edgePath(
 
   const s1 = seed ? hash01(seed) : 0.5
   const s2 = seed ? hash01(`${seed}.m`) : 0.5
+  const s3 = seed ? hash01(`${seed}.c1`) : 0.5
+  const s4 = seed ? hash01(`${seed}.c2`) : 0.5
   const signed = s1 * 2 - 1
   const magnitude = Math.min(13, Math.max(3.2, d2 * 0.2)) * (0.65 + s2 * 0.55)
   const bend = signed * magnitude
 
-  const c1 = { x: a2.x + ddx * 0.33 + px * bend, y: a2.y + ddy * 0.33 + py * bend }
-  const c2 = { x: a2.x + ddx * 0.66 + px * bend, y: a2.y + ddy * 0.66 + py * bend }
+  const bend1 = bend * (0.72 + s3 * 0.46)
+  const bend2 = bend * (0.72 + s4 * 0.46)
+
+  const c1 = { x: a2.x + ddx * 0.33 + px * bend1, y: a2.y + ddy * 0.33 + py * bend1 }
+  const c2 = { x: a2.x + ddx * 0.66 + px * bend2, y: a2.y + ddy * 0.66 + py * bend2 }
   return `M ${a2.x} ${a2.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b2.x} ${b2.y}`
 }
 
@@ -1029,6 +1034,23 @@ export function RelationsPage() {
     return set
   }, [spotlightRootPathNodeIds])
 
+  const visibleEdgesOrdered = useMemo(() => {
+    const hasFocus = Boolean(spotlightId)
+    return visibleEdges
+      .map((e, idx) => {
+        if (!hasFocus || !spotlightId) {
+          return { e, idx, tier: 'background' as const, rank: 0 }
+        }
+        const connected = e.from === spotlightId || e.to === spotlightId
+        const inCluster = spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
+        const inRootPath = spotlightRootPathEdgeKeySet.has(edgeKey(e.from, e.to))
+        const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
+        const rank = tier === 'background' ? 0 : tier === 'secondary' ? 1 : tier === 'path' ? 2 : 3
+        return { e, idx, tier, rank }
+      })
+      .sort((a, b) => a.rank - b.rank || a.idx - b.idx)
+  }, [spotlightClusterIdSet, spotlightId, spotlightRootPathEdgeKeySet, visibleEdges])
+
   const selectedRootPathNodeIds = useMemo(() => {
     return shortestPathNodeIds(relationAdjacency, selectedId, 'xuan')
   }, [relationAdjacency, selectedId])
@@ -1607,17 +1629,39 @@ export function RelationsPage() {
                   viewBox="0 0 100 100"
                   preserveAspectRatio="none"
                 >
-                  {visibleEdges.map((e) => {
-                    const a = nodeById.get(e.from)?.pos
-                    const b = nodeById.get(e.to)?.pos
+                  <defs>
+                    <mask id="xuantian-edge-mask">
+                      <rect x="0" y="0" width="100" height="100" fill="white" />
+                      {visibleNodes.map((n) => {
+                        const halfW = graphNodeBox.halfW + 0.35
+                        const halfH = graphNodeBox.halfH + 0.25
+                        return (
+                          <rect
+                            key={`mask:${n.id}`}
+                            x={n.pos.x - halfW}
+                            y={n.pos.y - halfH}
+                            width={halfW * 2}
+                            height={halfH * 2}
+                            rx={2.2}
+                            ry={2.2}
+                            fill="black"
+                          />
+                        )
+                      })}
+                    </mask>
+                  </defs>
+
+                  <g mask="url(#xuantian-edge-mask)">
+                    {visibleEdgesOrdered.map(({ e, tier }) => {
+                      const a = nodeById.get(e.from)?.pos
+                      const b = nodeById.get(e.to)?.pos
                     if (!a || !b) return null
 
                     const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
 
-                    const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
                     const hasFocus = Boolean(spotlightId)
-                    const inCluster = hasFocus && spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
-                    const inRootPath = hasFocus && spotlightRootPathEdgeKeySet.has(edgeKey(e.from, e.to))
+                    const connected = tier === 'primary'
+                    const inRootPath = tier === 'path'
 
                     const transition = reduceMotion
                       ? undefined
@@ -1625,7 +1669,6 @@ export function RelationsPage() {
                     const showGlow = !reduceMotion && hasFocus && (connected || inRootPath) && !crowdedFocus
                     const showFlow = !reduceMotion && hasFocus && (connected || inRootPath) && !crowdedFocus
 
-                    const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
                     const idleOpacity = heavyGraph ? 0.1 : 0.16
                     const baseOpacity =
                       !hasFocus
@@ -1636,7 +1679,7 @@ export function RelationsPage() {
                             : 0.9
                           : tier === 'path'
                             ? heavyGraph
-                              ? 0.16
+                              ? 0.22
                               : 0.26
                           : tier === 'secondary'
                             ? heavyGraph
@@ -1660,7 +1703,7 @@ export function RelationsPage() {
                         ? 0.5
                         : tier === 'path'
                           ? heavyGraph
-                            ? 0.24
+                            ? 0.28
                             : 0.34
                         : tier === 'secondary'
                           ? heavyGraph
@@ -1671,6 +1714,8 @@ export function RelationsPage() {
                             : 0.2
 
                     const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
+                    const dash =
+                      tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
 
                     return (
                       <g key={e.id}>
@@ -1697,7 +1742,7 @@ export function RelationsPage() {
                             stroke: baseStroke,
                             strokeWidth: baseStrokeWidth,
                             transition,
-                            strokeDasharray: tier === 'background' ? '0.6 2.1' : undefined,
+                            strokeDasharray: dash,
                             filter: showGlow
                               ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
                               : showPathGlow
@@ -1729,7 +1774,8 @@ export function RelationsPage() {
                         ) : null}
                       </g>
                     )
-                  })}
+                    })}
+                  </g>
                 </svg>
 
                 {visibleNodes.map((n, idx) => {

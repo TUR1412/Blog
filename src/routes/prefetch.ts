@@ -54,8 +54,9 @@ export function prefetchCoreRoutes(opts?: {
   const priority: PrefetchPriority = opts?.priority ?? 'all'
   const guard = opts?.guard
 
-  const lightTargets = ['/chronicles', '/grotto', '/about'] satisfies string[]
+  const lightTargets = ['/chronicles', '/about'] satisfies string[]
   const restTargets = [
+    '/grotto',
     '/relations',
     '/annotations',
     '/treasury',

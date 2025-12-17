@@ -119,31 +119,10 @@ export function AppRouter() {
     const startedAt = performance.now()
     const lastInputAtRef = { current: startedAt }
     const hasInteractedRef = { current: false }
-    const markInput = () => {
-      hasInteractedRef.current = true
-      lastInputAtRef.current = performance.now()
-    }
+    const prefetchStartedRef = { current: false }
 
-    const opts: AddEventListenerOptions = { passive: true }
-    window.addEventListener('pointerdown', markInput, opts)
-    window.addEventListener('wheel', markInput, opts)
-    window.addEventListener('touchstart', markInput, opts)
-    window.addEventListener('keydown', markInput)
-
-    const guardLight = () => {
-      const now = performance.now()
-      if (now - startedAt < 2400) return false
-      if (now - lastInputAtRef.current < 1100) return false
-      return true
-    }
-
-    const guardAll = () => {
-      const now = performance.now()
-      if (!hasInteractedRef.current) return false
-      if (now - startedAt < 5200) return false
-      if (now - lastInputAtRef.current < 1800) return false
-      return true
-    }
+    const conn = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+    const avoidPrefetch = Boolean(conn?.saveData) || String(conn?.effectiveType || '').includes('2g')
 
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
       .requestIdleCallback
@@ -162,6 +141,24 @@ export function AppRouter() {
       timeoutIds.push(t)
     }
 
+    const guardLight = () => {
+      if (avoidPrefetch) return false
+      const now = performance.now()
+      if (!hasInteractedRef.current) return false
+      if (now - startedAt < 4200) return false
+      if (now - lastInputAtRef.current < 1400) return false
+      return true
+    }
+
+    const guardAll = () => {
+      if (avoidPrefetch) return false
+      const now = performance.now()
+      if (!hasInteractedRef.current) return false
+      if (now - startedAt < 9000) return false
+      if (now - lastInputAtRef.current < 2200) return false
+      return true
+    }
+
     const runLight = () => {
       prefetchCoreRoutes({ includeNotes: true, priority: 'light', guard: guardLight })
     }
@@ -170,24 +167,30 @@ export function AppRouter() {
       prefetchCoreRoutes({ includeNotes: true, priority: 'all', guard: guardAll })
     }
 
-    const start = () => {
-      scheduleIdle(runLight, { timeout: 2600, fallbackDelay: 1600 })
-      scheduleIdle(runAll, { timeout: 5200, fallbackDelay: 7200 })
+    const startPrefetch = () => {
+      if (prefetchStartedRef.current) return
+      prefetchStartedRef.current = true
+      scheduleIdle(runLight, { timeout: 3200, fallbackDelay: 2200 })
+      scheduleIdle(runAll, { timeout: 6800, fallbackDelay: 9800 })
     }
 
-    if (document.readyState === 'complete') {
-      start()
-    } else {
-      window.addEventListener('load', start, { once: true })
-      timeoutIds.push(window.setTimeout(start, 5200))
+    const markInput = () => {
+      hasInteractedRef.current = true
+      lastInputAtRef.current = performance.now()
+      startPrefetch()
     }
+
+    const opts: AddEventListenerOptions = { passive: true }
+    window.addEventListener('pointerdown', markInput, opts)
+    window.addEventListener('wheel', markInput, opts)
+    window.addEventListener('touchstart', markInput, opts)
+    window.addEventListener('keydown', markInput)
 
     return () => {
       window.removeEventListener('pointerdown', markInput, opts)
       window.removeEventListener('wheel', markInput, opts)
       window.removeEventListener('touchstart', markInput, opts)
       window.removeEventListener('keydown', markInput)
-      window.removeEventListener('load', start)
 
       for (const id of idleIds) cic?.(id)
       for (const t of timeoutIds) window.clearTimeout(t)
