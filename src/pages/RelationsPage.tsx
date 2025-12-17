@@ -80,7 +80,7 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
   const t = toneToken(tone)
   const base =
     'focus-ring group absolute -translate-x-1/2 -translate-y-1/2 text-left ' +
-    'transition-[background-color,border-color,box-shadow,filter] duration-200 hover:shadow-lift'
+    'transform-gpu transition-[background-color,border-color,box-shadow,filter,transform] duration-200 hover:shadow-lift'
   const box =
     'w-[170px] max-w-[52vw] rounded-2xl border px-3 py-2 ' +
     'bg-[linear-gradient(180deg,hsl(var(--card)/.995),hsl(var(--card)/.96))]'
@@ -1594,6 +1594,23 @@ export function RelationsPage() {
                       <div className="mt-1 text-muted/70">
                         直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
                       </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1">
+                        <span className="rounded-full border border-[hsl(var(--accent)/.26)] bg-[hsl(var(--accent)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
+                          当前
+                        </span>
+                        <span className="rounded-full border border-[hsl(var(--accent2)/.22)] bg-[hsl(var(--accent2)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
+                          焦点
+                        </span>
+                        <span className="rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[10px] text-muted/80">
+                          根
+                        </span>
+                        <span className="rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[10px] text-muted/80">
+                          牵连
+                        </span>
+                        <span className="rounded-full border border-[hsl(var(--accent2)/.18)] bg-[hsl(var(--accent2)/.07)] px-2 py-0.5 text-[10px] text-fg/90">
+                          回轩路
+                        </span>
+                      </div>
 
                       {hoveredId && hoveredId !== selectedId && spotlightDirectPreview.lines.length ? (
                         <div className="mt-2 border-t border-white/10 pt-2 text-muted/75">
@@ -1666,8 +1683,8 @@ export function RelationsPage() {
                     const transition = reduceMotion
                       ? undefined
                       : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
-                    const showGlow = !reduceMotion && hasFocus && (connected || inRootPath) && !crowdedFocus
-                    const showFlow = !reduceMotion && hasFocus && (connected || inRootPath) && !crowdedFocus
+                    const showGlow = !reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus
+                    const showFlow = !reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))
 
                     const idleOpacity = heavyGraph ? 0.1 : 0.16
                     const baseOpacity =
@@ -1679,39 +1696,39 @@ export function RelationsPage() {
                             : 0.9
                           : tier === 'path'
                             ? heavyGraph
-                              ? 0.22
-                              : 0.26
+                              ? 0.28
+                              : 0.32
                           : tier === 'secondary'
                             ? heavyGraph
-                              ? 0.1
-                              : 0.14
+                              ? 0.07
+                              : 0.12
                             : heavyGraph
-                              ? 0.018
-                              : 0.028
+                              ? 0.01
+                              : 0.018
                     const baseStroke =
                       tier === 'primary'
                         ? crowdedFocus
                           ? 'hsl(var(--accent) / 0.62)'
                           : 'hsl(var(--accent) / 0.78)'
                         : tier === 'path'
-                          ? 'hsl(var(--accent2) / 0.62)'
+                          ? 'hsl(var(--accent2) / 0.66)'
                         : tier === 'secondary'
-                          ? 'hsl(var(--muted) / 0.66)'
-                          : 'hsl(var(--muted) / 0.52)'
+                          ? 'hsl(var(--muted) / 0.62)'
+                          : 'hsl(var(--muted) / 0.50)'
                     const baseStrokeWidth =
                       tier === 'primary'
                         ? 0.5
                         : tier === 'path'
                           ? heavyGraph
-                            ? 0.28
+                            ? 0.32
                             : 0.34
                         : tier === 'secondary'
                           ? heavyGraph
-                            ? 0.22
-                            : 0.24
+                            ? 0.20
+                            : 0.22
                           : heavyGraph
-                            ? 0.18
-                            : 0.2
+                            ? 0.16
+                            : 0.18
 
                     const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
                     const dash =
@@ -1789,6 +1806,10 @@ export function RelationsPage() {
                       : true
 
                   const dim = spotlightId ? !spotlight && !related : false
+                  const dimOpacity = dim ? (heavyGraph ? 0.1 : 0.15) : 1
+                  const dimOpacityClass = dim ? (heavyGraph ? 'opacity-10' : 'opacity-15') : 'opacity-100'
+                  const targetScale = active || spotlight ? 1.025 : related ? 1 : 0.97
+                  const scaleClass = active || spotlight ? 'scale-[1.025]' : related ? 'scale-[1]' : 'scale-[0.97]'
                   const roleBadge = active
                     ? '当前'
                     : spotlightId
@@ -1822,8 +1843,9 @@ export function RelationsPage() {
                       }}
                       className={cn(
                         nodeChrome(n.tone, active),
-                        'transition-opacity duration-200',
-                        dim ? 'opacity-25' : 'opacity-100',
+                        'transition-[opacity,transform] duration-200',
+                        dimOpacityClass,
+                        scaleClass,
                       )}
                       style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: z }}
                     >
@@ -1902,7 +1924,7 @@ export function RelationsPage() {
                     className={cn(nodeChrome(n.tone, active))}
                     style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: active || spotlight ? 60 : related ? 40 : 20 }}
                     initial={{ opacity: 0, scale: 0.98, y: 6 }}
-                    animate={{ opacity: dim ? 0.25 : 1, scale: 1, y: 0 }}
+                    animate={{ opacity: dimOpacity, scale: targetScale, y: 0 }}
                     transition={{
                       delay: graphEntered ? 0 : idx * 0.015,
                       type: 'spring',
