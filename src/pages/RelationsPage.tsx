@@ -244,6 +244,9 @@ export function RelationsPage() {
   const graphStageRef = useRef<HTMLDivElement | null>(null)
   const graphViewRef = useRef({ x: 0, y: 0, scale: 1 })
   const graphFlyRef = useRef<{ rafId: number } | null>(null)
+  const graphTransformTimerRef = useRef<number | null>(null)
+  const graphTransformingRef = useRef(false)
+  const [graphTransforming, setGraphTransforming] = useState(false)
   const graphPanRef = useRef<{
     pointerId: number
     startClientX: number
@@ -374,16 +377,29 @@ export function RelationsPage() {
   const annoDraft = selectedId ? (annoDraftById[selectedId] ?? selectedAnnotation?.text ?? '') : ''
   const annoSavedAt = selectedAnnotation?.updatedAt ?? 0
 
+  const markGraphTransforming = useCallback(() => {
+    if (!graphTransformingRef.current) {
+      graphTransformingRef.current = true
+      setGraphTransforming(true)
+    }
+    if (graphTransformTimerRef.current) window.clearTimeout(graphTransformTimerRef.current)
+    graphTransformTimerRef.current = window.setTimeout(() => {
+      graphTransformingRef.current = false
+      setGraphTransforming(false)
+    }, 220)
+  }, [])
+
   const scheduleApplyGraphView = useCallback(() => {
     if (graphRafRef.current) return
     graphRafRef.current = window.requestAnimationFrame(() => {
       graphRafRef.current = null
       const stage = graphStageRef.current
       if (!stage) return
+      markGraphTransforming()
       const { x, y, scale } = graphViewRef.current
       stage.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
     })
-  }, [])
+  }, [markGraphTransforming])
 
   const cancelGraphFly = useCallback(() => {
     const cur = graphFlyRef.current
@@ -445,6 +461,7 @@ export function RelationsPage() {
     scheduleApplyGraphView()
     return () => {
       if (graphRafRef.current) window.cancelAnimationFrame(graphRafRef.current)
+      if (graphTransformTimerRef.current) window.clearTimeout(graphTransformTimerRef.current)
       cancelGraphFly()
     }
   }, [cancelGraphFly, scheduleApplyGraphView])
@@ -1383,13 +1400,24 @@ export function RelationsPage() {
                 resetGraphView()
               }}
             >
-              <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.18),transparent_62%)] blur-3xl" />
-                <div className="absolute -right-24 top-10 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.16),transparent_62%)] blur-3xl" />
-                <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.08),transparent_70%)] blur-3xl" />
-              </div>
+              {!heavyGraph ? (
+                <div className="pointer-events-none absolute inset-0">
+                  <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.18),transparent_62%)] blur-3xl" />
+                  <div className="absolute -right-24 top-10 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.16),transparent_62%)] blur-3xl" />
+                  <div className="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,.08),transparent_70%)] blur-3xl" />
+                </div>
+              ) : (
+                <div className="pointer-events-none absolute inset-0 opacity-80">
+                  <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.14),transparent_62%)] blur-2xl" />
+                  <div className="absolute -left-24 bottom-0 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.12),transparent_62%)] blur-2xl" />
+                </div>
+              )}
 
-              <div ref={graphStageRef} className="absolute inset-0 origin-top-left will-change-transform">
+              <div
+                ref={graphStageRef}
+                className="absolute inset-0 origin-top-left"
+                style={graphTransforming ? { willChange: 'transform' } : undefined}
+              >
                 <svg
                   className="pointer-events-none absolute inset-0"
                   viewBox="0 0 100 100"
