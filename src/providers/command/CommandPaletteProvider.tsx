@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, ScrollText, Search, User, Waypoints } from 'lucide-react'
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { chronicleIndex } from '../../content/chronicleIndex'
@@ -12,6 +12,11 @@ type CommandItem = {
   title: string
   subtitle?: string
   keywords: string[]
+  search: {
+    title: string
+    subtitle: string
+    keywords: string[]
+  }
   icon?: React.ReactNode
   prefetchTo?: string
   run: () => void
@@ -95,10 +100,22 @@ function CommandPaletteModal({
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
   const [activeIndex, setActiveIndex] = useState(0)
 
   const items = useMemo<CommandItem[]>(() => {
-    const routes: CommandItem[] = [
+    const withSearch = (it: Omit<CommandItem, 'search'>): CommandItem => {
+      return {
+        ...it,
+        search: {
+          title: it.title.toLowerCase(),
+          subtitle: (it.subtitle ?? '').toLowerCase(),
+          keywords: it.keywords.map((k) => k.toLowerCase()),
+        },
+      }
+    }
+
+    const routes: Omit<CommandItem, 'search'>[] = [
       {
         id: 'route-home',
         title: '洞天首页',
@@ -182,7 +199,7 @@ function CommandPaletteModal({
       },
     ]
 
-    const chapters: CommandItem[] = chronicleIndex.map((c) => ({
+    const chapters: Omit<CommandItem, 'search'>[] = chronicleIndex.map((c) => ({
       id: `chronicle-${c.slug}`,
       title: c.title,
       subtitle: c.dateText,
@@ -192,23 +209,29 @@ function CommandPaletteModal({
       run: () => navigate(`/chronicles/${c.slug}`),
     }))
 
-    return [...routes, ...chapters]
+    return [...routes, ...chapters].map(withSearch)
   }, [navigate])
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = deferredQuery.trim().toLowerCase()
     if (!q) return items
 
     return items
       .map((it) => {
-        const hay = [it.title, it.subtitle ?? '', ...it.keywords].join(' ').toLowerCase()
-        const score = hay.includes(q) ? 2 : it.keywords.some((k) => k.toLowerCase().includes(q)) ? 1 : 0
-        return { it, score }
+        let score = 0
+        if (it.search.title.includes(q)) score = Math.max(score, 3)
+        if (it.search.subtitle.includes(q)) score = Math.max(score, 2)
+        if (it.search.keywords.some((k) => k.includes(q))) score = Math.max(score, 1)
+        return { it, score, title: it.search.title }
       })
       .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => {
+        const byScore = b.score - a.score
+        if (byScore) return byScore
+        return a.title.localeCompare(b.title, 'zh-Hans-CN')
+      })
       .map((x) => x.it)
-  }, [items, query])
+  }, [deferredQuery, items])
 
   const enableActiveMotion = !reduceMotion && filtered.length <= 48
   const enableListMotion = !reduceMotion && filtered.length <= 42
@@ -217,6 +240,11 @@ function CommandPaletteModal({
     const t = window.setTimeout(() => inputRef.current?.focus(), 0)
     return () => window.clearTimeout(t)
   }, [])
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setActiveIndex(0), 0)
+    return () => window.clearTimeout(t)
+  }, [deferredQuery])
 
   useEffect(() => {
     const it = filtered[activeIndex]
