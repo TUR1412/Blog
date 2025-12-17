@@ -982,6 +982,24 @@ export function RelationsPage() {
   }, [spotlightId])
   const crowdedFocus = spotlightEdgeCount >= 10
 
+  const spotlightDirectPreview = useMemo(() => {
+    if (!spotlightId) return { lines: [] as string[], more: 0 }
+    const edges = getRelationEdgesFor(spotlightId)
+    const lines = edges
+      .map((e) => {
+        const otherId = e.from === spotlightId ? e.to : e.from
+        const other = nodeById.get(otherId)
+        if (!other) return null
+        return `${e.label}：${other.title}`
+      })
+      .filter(Boolean) as string[]
+
+    const max = 4
+    const head = lines.slice(0, max)
+    const more = Math.max(0, lines.length - head.length)
+    return { lines: head, more }
+  }, [nodeById, spotlightId])
+
   const spotlightRelatedIdSet = useMemo(() => {
     if (!spotlightId) return new Set<string>()
     return new Set(getRelatedNodeIds(spotlightId))
@@ -1438,6 +1456,8 @@ export function RelationsPage() {
                 const viewport = graphViewportRef.current
                 if (!viewport) return
 
+                scheduleHoveredId(null)
+
                 graphPanRef.current = {
                   pointerId: e.pointerId,
                   startClientX: e.clientX,
@@ -1539,7 +1559,7 @@ export function RelationsPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                      className="rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass"
+                      className="max-w-[320px] rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass"
                     >
                       {hoveredId && hoveredId !== selectedId ? (
                         <>
@@ -1552,10 +1572,23 @@ export function RelationsPage() {
                       <div className="mt-1 text-muted/70">
                         直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
                       </div>
+
+                      {hoveredId && hoveredId !== selectedId && spotlightDirectPreview.lines.length ? (
+                        <div className="mt-2 border-t border-white/10 pt-2 text-muted/75">
+                          {spotlightDirectPreview.lines.map((x) => (
+                            <div key={x} className="truncate">
+                              · {x}
+                            </div>
+                          ))}
+                          {spotlightDirectPreview.more ? (
+                            <div className="mt-1 text-muted/60">…另 {spotlightDirectPreview.more} 条</div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </motion.div>
                   </AnimatePresence>
                 ) : (
-                  <div className="rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass">
+                  <div className="max-w-[320px] rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass">
                     <div className="text-fg/90">当前：{nodeById.get(selectedId)?.title ?? selectedId}</div>
                     <div className="mt-1 text-muted/70">
                       直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
@@ -1733,8 +1766,14 @@ export function RelationsPage() {
                       data-relation-node=""
                       aria-pressed={active}
                       onClick={() => selectId(n.id)}
-                      onPointerEnter={() => scheduleHoveredId(n.id)}
-                      onPointerLeave={() => scheduleHoveredId(null)}
+                      onPointerEnter={() => {
+                        if (graphPanning) return
+                        scheduleHoveredId(n.id)
+                      }}
+                      onPointerLeave={() => {
+                        if (graphPanning) return
+                        scheduleHoveredId(null)
+                      }}
                       className={cn(
                         nodeChrome(n.tone, active),
                         'transition-opacity duration-200',
@@ -1806,8 +1845,14 @@ export function RelationsPage() {
                     data-relation-node=""
                     aria-pressed={active}
                     onClick={() => selectId(n.id)}
-                    onPointerEnter={() => scheduleHoveredId(n.id)}
-                    onPointerLeave={() => scheduleHoveredId(null)}
+                    onPointerEnter={() => {
+                      if (graphPanning) return
+                      scheduleHoveredId(n.id)
+                    }}
+                    onPointerLeave={() => {
+                      if (graphPanning) return
+                      scheduleHoveredId(null)
+                    }}
                     className={cn(nodeChrome(n.tone, active))}
                     style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: active || spotlight ? 60 : related ? 40 : 20 }}
                     initial={{ opacity: 0, scale: 0.98, y: 6 }}

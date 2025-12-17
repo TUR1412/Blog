@@ -10,13 +10,54 @@ export function AuroraBackdrop() {
       .requestIdleCallback
     const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
 
-    if (ric) {
-      const id = ric(() => setEnhanced(true), { timeout: 1400 })
-      return () => cic?.(id)
+    let disposed = false
+    let scheduled = false
+    let idleId: number | null = null
+    let timeoutId: number | null = null
+
+    const scheduleEnhance = () => {
+      if (scheduled || disposed) return
+      scheduled = true
+
+      if (ric) {
+        idleId = ric(() => {
+          if (disposed) return
+          setEnhanced(true)
+        }, { timeout: 1800 })
+        return
+      }
+
+      timeoutId = window.setTimeout(() => {
+        if (disposed) return
+        setEnhanced(true)
+      }, 980)
     }
 
-    const t = window.setTimeout(() => setEnhanced(true), 980)
-    return () => window.clearTimeout(t)
+    const opts: AddEventListenerOptions = { passive: true }
+
+    const remove = () => {
+      window.removeEventListener('pointerdown', onInput, opts)
+      window.removeEventListener('wheel', onInput, opts)
+      window.removeEventListener('touchstart', onInput, opts)
+      window.removeEventListener('keydown', onInput)
+    }
+
+    const onInput = () => {
+      remove()
+      scheduleEnhance()
+    }
+
+    window.addEventListener('pointerdown', onInput, opts)
+    window.addEventListener('wheel', onInput, opts)
+    window.addEventListener('touchstart', onInput, opts)
+    window.addEventListener('keydown', onInput)
+
+    return () => {
+      disposed = true
+      remove()
+      if (idleId != null) cic?.(idleId)
+      if (timeoutId != null) window.clearTimeout(timeoutId)
+    }
   }, [])
 
   return (
