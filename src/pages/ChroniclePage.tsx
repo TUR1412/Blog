@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowLeft, Bookmark, BookmarkCheck, Copy, Maximize2, Minimize2, Waypoints } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -36,6 +36,10 @@ export function ChroniclePage() {
   const [copied, setCopied] = useState<null | 'outline' | 'location'>(null)
   const [activeSectionId, setActiveSectionId] = useState('h-1')
   const [activeParagraphId, setActiveParagraphId] = useState('p-1-1')
+  const activeSectionRafRef = useRef<number | null>(null)
+  const activeParagraphRafRef = useRef<number | null>(null)
+  const activeSectionNextIdRef = useRef('h-1')
+  const activeParagraphNextIdRef = useRef('p-1-1')
   const [resumeFrom] = useState<ReadingLast | null>(() =>
     readJson<ReadingLast | null>(STORAGE_KEYS.readingLast, null),
   )
@@ -73,16 +77,34 @@ export function ChroniclePage() {
   }, [immersive])
 
   useEffect(() => {
-    const onScroll = () => {
+    let rafId: number | null = null
+
+    const compute = () => {
       const doc = document.documentElement
       const max = doc.scrollHeight - doc.clientHeight
-      if (max <= 0) return setProgress(0)
-      setProgress(Math.max(0, Math.min(100, (doc.scrollTop / max) * 100)))
+      if (max <= 0) {
+        setProgress(0)
+        return
+      }
+      const next = Math.max(0, Math.min(100, Math.round((doc.scrollTop / max) * 100)))
+      setProgress((prev) => (prev === next ? prev : next))
+    }
+
+    const onScroll = () => {
+      if (rafId != null) return
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null
+        compute()
+      })
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
-    return () => window.removeEventListener('scroll', onScroll)
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (rafId != null) window.cancelAnimationFrame(rafId)
+    }
   }, [])
 
   useEffect(() => {
@@ -111,7 +133,13 @@ export function ChroniclePage() {
         if (visible.length === 0) return
         visible.sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))
         const top = visible[0]
-        setActiveSectionId(top.target.id)
+        const nextId = top.target.id
+        activeSectionNextIdRef.current = nextId
+        if (activeSectionRafRef.current != null) return
+        activeSectionRafRef.current = window.requestAnimationFrame(() => {
+          activeSectionRafRef.current = null
+          setActiveSectionId((prev) => (prev === activeSectionNextIdRef.current ? prev : activeSectionNextIdRef.current))
+        })
       },
       {
         threshold: [0, 0.12, 0.25, 0.35, 0.5, 0.75, 1],
@@ -120,7 +148,11 @@ export function ChroniclePage() {
     )
 
     for (const el of elements) observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (activeSectionRafRef.current != null) window.cancelAnimationFrame(activeSectionRafRef.current)
+      activeSectionRafRef.current = null
+    }
   }, [chronicle])
 
   useEffect(() => {
@@ -141,7 +173,15 @@ export function ChroniclePage() {
         if (visible.length === 0) return
         visible.sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))
         const top = visible[0]
-        setActiveParagraphId(top.target.id)
+        const nextId = top.target.id
+        activeParagraphNextIdRef.current = nextId
+        if (activeParagraphRafRef.current != null) return
+        activeParagraphRafRef.current = window.requestAnimationFrame(() => {
+          activeParagraphRafRef.current = null
+          setActiveParagraphId((prev) =>
+            prev === activeParagraphNextIdRef.current ? prev : activeParagraphNextIdRef.current,
+          )
+        })
       },
       {
         threshold: [0, 0.08, 0.16, 0.24, 0.35, 0.5, 0.75, 1],
@@ -150,7 +190,11 @@ export function ChroniclePage() {
     )
 
     for (const el of elements) observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (activeParagraphRafRef.current != null) window.cancelAnimationFrame(activeParagraphRafRef.current)
+      activeParagraphRafRef.current = null
+    }
   }, [chronicle])
 
   useEffect(() => {
