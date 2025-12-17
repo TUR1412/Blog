@@ -37,6 +37,8 @@ export function ChroniclePage() {
   const [copied, setCopied] = useState<null | 'outline' | 'location'>(null)
   const [activeSectionId, setActiveSectionId] = useState('h-1')
   const [activeParagraphId, setActiveParagraphId] = useState('p-1-1')
+  const [flashAnchorId, setFlashAnchorId] = useState<string | null>(null)
+  const flashTimerRef = useRef<number | null>(null)
   const activeSectionRafRef = useRef<number | null>(null)
   const activeParagraphRafRef = useRef<number | null>(null)
   const activeSectionNextIdRef = useRef('h-1')
@@ -229,9 +231,20 @@ export function ChroniclePage() {
       const el = document.getElementById(id)
       if (!el) return
       el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+
+      if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current)
+      setFlashAnchorId(id)
+      flashTimerRef.current = window.setTimeout(() => setFlashAnchorId(null), 950)
     },
     [reduceMotion],
   )
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current != null) window.clearTimeout(flashTimerRef.current)
+      flashTimerRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (!chronicle) return
@@ -416,7 +429,18 @@ export function ChroniclePage() {
                   transition={{ delay: reduceMotion ? 0 : idx * 0.05, type: 'spring', stiffness: 420, damping: 34 }}
                 >
                   <div className="prose prose-xuantian max-w-none">
-                    <h2 className="text-lg font-semibold text-fg">{s.heading}</h2>
+                    <h2
+                      className={cn(
+                        'text-lg font-semibold text-fg',
+                        'relative -mx-2 rounded-xl px-2 py-1',
+                        'transition-[background-color,box-shadow] duration-200',
+                        !reduceMotion && flashAnchorId === `h-${idx + 1}`
+                          ? 'bg-[hsl(var(--accent)/.10)] ring-1 ring-[hsl(var(--accent)/.18)]'
+                          : '',
+                      )}
+                    >
+                      {s.heading}
+                    </h2>
                     {s.paragraphs.map((p, pi) => {
                       const pid = `p-${idx + 1}-${pi + 1}`
                       return (
@@ -426,6 +450,9 @@ export function ChroniclePage() {
                           className={cn(
                             'scroll-mt-28 transition-colors',
                             pid === activeParagraphId && 'rounded-xl bg-white/5 px-4 py-3 outline outline-1 outline-white/10',
+                            !reduceMotion && pid === flashAnchorId
+                              ? 'rounded-xl bg-[hsl(var(--accent2)/.08)] px-4 py-3 outline outline-1 outline-[hsl(var(--accent2)/.18)]'
+                              : '',
                           )}
                         >
                           {p}
