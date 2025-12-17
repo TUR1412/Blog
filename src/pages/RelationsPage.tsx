@@ -1074,6 +1074,16 @@ export function RelationsPage() {
     return set
   }, [spotlightRootPathNodeIds])
 
+  const spotlightRootPathLabeledEdgeKeySet = useMemo(() => {
+    const set = new Set<string>()
+    const max = 4
+    const n = Math.max(0, Math.min(max, spotlightRootPathNodeIds.length - 1))
+    for (let i = 0; i < n; i++) {
+      set.add(edgeKey(spotlightRootPathNodeIds[i], spotlightRootPathNodeIds[i + 1]))
+    }
+    return set
+  }, [spotlightRootPathNodeIds])
+
   const visibleEdgesOrdered = useMemo(() => {
     const hasFocus = Boolean(spotlightId)
     return visibleEdges
@@ -1796,7 +1806,14 @@ export function RelationsPage() {
                       const dash =
                         tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
 
-                      const showLabel = hasFocus && !reduceMotion && !heavyGraph && tier === 'path' && !crowdedFocus
+                      const k = edgeKey(e.from, e.to)
+                      const showLabel =
+                        hasFocus &&
+                        !reduceMotion &&
+                        !heavyGraph &&
+                        tier === 'path' &&
+                        !crowdedFocus &&
+                        spotlightRootPathLabeledEdgeKeySet.has(k)
                       const labelText = showLabel ? e.label : ''
                       const label = showLabel && labelText ? edgeLabelPos(a, b, `${e.id}.lbl`, graphNodeBox) : null
                       const labelW = showLabel && labelText ? Math.min(28, Math.max(10, labelText.length * 2.2 + 7)) : 0
