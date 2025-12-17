@@ -1555,6 +1555,13 @@ export function RelationsPage() {
                           transition={{ type: 'spring', stiffness: 560, damping: 38 }}
                         />
                       ) : null}
+                      {!reduceMotion && hoveredId && spotlight && !active ? (
+                        <motion.span
+                          layoutId="relationNodeFocus"
+                          className="pointer-events-none absolute inset-0 rounded-2xl border border-[hsl(var(--accent2)/.26)] bg-[radial-gradient(circle_at_22%_15%,hsl(var(--accent2)/.12),transparent_66%)] ring-1 ring-[hsl(var(--accent2)/.16)]"
+                          transition={{ type: 'spring', stiffness: 560, damping: 38 }}
+                        />
+                      ) : null}
                       <div className="relative z-10">
                         <div className="flex items-center gap-2">
                           <span
@@ -1622,6 +1629,13 @@ export function RelationsPage() {
                       <motion.span
                         layoutId="relationNodeActive"
                         className="pointer-events-none absolute inset-0 rounded-2xl border border-[hsl(var(--accent)/.32)] bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/.14),transparent_66%)] ring-1 ring-[hsl(var(--accent)/.18)]"
+                        transition={{ type: 'spring', stiffness: 560, damping: 38 }}
+                      />
+                    ) : null}
+                    {!reduceMotion && hoveredId && spotlight && !active ? (
+                      <motion.span
+                        layoutId="relationNodeFocus"
+                        className="pointer-events-none absolute inset-0 rounded-2xl border border-[hsl(var(--accent2)/.26)] bg-[radial-gradient(circle_at_22%_15%,hsl(var(--accent2)/.12),transparent_66%)] ring-1 ring-[hsl(var(--accent2)/.16)]"
                         transition={{ type: 'spring', stiffness: 560, damping: 38 }}
                       />
                     ) : null}
