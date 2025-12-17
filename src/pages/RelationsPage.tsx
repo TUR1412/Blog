@@ -212,6 +212,35 @@ function edgePath(
   return `M ${a2.x} ${a2.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b2.x} ${b2.y}`
 }
 
+function edgeLabelPos(a: { x: number; y: number }, b: { x: number; y: number }, seed?: string, box?: EdgeNodeBox) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const dist = Math.hypot(dx, dy)
+  if (!Number.isFinite(dist) || dist <= 0.001) return { x: a.x, y: a.y }
+
+  let a2 = a
+  let b2 = b
+  if (box && Number.isFinite(box.halfW) && Number.isFinite(box.halfH) && box.halfW > 0 && box.halfH > 0) {
+    a2 = edgePointFromBox(a, { x: dx, y: dy }, box)
+    b2 = edgePointFromBox(b, { x: -dx, y: -dy }, box)
+  }
+
+  const ddx = b2.x - a2.x
+  const ddy = b2.y - a2.y
+  const d2 = Math.hypot(ddx, ddy) || 0.001
+  const ux = ddx / d2
+  const uy = ddy / d2
+  const px = -uy
+  const py = ux
+
+  const signed = (seed ? hash01(seed) : 0.5) * 2 - 1
+  const offset = Math.min(4.2, Math.max(2.0, d2 * 0.07)) * signed
+
+  const mx = (a2.x + b2.x) * 0.5
+  const my = (a2.y + b2.y) * 0.5
+  return { x: mx + px * offset, y: my + py * offset }
+}
+
 function edgeKey(a: string, b: string) {
   return a < b ? `${a}~~${b}` : `${b}~~${a}`
 }
@@ -1697,125 +1726,163 @@ export function RelationsPage() {
                     {visibleEdgesOrdered.map(({ e, tier }) => {
                       const a = nodeById.get(e.from)?.pos
                       const b = nodeById.get(e.to)?.pos
-                    if (!a || !b) return null
+                      if (!a || !b) return null
 
-                    const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
+                      const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
 
-                    const hasFocus = Boolean(spotlightId)
-                    const connected = tier === 'primary'
-                    const inRootPath = tier === 'path'
+                      const hasFocus = Boolean(spotlightId)
+                      if (hasFocus && heavyGraph && tier === 'background') return null
 
-                    const transition = reduceMotion
-                      ? undefined
-                      : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
-                    const showGlow = !reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus
-                    const showFlow = !reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))
+                      const connected = tier === 'primary'
+                      const inRootPath = tier === 'path'
 
-                    const idleOpacity = heavyGraph ? 0.1 : 0.16
-                    const baseOpacity =
-                      !hasFocus
-                        ? idleOpacity
-                        : tier === 'primary'
+                      const transition = reduceMotion
+                        ? undefined
+                        : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
+                      const showGlow =
+                        !reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus
+                      const showFlow = !reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))
+
+                      const idleOpacity = heavyGraph ? 0.1 : 0.16
+                      const baseOpacity =
+                        !hasFocus
+                          ? idleOpacity
+                          : tier === 'primary'
+                            ? crowdedFocus
+                              ? 0.74
+                              : 0.9
+                            : tier === 'path'
+                              ? heavyGraph
+                                ? 0.28
+                                : 0.32
+                            : tier === 'secondary'
+                              ? heavyGraph
+                                ? 0.07
+                                : 0.12
+                              : heavyGraph
+                                ? 0.01
+                                : 0.018
+                      const baseStroke =
+                        tier === 'primary'
                           ? crowdedFocus
-                            ? 0.74
-                            : 0.9
+                            ? 'hsl(var(--accent) / 0.62)'
+                            : 'hsl(var(--accent) / 0.78)'
+                          : tier === 'path'
+                            ? 'hsl(var(--accent2) / 0.66)'
+                          : tier === 'secondary'
+                            ? 'hsl(var(--muted) / 0.62)'
+                            : 'hsl(var(--muted) / 0.50)'
+                      const baseStrokeWidth =
+                        tier === 'primary'
+                          ? 0.5
                           : tier === 'path'
                             ? heavyGraph
-                              ? 0.28
-                              : 0.32
-                          : tier === 'secondary'
-                            ? heavyGraph
-                              ? 0.07
-                              : 0.12
-                            : heavyGraph
-                              ? 0.01
-                              : 0.018
-                    const baseStroke =
-                      tier === 'primary'
-                        ? crowdedFocus
-                          ? 'hsl(var(--accent) / 0.62)'
-                          : 'hsl(var(--accent) / 0.78)'
-                        : tier === 'path'
-                          ? 'hsl(var(--accent2) / 0.66)'
-                        : tier === 'secondary'
-                          ? 'hsl(var(--muted) / 0.62)'
-                          : 'hsl(var(--muted) / 0.50)'
-                    const baseStrokeWidth =
-                      tier === 'primary'
-                        ? 0.5
-                        : tier === 'path'
-                          ? heavyGraph
-                            ? 0.32
-                            : 0.34
-                        : tier === 'secondary'
-                          ? heavyGraph
-                            ? 0.20
-                            : 0.22
-                          : heavyGraph
-                            ? 0.16
-                            : 0.18
+                              ? 0.32
+                              : 0.34
+                            : tier === 'secondary'
+                              ? heavyGraph
+                                ? 0.20
+                                : 0.22
+                              : heavyGraph
+                                ? 0.16
+                                : 0.18
 
-                    const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
-                    const dash =
-                      tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
+                      const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
+                      const dash =
+                        tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
 
-                    return (
-                      <g key={e.id}>
-                        {showGlow ? (
+                      const showLabel = hasFocus && !reduceMotion && !heavyGraph && tier === 'path' && !crowdedFocus
+                      const labelText = showLabel ? e.label : ''
+                      const label = showLabel && labelText ? edgeLabelPos(a, b, `${e.id}.lbl`, graphNodeBox) : null
+                      const labelW = showLabel && labelText ? Math.min(28, Math.max(10, labelText.length * 2.2 + 7)) : 0
+                      const labelH = 6
+
+                      return (
+                        <g key={e.id}>
+                          {showGlow ? (
+                            <path
+                              d={d}
+                              style={{
+                                opacity: 0.12,
+                                stroke: 'hsl(var(--accent2) / 0.72)',
+                                strokeWidth: 0.9,
+                                transition,
+                                filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
+                              }}
+                              vectorEffect="non-scaling-stroke"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          ) : null}
                           <path
                             d={d}
                             style={{
-                              opacity: 0.12,
-                              stroke: 'hsl(var(--accent2) / 0.72)',
-                              strokeWidth: 0.9,
+                              opacity: baseOpacity,
+                              stroke: baseStroke,
+                              strokeWidth: baseStrokeWidth,
                               transition,
-                              filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
+                              strokeDasharray: dash,
+                              filter: showGlow
+                                ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
+                                : showPathGlow
+                                  ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
+                                  : undefined,
                             }}
                             vectorEffect="non-scaling-stroke"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                           />
-                        ) : null}
-                        <path
-                          d={d}
-                          style={{
-                            opacity: baseOpacity,
-                            stroke: baseStroke,
-                            strokeWidth: baseStrokeWidth,
-                            transition,
-                            strokeDasharray: dash,
-                            filter: showGlow
-                              ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
-                              : showPathGlow
-                                ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
-                                : undefined,
-                          }}
-                          vectorEffect="non-scaling-stroke"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        {showFlow ? (
-                          <path
-                            d={d}
-                            className="xuantian-edge-flow"
-                            style={{
-                              opacity: 0.82,
-                              stroke: 'hsl(var(--accent2) / 0.70)',
-                              strokeWidth: baseStrokeWidth + 0.08,
-                              strokeDasharray: '1.2 2.1',
-                              transition,
-                              filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
-                            }}
-                            vectorEffect="non-scaling-stroke"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        ) : null}
-                      </g>
-                    )
+                          {showFlow ? (
+                            <path
+                              d={d}
+                              className="xuantian-edge-flow"
+                              style={{
+                                opacity: 0.82,
+                                stroke: 'hsl(var(--accent2) / 0.70)',
+                                strokeWidth: baseStrokeWidth + 0.08,
+                                strokeDasharray: '1.2 2.1',
+                                transition,
+                                filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
+                              }}
+                              vectorEffect="non-scaling-stroke"
+                              fill="none"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          ) : null}
+
+                          {label ? (
+                            <g
+                              transform={`translate(${label.x} ${label.y})`}
+                              style={{ opacity: 0.92, transition }}
+                            >
+                              <rect
+                                x={-labelW / 2}
+                                y={-labelH / 2}
+                                width={labelW}
+                                height={labelH}
+                                rx={2.4}
+                                ry={2.4}
+                                fill="hsl(var(--bg) / 0.72)"
+                                stroke="hsl(var(--border) / 0.70)"
+                                strokeWidth={0.28}
+                              />
+                              <text
+                                x="0"
+                                y="0.55"
+                                textAnchor="middle"
+                                fontSize="2.35"
+                                fill="hsl(var(--fg) / 0.86)"
+                                style={{ letterSpacing: 0.15 }}
+                              >
+                                {labelText}
+                              </text>
+                            </g>
+                          ) : null}
+                        </g>
+                      )
                     })}
                   </g>
                 </svg>
