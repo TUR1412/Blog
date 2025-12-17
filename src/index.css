@@ -23,6 +23,20 @@
   }
 }
 
+@keyframes xuantian-edge-burst {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 0;
+  }
+  28% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -18;
+  }
+}
+
 @keyframes xuantian-node-pulse {
   0% {
     opacity: 0;
@@ -164,6 +178,10 @@ html.theme-light {
 
   .xuantian-edge-flow {
     animation: xuantian-edge-flow 1.25s linear infinite;
+  }
+
+  .xuantian-edge-burst {
+    animation: xuantian-edge-burst 540ms cubic-bezier(0.22, 1, 0.36, 1) 1;
   }
 
   .xuantian-node-pulse {

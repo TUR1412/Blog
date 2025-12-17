@@ -403,6 +403,8 @@ export function RelationsPage() {
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [pulse, setPulse] = useState<{ id: string; at: number } | null>(null)
   const pulseTimerRef = useRef<number | null>(null)
+  const [edgePulse, setEdgePulse] = useState<{ id: string; at: number } | null>(null)
+  const edgePulseTimerRef = useRef<number | null>(null)
 
   const [graphNodeBox, setGraphNodeBox] = useState<EdgeNodeBox>({ halfW: 9.2, halfH: 3.8, pad: 1.0 })
 
@@ -425,6 +427,7 @@ export function RelationsPage() {
   useEffect(() => {
     return () => {
       if (pulseTimerRef.current != null) window.clearTimeout(pulseTimerRef.current)
+      if (edgePulseTimerRef.current != null) window.clearTimeout(edgePulseTimerRef.current)
     }
   }, [])
 
@@ -898,6 +901,9 @@ export function RelationsPage() {
       setPulse({ id, at: Date.now() })
       if (pulseTimerRef.current != null) window.clearTimeout(pulseTimerRef.current)
       pulseTimerRef.current = window.setTimeout(() => setPulse(null), 560)
+      setEdgePulse({ id, at: Date.now() })
+      if (edgePulseTimerRef.current != null) window.clearTimeout(edgePulseTimerRef.current)
+      edgePulseTimerRef.current = window.setTimeout(() => setEdgePulse(null), 540)
       hapticTap()
     },
     [nodeById, searchParams, setSearchParams],
@@ -1150,6 +1156,18 @@ export function RelationsPage() {
     return [...background, ...secondary, ...path, ...primary]
   }, [spotlightClusterIdSet, spotlightId, spotlightRootPathEdgeKeySet, visibleEdges])
 
+  const selectedRootPathNodeIds = useMemo(() => {
+    return shortestPathNodeIds(relationAdjacency, selectedId, 'xuan')
+  }, [relationAdjacency, selectedId])
+
+  const selectedRootPathEdgeKeySet = useMemo(() => {
+    const set = new Set<string>()
+    for (let i = 0; i < selectedRootPathNodeIds.length - 1; i++) {
+      set.add(edgeKey(selectedRootPathNodeIds[i], selectedRootPathNodeIds[i + 1]))
+    }
+    return set
+  }, [selectedRootPathNodeIds])
+
   const hideBackgroundEdges = Boolean(spotlightId && (heavyGraph || visibleEdges.length > 64 || crowdedFocus))
 
   const edgeRenderBuckets = useMemo(() => {
@@ -1242,6 +1260,12 @@ export function RelationsPage() {
     const dash = tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
 
     const k = edgeKey(e.from, e.to)
+    const showBurst =
+      !reduceMotion &&
+      !heavyGraph &&
+      Boolean(edgePulse && edgePulse.id === selectedId) &&
+      (hoveredId == null || hoveredId === selectedId) &&
+      (e.from === selectedId || e.to === selectedId || selectedRootPathEdgeKeySet.has(k))
     const edgeDist = Math.hypot(b.x - a.x, b.y - a.y)
     const showLabel =
       hasFocus &&
@@ -1314,6 +1338,25 @@ export function RelationsPage() {
             strokeLinejoin="round"
           />
         ) : null}
+        {showBurst ? (
+          <path
+            key={`burst:${edgePulse?.at ?? 0}:${e.id}`}
+            d={d}
+            className="xuantian-edge-burst"
+            style={{
+              opacity: 0,
+              stroke: 'hsl(var(--accent2) / 0.92)',
+              strokeWidth: baseStrokeWidth + 0.34,
+              strokeDasharray: '2.2 3.2',
+              transition,
+              filter: 'drop-shadow(0 0 14px hsl(var(--accent2) / 0.20))',
+            }}
+            vectorEffect="non-scaling-stroke"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
 
         {label ? (
           <g
@@ -1346,10 +1389,6 @@ export function RelationsPage() {
       </g>
     )
   }
-
-  const selectedRootPathNodeIds = useMemo(() => {
-    return shortestPathNodeIds(relationAdjacency, selectedId, 'xuan')
-  }, [relationAdjacency, selectedId])
 
   const annotatedEntries = useMemo(() => {
     const q = safeLower(appliedAnnoQuery.trim())
