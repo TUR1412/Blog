@@ -12,6 +12,7 @@ import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
+import { prefetchRoute } from '../routes/prefetch'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 type ReadingLast = {
@@ -242,11 +243,17 @@ export function ChroniclePage() {
 
   if (!chronicle) {
     return (
-      <div className="mx-auto max-w-[820px]">
+          <div className="mx-auto max-w-[820px]">
         <Card className="p-8">
           <SectionHeading title="此篇不在卷中" subtitle="可能是旧地址，也可能是你走错了门。" />
           <div className="mt-6">
-            <Link to="/chronicles" className="focus-ring tap inline-flex items-center gap-2 text-sm">
+            <Link
+              to="/chronicles"
+              onPointerEnter={() => prefetchRoute('/chronicles')}
+              onPointerDown={() => prefetchRoute('/chronicles')}
+              onFocus={() => prefetchRoute('/chronicles')}
+              className="focus-ring tap inline-flex items-center gap-2 text-sm"
+            >
               <ArrowLeft className="h-4 w-4" />
               回到纪事
             </Link>
@@ -335,7 +342,13 @@ export function ChroniclePage() {
         <div className={immersive ? 'lg:col-span-12' : 'lg:col-span-8'}>
           <Card className="p-7 md:p-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <Link to="/chronicles" className="focus-ring tap inline-flex items-center gap-2 text-sm text-muted/80 hover:text-fg">
+              <Link
+                to="/chronicles"
+                onPointerEnter={() => prefetchRoute('/chronicles')}
+                onPointerDown={() => prefetchRoute('/chronicles')}
+                onFocus={() => prefetchRoute('/chronicles')}
+                className="focus-ring tap inline-flex items-center gap-2 text-sm text-muted/80 hover:text-fg"
+              >
                 <ArrowLeft className="h-4 w-4" />
                 回到纪事
               </Link>
@@ -555,7 +568,13 @@ function BookMarkToNotesIcon() {
 
 function ButtonLinkToNotes() {
   return (
-    <Link to="/notes" className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-2 text-sm font-medium text-fg/90 hover:bg-white/10">
+    <Link
+      to="/notes"
+      onPointerEnter={() => prefetchRoute('/notes')}
+      onPointerDown={() => prefetchRoute('/notes')}
+      onFocus={() => prefetchRoute('/notes')}
+      className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-2 text-sm font-medium text-fg/90 hover:bg-white/10"
+    >
       去打开札记
       <ArrowRightIcon />
     </Link>
