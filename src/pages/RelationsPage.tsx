@@ -82,7 +82,7 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
     'transition-[background-color,border-color,box-shadow,filter] duration-200 hover:shadow-lift'
   const box =
     'w-[170px] max-w-[52vw] rounded-2xl border px-3 py-2 ' +
-    'bg-[linear-gradient(180deg,hsl(var(--card)/.92),hsl(var(--bg)/.72))]'
+    'bg-[linear-gradient(180deg,hsl(var(--card)/.98),hsl(var(--card)/.90))]'
   const blur = ''
   if (t === 'warn') {
     return cn(
@@ -828,6 +828,15 @@ export function RelationsPage() {
   }, [selected])
 
   const spotlightId = hoveredId || selectedId
+  const spotlightEdgeCount = useMemo(() => {
+    if (!spotlightId) return 0
+    let count = 0
+    for (const e of relationEdges) {
+      if (e.from === spotlightId || e.to === spotlightId) count += 1
+    }
+    return count
+  }, [spotlightId])
+  const crowdedFocus = spotlightEdgeCount >= 10
 
   const spotlightRelatedIdSet = useMemo(() => {
     if (!spotlightId) return new Set<string>()
@@ -1388,8 +1397,8 @@ export function RelationsPage() {
                     const transition = reduceMotion
                       ? undefined
                       : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
-                    const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected
-                    const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected
+                    const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected && !crowdedFocus
+                    const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected && !crowdedFocus
 
                     const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
 
@@ -1398,7 +1407,9 @@ export function RelationsPage() {
                       !hasFocus
                         ? idleOpacity
                         : tier === 'primary'
-                          ? 0.9
+                          ? crowdedFocus
+                            ? 0.74
+                            : 0.9
                           : tier === 'path'
                             ? heavyGraph
                               ? 0.16
@@ -1410,7 +1421,9 @@ export function RelationsPage() {
                             : 0.012
                     const baseStroke =
                       tier === 'primary'
-                        ? 'hsl(var(--accent) / 0.78)'
+                        ? crowdedFocus
+                          ? 'hsl(var(--accent) / 0.62)'
+                          : 'hsl(var(--accent) / 0.78)'
                         : tier === 'path'
                           ? 'hsl(var(--accent2) / 0.62)'
                         : tier === 'secondary'
