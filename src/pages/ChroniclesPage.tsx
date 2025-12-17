@@ -10,7 +10,7 @@ import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { chronicles, getAllTags } from '../content/chronicles'
+import { chronicleIndex, getAllTags } from '../content/chronicleIndex'
 import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
@@ -40,18 +40,18 @@ export function ChroniclesPage() {
   }, [selectedTag])
 
   const chronicleMap = useMemo(() => {
-    return new Map(chronicles.map((c) => [c.slug, c] as const))
+    return new Map(chronicleIndex.map((c) => [c.slug, c] as const))
   }, [])
 
   const bookmarkedChronicles = useMemo(() => {
     return bookmarks
       .map((s) => chronicleMap.get(s))
-      .filter((c): c is (typeof chronicles)[number] => Boolean(c))
+      .filter((c): c is (typeof chronicleIndex)[number] => Boolean(c))
   }, [bookmarks, chronicleMap])
 
   const filtered = useMemo(() => {
     const q = query.trim()
-    const source = onlyBookmarks ? bookmarkedChronicles : chronicles
+    const source = onlyBookmarks ? bookmarkedChronicles : chronicleIndex
 
     return source.filter((c) => {
       const tagOk = selectedTag === '全部' ? true : c.tags.includes(selectedTag)

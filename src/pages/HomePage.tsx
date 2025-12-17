@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { chronicles } from '../content/chronicles'
+import { chronicleIndex } from '../content/chronicleIndex'
 import { timeline, timelineLayerLabel } from '../content/timeline'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
@@ -60,7 +60,7 @@ function SparkBurstLayer({ bursts }: { bursts: Burst[] }) {
 export function HomePage() {
   const { open } = useCommandPalette()
   const reduceMotion = useReducedMotion() ?? false
-  const featured = useMemo(() => chronicles.slice(-3).reverse(), [])
+  const featured = useMemo(() => chronicleIndex.slice(-3).reverse(), [])
   const [qi, setQi] = useState(72)
   const [bursts, setBursts] = useState<Burst[]>([])
   const [quoteIndex, setQuoteIndex] = useState(0)

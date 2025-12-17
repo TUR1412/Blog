@@ -3,7 +3,7 @@ import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, ScrollText, Searc
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { chronicles } from '../../content/chronicles'
+import { chronicleIndex } from '../../content/chronicleIndex'
 import { cn } from '../../lib/cn'
 import { prefetchRoute } from '../../routes/prefetch'
 
@@ -182,7 +182,7 @@ function CommandPaletteModal({
       },
     ]
 
-    const chapters: CommandItem[] = chronicles.map((c) => ({
+    const chapters: CommandItem[] = chronicleIndex.map((c) => ({
       id: `chronicle-${c.slug}`,
       title: c.title,
       subtitle: c.dateText,
