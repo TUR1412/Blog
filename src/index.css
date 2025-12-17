@@ -170,4 +170,58 @@ html.theme-light {
   html.theme-light .xuantian-md > p:first-of-type::first-letter {
     text-shadow: 0 18px 50px rgba(0, 0, 0, 0.14);
   }
+
+  /* 经卷观：检索命中（札记/批注馆/洞府批注） */
+  .xuantian-md mark[data-x-hit] {
+    padding: 0.02em 0.14em;
+    border-radius: 0.45em;
+    border: 1px solid hsl(var(--border) / 0.6);
+    background: linear-gradient(90deg, hsl(var(--accent) / 0.18), hsl(var(--accent2) / 0.14));
+    color: hsl(var(--fg) / 0.96);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .xuantian-md mark[data-x-hit][data-x-active='1'] {
+    border-color: hsl(var(--accent) / 0.36);
+    background: linear-gradient(90deg, hsl(var(--accent) / 0.32), hsl(var(--accent2) / 0.26));
+    box-shadow:
+      0 0 0 4px hsl(var(--accent) / 0.10),
+      0 14px 48px rgba(0, 0, 0, 0.28);
+  }
+
+  html.theme-light .xuantian-md mark[data-x-hit] {
+    border-color: hsl(var(--border) / 0.75);
+    background: linear-gradient(90deg, hsl(var(--accent) / 0.18), hsl(var(--accent2) / 0.14));
+    color: hsl(var(--fg) / 0.95);
+  }
+
+  html.theme-light .xuantian-md mark[data-x-hit][data-x-active='1'] {
+    border-color: hsl(var(--accent2) / 0.38);
+    box-shadow:
+      0 0 0 4px hsl(var(--accent2) / 0.10),
+      0 12px 40px rgba(0, 0, 0, 0.12);
+  }
+
+  /* 经卷观：锚点跳转“落印”提示（ToC/# 内链） */
+  .xuantian-md [data-x-flash] {
+    outline: 1px solid hsl(var(--accent2) / 0.18);
+    background: hsl(var(--accent2) / 0.06);
+    border-radius: 0.9rem;
+    box-shadow: 0 0 0 4px hsl(var(--accent2) / 0.08);
+    transition:
+      outline-color 180ms ease,
+      background-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  html.theme-light .xuantian-md [data-x-flash] {
+    outline-color: hsl(var(--accent2) / 0.26);
+    background: hsl(var(--accent2) / 0.08);
+    box-shadow: 0 0 0 4px hsl(var(--accent2) / 0.10);
+  }
 }

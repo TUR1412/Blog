@@ -321,6 +321,12 @@ function buildComponents(opts: { idPrefix: string }): Components {
             if (!el) return
             const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
             el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+
+            const token = String(Date.now())
+            el.setAttribute('data-x-flash', token)
+            window.setTimeout(() => {
+              if (el.getAttribute('data-x-flash') === token) el.removeAttribute('data-x-flash')
+            }, 950)
           }}
         >
           {children}
