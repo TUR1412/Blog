@@ -31,16 +31,17 @@ const NotFoundPage = lazy(() =>
 
 function RouteTransition({ children, enableMotion }: { children: React.ReactNode; enableMotion: boolean }) {
   const reduceMotion = useReducedMotion()
+  const enable = Boolean(enableMotion && !reduceMotion)
   return (
     <motion.div
       className="relative"
-      style={{ willChange: 'transform, opacity' }}
-      initial={reduceMotion || !enableMotion ? false : { opacity: 0, y: 12 }}
+      style={enable ? { willChange: 'transform, opacity' } : undefined}
+      initial={!enable ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
       transition={reduceMotion ? { duration: 0.12 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      {!reduceMotion && enableMotion ? (
+      {enable ? (
         <motion.div
           aria-hidden="true"
           className="pointer-events-none absolute left-0 right-0 top-0 h-[2px] origin-left bg-[linear-gradient(90deg,transparent,hsl(var(--accent)/.70),hsl(var(--accent2)/.60),transparent)] opacity-0"

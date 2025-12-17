@@ -406,7 +406,7 @@ export function ChroniclesPage() {
                   <motion.div
                     key={c.slug}
                     layout="position"
-                    style={{ willChange: 'transform, opacity' }}
+                    style={reduceMotion || heavyList ? undefined : { willChange: 'transform, opacity' }}
                     initial={reduceMotion || heavyList ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={reduceMotion || heavyList ? { opacity: 0 } : { opacity: 0, y: -8 }}
