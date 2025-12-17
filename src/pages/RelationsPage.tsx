@@ -1318,8 +1318,9 @@ export function RelationsPage() {
       Boolean(edgePulse && edgePulse.id === selectedId) &&
       (hoveredId == null || hoveredId === selectedId) &&
       (e.from === selectedId || e.to === selectedId || selectedRootPathEdgeKeySet.has(k))
+    const showLane = Boolean(!reduceMotion && hasFocus && tier === 'path' && !heavyGraph)
     const ends =
-      !heavyGraph && !crowdedFocus && !opts?.unmasked && (connected || inRootPath) ? edgeEnds(a, b, graphNodeBox) : null
+      !heavyGraph && !opts?.unmasked && (inRootPath || (connected && !crowdedFocus)) ? edgeEnds(a, b, graphNodeBox) : null
     const edgeDist = Math.hypot(b.x - a.x, b.y - a.y)
     const showLabel =
       hasFocus &&
@@ -1339,6 +1340,22 @@ export function RelationsPage() {
 
     return (
       <g key={e.id}>
+        {showLane ? (
+          <path
+            d={d}
+            style={{
+              opacity: crowdedFocus ? 0.11 : 0.16,
+              stroke: 'hsl(var(--accent2) / 0.22)',
+              strokeWidth: baseStrokeWidth + (crowdedFocus ? 0.62 : 0.88),
+              transition,
+              filter: crowdedFocus ? undefined : 'drop-shadow(0 0 12px hsl(var(--accent2) / 0.10))',
+            }}
+            vectorEffect="non-scaling-stroke"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
         {showGlow ? (
           <path
             d={d}
