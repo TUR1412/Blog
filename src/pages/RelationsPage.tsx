@@ -397,6 +397,7 @@ export function RelationsPage() {
   const hoveredRafRef = useRef<number | null>(null)
   const graphViewportRef = useRef<HTMLDivElement | null>(null)
   const graphStageRef = useRef<HTMLDivElement | null>(null)
+  const graphHoveringRef = useRef(false)
   const graphViewRef = useRef({ x: 0, y: 0, scale: 1 })
   const graphFlyRef = useRef<{ rafId: number } | null>(null)
   const graphTransformTimerRef = useRef<number | null>(null)
@@ -411,6 +412,7 @@ export function RelationsPage() {
   } | null>(null)
   const graphRafRef = useRef<number | null>(null)
   const [graphPanning, setGraphPanning] = useState(false)
+  const [revealSecondaryHeld, setRevealSecondaryHeld] = useState(false)
   const [storedSelected, setStoredSelected] = useLocalStorageState<string>(
     STORAGE_KEYS.relationsSelected,
     'xuan',
@@ -468,6 +470,50 @@ export function RelationsPage() {
     return () => {
       if (pulseTimerRef.current != null) window.clearTimeout(pulseTimerRef.current)
       if (edgePulseTimerRef.current != null) window.clearTimeout(edgePulseTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    const isTextInput = (target: EventTarget | null) => {
+      const el = target as HTMLElement | null
+      if (!el) return false
+      if (el.isContentEditable) return true
+      const tag = el.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+      return Boolean(el.closest('input, textarea, select, [contenteditable="true"]'))
+    }
+
+    const setReveal = (next: boolean) => {
+      setRevealSecondaryHeld((prev) => (prev === next ? prev : next))
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) return
+      if (!graphHoveringRef.current) return
+      if (isTextInput(e.target)) return
+
+      if (e.code === 'Space') {
+        e.preventDefault()
+        setReveal(true)
+        return
+      }
+
+      if (e.key === 'Alt') setReveal(true)
+    }
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.key === 'Alt') setReveal(false)
+    }
+
+    const onBlur = () => setReveal(false)
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlur)
     }
   }, [])
 
@@ -1242,7 +1288,8 @@ export function RelationsPage() {
 
     const connected = tier === 'primary'
     const inRootPath = tier === 'path'
-    const hideSecondary = Boolean(hasFocus && tier === 'secondary' && hideSecondaryEdges)
+    const revealSecondary = Boolean(hasFocus && tier === 'secondary' && revealSecondaryHeld && hideSecondaryEdges)
+    const hideSecondary = Boolean(hasFocus && tier === 'secondary' && hideSecondaryEdges && !revealSecondaryHeld)
 
     const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
 
@@ -1274,6 +1321,7 @@ export function RelationsPage() {
     let baseOpacity = baseOpacityRaw
     if (hasFocus && tier === 'secondary') baseOpacity *= heavyGraph ? 0.78 : 0.72
     if (hideSecondary) baseOpacity = 0
+    if (revealSecondary) baseOpacity = Math.min(0.4, baseOpacity * 2.1)
     if (opts?.unmasked && hasFocus) baseOpacity = Math.min(1, baseOpacity * 1.08)
 
     const baseStroke =
@@ -1910,17 +1958,24 @@ export function RelationsPage() {
               subtitle="线=直连；徽记：焦点/根/牵连/回轩路。亮不必直连，读徽记更准。"
             />
 
-            <div
-              ref={graphViewportRef}
-              className={cn(
-                'relative mt-4 h-[520px] overflow-hidden rounded-xl border border-border/60 bg-white/3',
-                'select-none touch-none',
-                graphPanning ? 'cursor-grabbing' : 'cursor-grab',
-              )}
-              onPointerDown={(e) => {
-                if (e.button !== 0) return
-                const target = e.target as HTMLElement | null
-                if (target?.closest('button, a, input, textarea, select, [data-graph-no-pan]')) return
+              <div
+                ref={graphViewportRef}
+                className={cn(
+                  'relative mt-4 h-[520px] overflow-hidden rounded-xl border border-border/60 bg-white/3',
+                  'select-none touch-none',
+                  graphPanning ? 'cursor-grabbing' : 'cursor-grab',
+                )}
+                onPointerEnter={() => {
+                  graphHoveringRef.current = true
+                }}
+                onPointerLeave={() => {
+                  graphHoveringRef.current = false
+                  setRevealSecondaryHeld((prev) => (prev ? false : prev))
+                }}
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return
+                  const target = e.target as HTMLElement | null
+                  if (target?.closest('button, a, input, textarea, select, [data-graph-no-pan]')) return
 
                 const viewport = graphViewportRef.current
                 if (!viewport) return
@@ -2048,6 +2103,13 @@ export function RelationsPage() {
                             : hideBackgroundEdges
                               ? '高密度：远处背景线已收起（不影响直连与回轩路）'
                               : '高密度：次要牵连线已收声（不影响直连与回轩路）'}
+                          {hideSecondaryEdges ? (
+                            <div className="mt-1 text-[10px] text-muted/60">
+                              {revealSecondaryHeld
+                                ? '临时显影：次要牵连已显（松开 Alt/Space 即退场）'
+                                : '想看次要牵连：鼠标在谱面上按住 Alt 或 Space 临时显影'}
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                       <div className="mt-2 hidden flex-wrap items-center gap-1 sm:flex">
