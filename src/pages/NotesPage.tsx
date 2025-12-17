@@ -63,6 +63,8 @@ export function NotesPage() {
   const [activeHitIndex, setActiveHitIndex] = useState(0)
   const [handledAnchor, setHandledAnchor] = useState('')
   const [activeHeadingId, setActiveHeadingId] = useState('')
+  const activeHeadingRafRef = useRef<number | null>(null)
+  const activeHeadingNextIdRef = useRef('')
 
   const flashMessage = (msg: string) => {
     if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
@@ -249,7 +251,13 @@ export function NotesPage() {
           if (visible.length === 0) return
           visible.sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))
           const top = visible[0]
-          setActiveHeadingId(top.target.id)
+          const nextId = top.target.id
+          activeHeadingNextIdRef.current = nextId
+          if (activeHeadingRafRef.current != null) return
+          activeHeadingRafRef.current = window.requestAnimationFrame(() => {
+            activeHeadingRafRef.current = null
+            setActiveHeadingId((prev) => (prev === activeHeadingNextIdRef.current ? prev : activeHeadingNextIdRef.current))
+          })
         },
         {
           threshold: [0, 0.1, 0.2, 0.35, 0.5, 0.75, 1],
@@ -263,6 +271,8 @@ export function NotesPage() {
     return () => {
       window.clearTimeout(t)
       observer?.disconnect()
+      if (activeHeadingRafRef.current != null) window.cancelAnimationFrame(activeHeadingRafRef.current)
+      activeHeadingRafRef.current = null
     }
   }, [toc, view])
 
