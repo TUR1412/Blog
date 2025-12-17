@@ -79,7 +79,7 @@ function toneToken(tone?: RelationTone) {
 function nodeChrome(tone?: RelationTone, active?: boolean) {
   const t = toneToken(tone)
   const base =
-    'focus-ring group absolute -translate-x-1/2 -translate-y-1/2 text-left ' +
+    'focus-ring tap group absolute -translate-x-1/2 -translate-y-1/2 text-left ' +
     'transform-gpu transition-[background-color,border-color,box-shadow,filter,transform] duration-200 hover:shadow-lift'
   const box =
     'w-[170px] max-w-[52vw] rounded-2xl border px-3 py-2 ' +
