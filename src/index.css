@@ -23,6 +23,21 @@
   }
 }
 
+@keyframes xuantian-node-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  38% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.10);
+  }
+}
+
 :root {
   --bg: 231 38% 7%;
   --fg: 210 40% 98%;
@@ -149,6 +164,20 @@ html.theme-light {
 
   .xuantian-edge-flow {
     animation: xuantian-edge-flow 1.25s linear infinite;
+  }
+
+  .xuantian-node-pulse {
+    border: 1px solid hsl(var(--accent2) / 0.28);
+    box-shadow:
+      0 0 0 4px hsl(var(--accent2) / 0.07),
+      0 18px 50px rgba(0, 0, 0, 0.22);
+    animation: xuantian-node-pulse 560ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+  }
+
+  html.theme-light .xuantian-node-pulse {
+    box-shadow:
+      0 0 0 4px hsl(var(--accent2) / 0.10),
+      0 16px 40px rgba(0, 0, 0, 0.10);
   }
 
   /* 经卷观：首段落款（“开卷一字起势”） */

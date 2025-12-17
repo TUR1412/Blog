@@ -344,6 +344,8 @@ export function RelationsPage() {
   const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
   const annoImportRef = useRef<HTMLInputElement | null>(null)
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [pulse, setPulse] = useState<{ id: string; at: number } | null>(null)
+  const pulseTimerRef = useRef<number | null>(null)
 
   const [graphNodeBox, setGraphNodeBox] = useState<EdgeNodeBox>({ halfW: 9.2, halfH: 3.8, pad: 1.0 })
 
@@ -360,6 +362,12 @@ export function RelationsPage() {
     return () => {
       if (hoveredRafRef.current != null) window.cancelAnimationFrame(hoveredRafRef.current)
       hoveredRafRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (pulseTimerRef.current != null) window.clearTimeout(pulseTimerRef.current)
     }
   }, [])
 
@@ -830,6 +838,9 @@ export function RelationsPage() {
       const next = new URLSearchParams(searchParams)
       next.set('id', id)
       setSearchParams(next, { replace: true })
+      setPulse({ id, at: Date.now() })
+      if (pulseTimerRef.current != null) window.clearTimeout(pulseTimerRef.current)
+      pulseTimerRef.current = window.setTimeout(() => setPulse(null), 560)
       hapticTap()
     },
     [nodeById, searchParams, setSearchParams],
@@ -1806,8 +1817,8 @@ export function RelationsPage() {
                       : true
 
                   const dim = spotlightId ? !spotlight && !related : false
-                  const dimOpacity = dim ? (heavyGraph ? 0.1 : 0.15) : 1
-                  const dimOpacityClass = dim ? (heavyGraph ? 'opacity-10' : 'opacity-15') : 'opacity-100'
+                  const dimOpacity = dim ? (heavyGraph ? 0.14 : 0.18) : 1
+                  const dimOpacityClass = dim ? (heavyGraph ? 'opacity-[0.14]' : 'opacity-[0.18]') : 'opacity-100'
                   const targetScale = active || spotlight ? 1.025 : related ? 1 : 0.97
                   const scaleClass = active || spotlight ? 'scale-[1.025]' : related ? 'scale-[1]' : 'scale-[0.97]'
                   const roleBadge = active
@@ -1849,6 +1860,13 @@ export function RelationsPage() {
                       )}
                       style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: z }}
                     >
+                      {!reduceMotion && pulse?.id === n.id ? (
+                        <span
+                          key={`pulse:${pulse.at}`}
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 rounded-2xl xuantian-node-pulse"
+                        />
+                      ) : null}
                       {!reduceMotion && active ? (
                         <motion.span
                           layoutId="relationNodeActive"
@@ -1906,7 +1924,7 @@ export function RelationsPage() {
                   )
                 }
 
-                return (
+                  return (
                   <motion.button
                     key={n.id}
                     type="button"
@@ -1933,6 +1951,13 @@ export function RelationsPage() {
                       mass: 0.7,
                     }}
                   >
+                    {!reduceMotion && pulse?.id === n.id ? (
+                      <span
+                        key={`pulse:${pulse.at}`}
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 rounded-2xl xuantian-node-pulse"
+                      />
+                    ) : null}
                     {!reduceMotion && active ? (
                       <motion.span
                         layoutId="relationNodeActive"
