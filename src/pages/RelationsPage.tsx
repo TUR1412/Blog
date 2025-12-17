@@ -549,6 +549,14 @@ export function RelationsPage() {
     }
     return map
   }, [])
+  const relationEdgeIdByKey = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const e of relationEdges) {
+      const k = edgeKey(e.from, e.to)
+      if (!map.has(k)) map.set(k, e.id)
+    }
+    return map
+  }, [])
   const nodeSearchHayById = useMemo(() => {
     const map = new Map<string, string>()
     for (const n of relationNodes) {
@@ -2825,16 +2833,17 @@ export function RelationsPage() {
                           animate="show"
                           className="mt-3 flex flex-wrap items-center gap-2"
                         >
-                          {selectedRootPathNodeIds.map((id, idx) => {
-                            const node = nodeById.get(id)
-                            if (!node) return null
-                            const nextId = selectedRootPathNodeIds[idx + 1]
-                            const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
-                            const isEnd = idx === selectedRootPathNodeIds.length - 1
-                            return (
-                              <motion.span
-                                key={`${id}-${idx}`}
-                                variants={LIST_ITEM}
+                           {selectedRootPathNodeIds.map((id, idx) => {
+                             const node = nodeById.get(id)
+                             if (!node) return null
+                             const nextId = selectedRootPathNodeIds[idx + 1]
+                             const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
+                             const edgeId = nextId ? relationEdgeIdByKey.get(edgeKey(id, nextId)) ?? null : null
+                             const isEnd = idx === selectedRootPathNodeIds.length - 1
+                             return (
+                               <motion.span
+                                 key={`${id}-${idx}`}
+                                 variants={LIST_ITEM}
                                 className="inline-flex items-center gap-2"
                               >
                                 <button
@@ -2842,16 +2851,21 @@ export function RelationsPage() {
                                   onClick={() => selectId(id)}
                                   onPointerEnter={() => {
                                     if (graphPanning) return
+                                    if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
+                                    else setPreviewEdge(null)
                                     scheduleHoveredId(id)
                                   }}
                                   onPointerLeave={() => {
-                                    if (graphPanning) return
+                                    setPreviewEdge(null)
                                     scheduleHoveredId(null)
                                   }}
                                   onFocus={() => {
+                                    if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
+                                    else setPreviewEdge(null)
                                     scheduleHoveredId(id)
                                   }}
                                   onBlur={() => {
+                                    setPreviewEdge(null)
                                     scheduleHoveredId(null)
                                   }}
                                   className={cn(
@@ -2874,35 +2888,41 @@ export function RelationsPage() {
                         </motion.div>
                       ) : (
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          {selectedRootPathNodeIds.map((id, idx) => {
-                            const node = nodeById.get(id)
-                            if (!node) return null
-                            const nextId = selectedRootPathNodeIds[idx + 1]
-                            const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
-                            const isEnd = idx === selectedRootPathNodeIds.length - 1
-                            return (
-                              <span key={`${id}-${idx}`} className="inline-flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => selectId(id)}
-                                  onPointerEnter={() => {
-                                    if (graphPanning) return
-                                    scheduleHoveredId(id)
-                                  }}
-                                  onPointerLeave={() => {
-                                    if (graphPanning) return
-                                    scheduleHoveredId(null)
-                                  }}
-                                  onFocus={() => {
-                                    scheduleHoveredId(id)
-                                  }}
-                                  onBlur={() => {
-                                    scheduleHoveredId(null)
-                                  }}
-                                  className={cn(
-                                    'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
-                                    id === 'xuan'
-                                      ? 'border-[hsl(var(--accent)/.32)] bg-[hsl(var(--accent)/.10)] text-fg/95'
+                           {selectedRootPathNodeIds.map((id, idx) => {
+                             const node = nodeById.get(id)
+                             if (!node) return null
+                             const nextId = selectedRootPathNodeIds[idx + 1]
+                             const label = nextId ? relationEdgeLabelByKey.get(edgeKey(id, nextId)) : null
+                             const edgeId = nextId ? relationEdgeIdByKey.get(edgeKey(id, nextId)) ?? null : null
+                             const isEnd = idx === selectedRootPathNodeIds.length - 1
+                             return (
+                               <span key={`${id}-${idx}`} className="inline-flex items-center gap-2">
+                                 <button
+                                   type="button"
+                                   onClick={() => selectId(id)}
+                                   onPointerEnter={() => {
+                                     if (graphPanning) return
+                                      if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
+                                      else setPreviewEdge(null)
+                                     scheduleHoveredId(id)
+                                   }}
+                                   onPointerLeave={() => {
+                                      setPreviewEdge(null)
+                                     scheduleHoveredId(null)
+                                   }}
+                                   onFocus={() => {
+                                      if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
+                                      else setPreviewEdge(null)
+                                     scheduleHoveredId(id)
+                                   }}
+                                   onBlur={() => {
+                                      setPreviewEdge(null)
+                                     scheduleHoveredId(null)
+                                   }}
+                                   className={cn(
+                                     'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
+                                     id === 'xuan'
+                                       ? 'border-[hsl(var(--accent)/.32)] bg-[hsl(var(--accent)/.10)] text-fg/95'
                                       : 'border-border/70 bg-white/5 text-fg/90 hover:bg-white/10',
                                   )}
                                 >
