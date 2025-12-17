@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Route, Routes, useLocation } from 'react-router-dom'
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { HomePage } from '../pages/HomePage'
 import { prefetchCoreRoutes } from './prefetch'
@@ -29,18 +29,18 @@ const NotFoundPage = lazy(() =>
   import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
-function RouteTransition({ children }: { children: React.ReactNode }) {
+function RouteTransition({ children, enableMotion }: { children: React.ReactNode; enableMotion: boolean }) {
   const reduceMotion = useReducedMotion()
   return (
     <motion.div
       className="relative"
       style={{ willChange: 'transform, opacity' }}
-      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      initial={reduceMotion || !enableMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
       transition={reduceMotion ? { duration: 0.12 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      {!reduceMotion ? (
+      {!reduceMotion && enableMotion ? (
         <motion.div
           aria-hidden="true"
           className="pointer-events-none absolute left-0 right-0 top-0 h-[2px] origin-left bg-[linear-gradient(90deg,transparent,hsl(var(--accent)/.70),hsl(var(--accent2)/.60),transparent)] opacity-0"
@@ -77,6 +77,12 @@ function PageFallback() {
 
 export function AppRouter() {
   const location = useLocation()
+  const [enableMotion, setEnableMotion] = useState(false)
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setEnableMotion(true), 0)
+    return () => window.clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
@@ -100,7 +106,7 @@ export function AppRouter() {
         window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
       }}
     >
-      <RouteTransition key={location.pathname}>
+      <RouteTransition key={location.pathname} enableMotion={enableMotion}>
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
           <Route
