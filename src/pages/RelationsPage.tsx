@@ -1272,9 +1272,12 @@ export function RelationsPage() {
           </div>
         </Card>
 
-        <div className="grid gap-4 lg:col-span-8 lg:grid-cols-12">
-          <Card className="relative overflow-hidden lg:col-span-7">
-            <SectionHeading title="谱面" subtitle="点节点；线是直连，发光是牵连圈（不必都直连）。" />
+          <div className="grid gap-4 lg:col-span-8 lg:grid-cols-12">
+            <Card className="relative overflow-hidden lg:col-span-7">
+            <SectionHeading
+              title="谱面"
+              subtitle="线=直连；徽记：焦点/根/牵连/回轩路。亮不必直连，读徽记更准。"
+            />
 
             <div
               ref={graphViewportRef}
@@ -1401,6 +1404,7 @@ export function RelationsPage() {
                     const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected && !crowdedFocus
 
                     const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
+                    if (heavyGraph && hasFocus && tier === 'background') return null
 
                     const idleOpacity = heavyGraph ? 0.12 : 0.18
                     const baseOpacity =
