@@ -22,8 +22,6 @@ import { Chip } from '../components/ui/Chip'
 import { SectionHeading } from '../components/ui/SectionHeading'
 import {
   RELATION_KINDS,
-  getRelationEdgesFor,
-  getRelatedNodeIds,
   relationEdges,
   relationNodes,
   type RelationKind,
@@ -518,6 +516,19 @@ export function RelationsPage() {
   }, [])
 
   const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
+  const edgesByNodeId = useMemo(() => {
+    const map = new Map<string, (typeof relationEdges)[number][]>()
+    const push = (id: string, e: (typeof relationEdges)[number]) => {
+      const list = map.get(id)
+      if (list) list.push(e)
+      else map.set(id, [e])
+    }
+    for (const e of relationEdges) {
+      push(e.from, e)
+      push(e.to, e)
+    }
+    return map
+  }, [])
   const edgePathById = useMemo(() => {
     const map = new Map<string, string>()
     for (const e of relationEdges) {
@@ -719,10 +730,10 @@ export function RelationsPage() {
     set.add('xuan')
     if (selectedId) {
       set.add(selectedId)
-      for (const id of getRelatedNodeIds(selectedId)) set.add(id)
+      for (const id of relationAdjacency.get(selectedId) ?? []) set.add(id)
     }
     return set
-  }, [selectedId])
+  }, [relationAdjacency, selectedId])
 
   const visibleIds = useMemo(() => {
     if (onlyRelated) return relatedIds
@@ -1087,7 +1098,7 @@ export function RelationsPage() {
     const pad = (n: number) => String(n).padStart(2, '0')
     const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 
-    const edges = getRelationEdgesFor(selected.id)
+    const edges = edgesByNodeId.get(selected.id) ?? []
     const related = edges
       .map((e) => {
         const otherId = e.from === selected.id ? e.to : e.from
@@ -1129,27 +1140,23 @@ export function RelationsPage() {
 
     hapticSuccess()
     flashMessage('已收入札记。')
-  }, [annoDraft, flashMessage, nodeById, selected])
+  }, [annoDraft, edgesByNodeId, flashMessage, nodeById, selected])
 
   const selectedEdges = useMemo(() => {
     if (!selected) return []
-    return getRelationEdgesFor(selected.id)
-  }, [selected])
+    return edgesByNodeId.get(selected.id) ?? []
+  }, [edgesByNodeId, selected])
 
   const spotlightId = hoveredId || selectedId
   const spotlightEdgeCount = useMemo(() => {
     if (!spotlightId) return 0
-    let count = 0
-    for (const e of relationEdges) {
-      if (e.from === spotlightId || e.to === spotlightId) count += 1
-    }
-    return count
-  }, [spotlightId])
+    return edgesByNodeId.get(spotlightId)?.length ?? 0
+  }, [edgesByNodeId, spotlightId])
   const crowdedFocus = spotlightEdgeCount >= 10
 
   const spotlightDirectPreview = useMemo(() => {
     if (!spotlightId) return { lines: [] as string[], more: 0 }
-    const edges = getRelationEdgesFor(spotlightId)
+    const edges = edgesByNodeId.get(spotlightId) ?? []
     const lines = edges
       .map((e) => {
         const otherId = e.from === spotlightId ? e.to : e.from
@@ -1163,12 +1170,12 @@ export function RelationsPage() {
     const head = lines.slice(0, max)
     const more = Math.max(0, lines.length - head.length)
     return { lines: head, more }
-  }, [nodeById, spotlightId])
+  }, [edgesByNodeId, nodeById, spotlightId])
 
   const spotlightRelatedIdSet = useMemo(() => {
     if (!spotlightId) return new Set<string>()
-    return new Set(getRelatedNodeIds(spotlightId))
-  }, [spotlightId])
+    return new Set(relationAdjacency.get(spotlightId) ?? [])
+  }, [relationAdjacency, spotlightId])
 
   const spotlightClusterIdSet = useMemo(() => {
     if (!spotlightId) return new Set<string>()
@@ -1618,7 +1625,7 @@ export function RelationsPage() {
         for (const p of parts) lines.push(`  ${p}`)
       }
 
-      const edges = getRelationEdgesFor(node.id)
+      const edges = edgesByNodeId.get(node.id) ?? []
       const related = edges
         .map((e) => {
           const otherId = e.from === node.id ? e.to : e.from
