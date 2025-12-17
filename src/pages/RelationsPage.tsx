@@ -1420,6 +1420,20 @@ export function RelationsPage() {
                       type="button"
                       id={`relation-list-${n.id}`}
                       onClick={() => selectId(n.id)}
+                      onPointerEnter={() => {
+                        if (graphPanning) return
+                        scheduleHoveredId(n.id)
+                      }}
+                      onPointerLeave={() => {
+                        if (graphPanning) return
+                        scheduleHoveredId(null)
+                      }}
+                      onFocus={() => {
+                        scheduleHoveredId(n.id)
+                      }}
+                      onBlur={() => {
+                        scheduleHoveredId(null)
+                      }}
                       className={cn(
                         'focus-ring tap flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-left',
                         '[content-visibility:auto] [contain-intrinsic-size:240px_96px]',
