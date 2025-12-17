@@ -1316,7 +1316,10 @@ export function RelationsPage() {
         ) : null}
 
         {label ? (
-          <g transform={`translate(${label.x} ${label.y})`} style={{ opacity: 0.92, transition }}>
+          <g
+            transform={`translate(${label.x} ${label.y})`}
+            style={{ opacity: 0.92, transition, filter: 'drop-shadow(0 10px 24px rgba(0,0,0,.24))' }}
+          >
             <rect
               x={-labelW / 2}
               y={-labelH / 2}
@@ -1324,8 +1327,8 @@ export function RelationsPage() {
               height={labelH}
               rx={2.4}
               ry={2.4}
-              fill="hsl(var(--bg) / 0.72)"
-              stroke="hsl(var(--border) / 0.70)"
+              fill="hsl(var(--card) / 0.90)"
+              stroke="hsl(var(--border) / 0.78)"
               strokeWidth={0.28}
             />
             <text
