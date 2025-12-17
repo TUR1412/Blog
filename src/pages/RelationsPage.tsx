@@ -2715,6 +2715,20 @@ export function RelationsPage() {
                                   type="button"
                                   variants={LIST_ITEM}
                                   onClick={() => selectId(other.id)}
+                                  onPointerEnter={() => {
+                                    if (graphPanning) return
+                                    scheduleHoveredId(other.id)
+                                  }}
+                                  onPointerLeave={() => {
+                                    if (graphPanning) return
+                                    scheduleHoveredId(null)
+                                  }}
+                                  onFocus={() => {
+                                    scheduleHoveredId(other.id)
+                                  }}
+                                  onBlur={() => {
+                                    scheduleHoveredId(null)
+                                  }}
                                   className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
                                 >
                                   <div className="min-w-0">
@@ -2737,6 +2751,20 @@ export function RelationsPage() {
                                 key={e.id}
                                 type="button"
                                 onClick={() => selectId(other.id)}
+                                onPointerEnter={() => {
+                                  if (graphPanning) return
+                                  scheduleHoveredId(other.id)
+                                }}
+                                onPointerLeave={() => {
+                                  if (graphPanning) return
+                                  scheduleHoveredId(null)
+                                }}
+                                onFocus={() => {
+                                  scheduleHoveredId(other.id)
+                                }}
+                                onBlur={() => {
+                                  scheduleHoveredId(null)
+                                }}
                                 className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
                               >
                                 <div className="min-w-0">
@@ -2783,6 +2811,20 @@ export function RelationsPage() {
                                 <button
                                   type="button"
                                   onClick={() => selectId(id)}
+                                  onPointerEnter={() => {
+                                    if (graphPanning) return
+                                    scheduleHoveredId(id)
+                                  }}
+                                  onPointerLeave={() => {
+                                    if (graphPanning) return
+                                    scheduleHoveredId(null)
+                                  }}
+                                  onFocus={() => {
+                                    scheduleHoveredId(id)
+                                  }}
+                                  onBlur={() => {
+                                    scheduleHoveredId(null)
+                                  }}
                                   className={cn(
                                     'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
                                     id === 'xuan'
@@ -2814,6 +2856,20 @@ export function RelationsPage() {
                                 <button
                                   type="button"
                                   onClick={() => selectId(id)}
+                                  onPointerEnter={() => {
+                                    if (graphPanning) return
+                                    scheduleHoveredId(id)
+                                  }}
+                                  onPointerLeave={() => {
+                                    if (graphPanning) return
+                                    scheduleHoveredId(null)
+                                  }}
+                                  onFocus={() => {
+                                    scheduleHoveredId(id)
+                                  }}
+                                  onBlur={() => {
+                                    scheduleHoveredId(null)
+                                  }}
                                   className={cn(
                                     'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
                                     id === 'xuan'
