@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { Route, Routes, useLocation } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { HomePage } from '../pages/HomePage'
 import { prefetchCoreRoutes } from './prefetch'
@@ -78,12 +78,42 @@ function PageFallback() {
 
 export function AppRouter() {
   const location = useLocation()
+  const navType = useNavigationType()
   const [enableMotion, setEnableMotion] = useState(false)
+  const pendingScrollTopRef = useRef(0)
+  const prevScrollKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     const t = window.setTimeout(() => setEnableMotion(true), 0)
     return () => window.clearTimeout(t)
   }, [])
+
+  useEffect(() => {
+    const key = `xuantian.scroll.v1:${location.pathname}${location.search}`
+
+    const prevKey = prevScrollKeyRef.current
+    if (prevKey) {
+      try {
+        sessionStorage.setItem(prevKey, String(Math.max(0, Math.round(window.scrollY || 0))))
+      } catch {
+        // ignore
+      }
+    }
+
+    let nextTop = 0
+    if (navType === 'POP') {
+      try {
+        const raw = sessionStorage.getItem(key)
+        const n = raw ? Number(raw) : NaN
+        if (Number.isFinite(n) && n >= 0) nextTop = n
+      } catch {
+        // ignore
+      }
+    }
+
+    pendingScrollTopRef.current = nextTop
+    prevScrollKeyRef.current = key
+  }, [location.pathname, location.search, navType])
 
   useEffect(() => {
     const startedAt = performance.now()
@@ -169,7 +199,7 @@ export function AppRouter() {
       mode="wait"
       initial={false}
       onExitComplete={() => {
-        window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+        window.scrollTo({ top: pendingScrollTopRef.current || 0, left: 0, behavior: 'auto' })
       }}
     >
       <RouteTransition key={location.pathname} enableMotion={enableMotion}>
