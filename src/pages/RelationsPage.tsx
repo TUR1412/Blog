@@ -285,6 +285,16 @@ export function RelationsPage() {
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
+  const edgePathById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const e of relationEdges) {
+      const a = nodeById.get(e.from)?.pos
+      const b = nodeById.get(e.to)?.pos
+      if (!a || !b) continue
+      map.set(e.id, edgePath(a, b, e.id))
+    }
+    return map
+  }, [nodeById])
   const relationAdjacency = useMemo(() => buildAdjacency(relationEdges), [])
   const relationEdgeLabelByKey = useMemo(() => {
     const map = new Map<string, string>()
@@ -1390,7 +1400,7 @@ export function RelationsPage() {
                     const b = nodeById.get(e.to)?.pos
                     if (!a || !b) return null
 
-                    const d = edgePath(a, b, e.id)
+                    const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id)
 
                     const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
                     const hasFocus = Boolean(spotlightId)
