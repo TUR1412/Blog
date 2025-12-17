@@ -15,6 +15,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { readString, writeString } from '../lib/storage'
+import { prefetchRoute } from '../routes/prefetch'
 
 export function ChroniclesPage() {
   const navigate = useNavigate()
@@ -275,6 +276,9 @@ export function ChroniclesPage() {
                     <Link
                       key={c.slug}
                       to={`/chronicles/${c.slug}`}
+                      onPointerEnter={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                      onPointerDown={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                      onFocus={() => prefetchRoute(`/chronicles/${c.slug}`)}
                       className={cn(
                         'focus-ring tap rounded-xl border border-border/60 bg-white/4 px-4 py-3 text-left',
                         'hover:bg-white/7',
@@ -414,6 +418,9 @@ export function ChroniclesPage() {
                   >
                     <Link
                       to={`/chronicles/${c.slug}`}
+                      onPointerEnter={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                      onPointerDown={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                      onFocus={() => prefetchRoute(`/chronicles/${c.slug}`)}
                       className={cn(
                         'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-5 py-5',
                         'hover:bg-white/7',

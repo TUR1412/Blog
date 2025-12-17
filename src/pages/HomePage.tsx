@@ -13,6 +13,7 @@ import { STORAGE_KEYS } from '../lib/constants'
 import { hapticTap } from '../lib/haptics'
 import { readJson, writeString } from '../lib/storage'
 import { useCommandPalette } from '../providers/command/CommandPaletteProvider'
+import { prefetchRoute } from '../routes/prefetch'
 
 type Burst = { id: string; x: number; y: number }
 type ReadingLast = {
@@ -274,15 +275,18 @@ export function HomePage() {
           <Card className="lg:col-span-7">
             <SectionHeading title="近三篇纪事" subtitle="从“像真事”的细节里入门。" />
             <div className="grid gap-2">
-              {featured.map((c, idx) => (
-                <Link
-                  key={c.slug}
-                  to={`/chronicles/${c.slug}`}
-                  className={cn(
-                    'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-4 py-4',
-                    'hover:bg-white/7',
-                  )}
-                >
+                {featured.map((c, idx) => (
+                  <Link
+                    key={c.slug}
+                    to={`/chronicles/${c.slug}`}
+                    onPointerEnter={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                    onPointerDown={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                    onFocus={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                    className={cn(
+                      'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-4 py-4',
+                      'hover:bg-white/7',
+                    )}
+                  >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-fg">
