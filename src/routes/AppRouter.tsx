@@ -88,7 +88,9 @@ export function AppRouter() {
   useEffect(() => {
     const startedAt = performance.now()
     const lastInputAtRef = { current: startedAt }
+    const hasInteractedRef = { current: false }
     const markInput = () => {
+      hasInteractedRef.current = true
       lastInputAtRef.current = performance.now()
     }
 
@@ -98,10 +100,18 @@ export function AppRouter() {
     window.addEventListener('touchstart', markInput, opts)
     window.addEventListener('keydown', markInput)
 
-    const guard = () => {
+    const guardLight = () => {
       const now = performance.now()
-      if (now - startedAt < 1600) return false
-      if (now - lastInputAtRef.current < 900) return false
+      if (now - startedAt < 2400) return false
+      if (now - lastInputAtRef.current < 1100) return false
+      return true
+    }
+
+    const guardAll = () => {
+      const now = performance.now()
+      if (!hasInteractedRef.current) return false
+      if (now - startedAt < 5200) return false
+      if (now - lastInputAtRef.current < 1800) return false
       return true
     }
 
@@ -122,13 +132,17 @@ export function AppRouter() {
       timeoutIds.push(t)
     }
 
-    const run = (priority: 'light' | 'all') => {
-      prefetchCoreRoutes({ includeNotes: true, priority, guard })
+    const runLight = () => {
+      prefetchCoreRoutes({ includeNotes: true, priority: 'light', guard: guardLight })
+    }
+
+    const runAll = () => {
+      prefetchCoreRoutes({ includeNotes: true, priority: 'all', guard: guardAll })
     }
 
     const start = () => {
-      scheduleIdle(() => run('light'), { timeout: 2400, fallbackDelay: 1200 })
-      scheduleIdle(() => run('all'), { timeout: 3400, fallbackDelay: 4200 })
+      scheduleIdle(runLight, { timeout: 2600, fallbackDelay: 1600 })
+      scheduleIdle(runAll, { timeout: 5200, fallbackDelay: 7200 })
     }
 
     if (document.readyState === 'complete') {

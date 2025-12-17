@@ -83,7 +83,7 @@ function nodeChrome(tone?: RelationTone, active?: boolean) {
     'transition-[background-color,border-color,box-shadow,filter] duration-200 hover:shadow-lift'
   const box =
     'w-[170px] max-w-[52vw] rounded-2xl border px-3 py-2 ' +
-    'bg-[linear-gradient(180deg,hsl(var(--card)/.98),hsl(var(--card)/.90))]'
+    'bg-[linear-gradient(180deg,hsl(var(--card)/.995),hsl(var(--card)/.96))]'
   const blur = ''
   if (t === 'warn') {
     return cn(
@@ -124,19 +124,69 @@ function hash01(input: string) {
   return ((h >>> 0) % 1000) / 1000
 }
 
-function edgePath(a: { x: number; y: number }, b: { x: number; y: number }, seed?: string) {
+type EdgeNodeBox = { halfW: number; halfH: number; pad?: number }
+
+function edgePointFromBox(
+  center: { x: number; y: number },
+  dir: { x: number; y: number },
+  box: EdgeNodeBox,
+) {
+  const dx = dir.x
+  const dy = dir.y
+  const ax = Math.abs(dx)
+  const ay = Math.abs(dy)
+  if (ax <= 0.000001 && ay <= 0.000001) return center
+
+  const pad = box.pad ?? 0.9
+  const tx = ax > 0.000001 ? (box.halfW + pad) / ax : Number.POSITIVE_INFINITY
+  const ty = ay > 0.000001 ? (box.halfH + pad) / ay : Number.POSITIVE_INFINITY
+  const t = Math.min(tx, ty)
+  if (!Number.isFinite(t) || t <= 0) return center
+  return { x: center.x + dx * t, y: center.y + dy * t }
+}
+
+function edgePath(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  seed?: string,
+  box?: EdgeNodeBox,
+) {
   const dx = b.x - a.x
   const dy = b.y - a.y
   const dist = Math.hypot(dx, dy)
   if (!Number.isFinite(dist) || dist <= 0.001) return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
 
-  const maxInset = Math.max(0, dist / 2 - 0.25)
-  const inset = Math.min(6.8, maxInset)
-  const ux = dx / dist
-  const uy = dy / dist
+  const fallbackInset = () => {
+    const maxInset = Math.max(0, dist / 2 - 0.25)
+    const inset = Math.min(6.8, maxInset)
+    const ux = dx / dist
+    const uy = dy / dist
+    return {
+      a2: { x: a.x + ux * inset, y: a.y + uy * inset },
+      b2: { x: b.x - ux * inset, y: b.y - uy * inset },
+    }
+  }
 
-  const a2 = { x: a.x + ux * inset, y: a.y + uy * inset }
-  const b2 = { x: b.x - ux * inset, y: b.y - uy * inset }
+  let a2 = a
+  let b2 = b
+
+  if (box && Number.isFinite(box.halfW) && Number.isFinite(box.halfH) && box.halfW > 0 && box.halfH > 0) {
+    a2 = edgePointFromBox(a, { x: dx, y: dy }, box)
+    b2 = edgePointFromBox(b, { x: -dx, y: -dy }, box)
+
+    const checkDx = b2.x - a2.x
+    const checkDy = b2.y - a2.y
+    const checkD = Math.hypot(checkDx, checkDy)
+    if (!Number.isFinite(checkD) || checkD < 0.6) {
+      const fallback = fallbackInset()
+      a2 = fallback.a2
+      b2 = fallback.b2
+    }
+  } else {
+    const fallback = fallbackInset()
+    a2 = fallback.a2
+    b2 = fallback.b2
+  }
 
   const ddx = b2.x - a2.x
   const ddy = b2.y - a2.y
@@ -149,7 +199,7 @@ function edgePath(a: { x: number; y: number }, b: { x: number; y: number }, seed
   const s1 = seed ? hash01(seed) : 0.5
   const s2 = seed ? hash01(`${seed}.m`) : 0.5
   const signed = s1 * 2 - 1
-  const magnitude = Math.min(11, Math.max(3.2, d2 * 0.18)) * (0.65 + s2 * 0.55)
+  const magnitude = Math.min(13, Math.max(3.2, d2 * 0.2)) * (0.65 + s2 * 0.55)
   const bend = signed * magnitude
 
   const c1 = { x: a2.x + ddx * 0.33 + px * bend, y: a2.y + ddy * 0.33 + py * bend }
@@ -241,6 +291,8 @@ export function RelationsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [graphEntered, setGraphEntered] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const hoveredNextRef = useRef<string | null>(null)
+  const hoveredRafRef = useRef<number | null>(null)
   const graphViewportRef = useRef<HTMLDivElement | null>(null)
   const graphStageRef = useRef<HTMLDivElement | null>(null)
   const graphViewRef = useRef({ x: 0, y: 0, scale: 1 })
@@ -288,6 +340,24 @@ export function RelationsPage() {
   const annoImportRef = useRef<HTMLInputElement | null>(null)
   const annoTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
+  const [graphNodeBox, setGraphNodeBox] = useState<EdgeNodeBox>({ halfW: 9.2, halfH: 3.8, pad: 1.0 })
+
+  const scheduleHoveredId = useCallback((next: string | null) => {
+    hoveredNextRef.current = next
+    if (hoveredRafRef.current != null) return
+    hoveredRafRef.current = window.requestAnimationFrame(() => {
+      hoveredRafRef.current = null
+      setHoveredId(hoveredNextRef.current)
+    })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (hoveredRafRef.current != null) window.cancelAnimationFrame(hoveredRafRef.current)
+      hoveredRafRef.current = null
+    }
+  }, [])
+
   const nodeById = useMemo(() => new Map(relationNodes.map((n) => [n.id, n] as const)), [])
   const edgePathById = useMemo(() => {
     const map = new Map<string, string>()
@@ -295,10 +365,10 @@ export function RelationsPage() {
       const a = nodeById.get(e.from)?.pos
       const b = nodeById.get(e.to)?.pos
       if (!a || !b) continue
-      map.set(e.id, edgePath(a, b, e.id))
+      map.set(e.id, edgePath(a, b, e.id, graphNodeBox))
     }
     return map
-  }, [nodeById])
+  }, [graphNodeBox, nodeById])
   const relationAdjacency = useMemo(() => buildAdjacency(relationEdges), [])
   const relationEdgeLabelByKey = useMemo(() => {
     const map = new Map<string, string>()
@@ -511,11 +581,10 @@ export function RelationsPage() {
     return relationEdges.filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to))
   }, [visibleIds])
 
-  const heavyGraph = !onlyRelated && (visibleEdges.length > 24 || visibleNodes.length > 18)
+  const heavyGraph = !onlyRelated && (visibleEdges.length > 90 || visibleNodes.length > 34)
 
   const ensureNodeInView = useCallback(
     (id: string, opts?: { force?: boolean }) => {
-      if (heavyGraph && !opts?.force) return
       if (graphPanning) return
       const viewport = graphViewportRef.current
       if (!viewport) return
@@ -543,6 +612,53 @@ export function RelationsPage() {
     },
     [animateGraphViewTo, graphPanning, heavyGraph, nodeById],
   )
+
+  useEffect(() => {
+    const viewport = graphViewportRef.current
+    const stage = graphStageRef.current
+    if (!viewport || !stage) return
+    if (!('ResizeObserver' in window)) return
+
+    let rafId: number | null = null
+
+    const measure = () => {
+      const rect = viewport.getBoundingClientRect()
+      if (!rect.width || !rect.height) return
+
+      const nodeEl = stage.querySelector<HTMLElement>('[data-relation-node]')
+      if (!nodeEl) return
+
+      const w = Math.max(1, nodeEl.offsetWidth || 0)
+      const h = Math.max(1, nodeEl.offsetHeight || 0)
+
+      const halfW = Math.max(4.6, Math.min(28, (w / rect.width) * 50))
+      const halfH = Math.max(2.6, Math.min(18, (h / rect.height) * 50))
+
+      setGraphNodeBox((prev) => {
+        const close = Math.abs(prev.halfW - halfW) < 0.25 && Math.abs(prev.halfH - halfH) < 0.2
+        if (close) return prev
+        return { ...prev, halfW, halfH }
+      })
+    }
+
+    const schedule = () => {
+      if (rafId != null) return
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null
+        measure()
+      })
+    }
+
+    const ro = new ResizeObserver(() => schedule())
+    ro.observe(viewport)
+
+    schedule()
+
+    return () => {
+      ro.disconnect()
+      if (rafId != null) window.cancelAnimationFrame(rafId)
+    }
+  }, [])
 
   useEffect(() => {
     if (!selectedId) return
@@ -1414,6 +1530,40 @@ export function RelationsPage() {
                 </div>
               )}
 
+              <div className="pointer-events-none absolute left-3 top-3 z-20">
+                {!reduceMotion ? (
+                  <AnimatePresence initial={false} mode="wait">
+                    <motion.div
+                      key={hoveredId ? `hover:${hoveredId}` : `sel:${selectedId}`}
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass"
+                    >
+                      {hoveredId && hoveredId !== selectedId ? (
+                        <>
+                          <div className="text-fg/90">焦点：{nodeById.get(hoveredId)?.title ?? hoveredId}</div>
+                          <div className="text-muted/70">当前：{nodeById.get(selectedId)?.title ?? selectedId}</div>
+                        </>
+                      ) : (
+                        <div className="text-fg/90">当前：{nodeById.get(selectedId)?.title ?? selectedId}</div>
+                      )}
+                      <div className="mt-1 text-muted/70">
+                        直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                ) : (
+                  <div className="rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass">
+                    <div className="text-fg/90">当前：{nodeById.get(selectedId)?.title ?? selectedId}</div>
+                    <div className="mt-1 text-muted/70">
+                      直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div
                 ref={graphStageRef}
                 className="absolute inset-0 origin-top-left"
@@ -1429,7 +1579,7 @@ export function RelationsPage() {
                     const b = nodeById.get(e.to)?.pos
                     if (!a || !b) return null
 
-                    const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id)
+                    const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
 
                     const connected = spotlightId ? e.from === spotlightId || e.to === spotlightId : false
                     const hasFocus = Boolean(spotlightId)
@@ -1439,13 +1589,11 @@ export function RelationsPage() {
                     const transition = reduceMotion
                       ? undefined
                       : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
-                    const showGlow = !reduceMotion && !heavyGraph && hasFocus && connected && !crowdedFocus
-                    const showFlow = !reduceMotion && !heavyGraph && hasFocus && connected && !crowdedFocus
+                    const showGlow = !reduceMotion && hasFocus && (connected || inRootPath) && !crowdedFocus
+                    const showFlow = !reduceMotion && hasFocus && (connected || inRootPath) && !crowdedFocus
 
                     const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
-                    if (heavyGraph && hasFocus && tier === 'background') return null
-
-                    const idleOpacity = heavyGraph ? 0.12 : 0.18
+                    const idleOpacity = heavyGraph ? 0.1 : 0.16
                     const baseOpacity =
                       !hasFocus
                         ? idleOpacity
@@ -1461,7 +1609,9 @@ export function RelationsPage() {
                             ? heavyGraph
                               ? 0.1
                               : 0.14
-                            : 0.012
+                            : heavyGraph
+                              ? 0.018
+                              : 0.028
                     const baseStroke =
                       tier === 'primary'
                         ? crowdedFocus
@@ -1501,6 +1651,7 @@ export function RelationsPage() {
                               transition,
                               filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
                             }}
+                            vectorEffect="non-scaling-stroke"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -1513,12 +1664,14 @@ export function RelationsPage() {
                             stroke: baseStroke,
                             strokeWidth: baseStrokeWidth,
                             transition,
+                            strokeDasharray: tier === 'background' ? '0.6 2.1' : undefined,
                             filter: showGlow
                               ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
                               : showPathGlow
                                 ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
                                 : undefined,
                           }}
+                          vectorEffect="non-scaling-stroke"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -1535,6 +1688,7 @@ export function RelationsPage() {
                               transition,
                               filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
                             }}
+                            vectorEffect="non-scaling-stroke"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -1576,10 +1730,11 @@ export function RelationsPage() {
                     <button
                       key={n.id}
                       type="button"
+                      data-relation-node=""
                       aria-pressed={active}
                       onClick={() => selectId(n.id)}
-                      onPointerEnter={() => setHoveredId(n.id)}
-                      onPointerLeave={() => setHoveredId(null)}
+                      onPointerEnter={() => scheduleHoveredId(n.id)}
+                      onPointerLeave={() => scheduleHoveredId(null)}
                       className={cn(
                         nodeChrome(n.tone, active),
                         'transition-opacity duration-200',
@@ -1648,10 +1803,11 @@ export function RelationsPage() {
                   <motion.button
                     key={n.id}
                     type="button"
+                    data-relation-node=""
                     aria-pressed={active}
                     onClick={() => selectId(n.id)}
-                    onPointerEnter={() => setHoveredId(n.id)}
-                    onPointerLeave={() => setHoveredId(null)}
+                    onPointerEnter={() => scheduleHoveredId(n.id)}
+                    onPointerLeave={() => scheduleHoveredId(null)}
                     className={cn(nodeChrome(n.tone, active))}
                     style={{ left: `${n.pos.x}%`, top: `${n.pos.y}%`, zIndex: active || spotlight ? 60 : related ? 40 : 20 }}
                     initial={{ opacity: 0, scale: 0.98, y: 6 }}
