@@ -145,6 +145,46 @@ function edgePointFromBox(
   return { x: center.x + dx * t, y: center.y + dy * t }
 }
 
+function edgeEnds(a: { x: number; y: number }, b: { x: number; y: number }, box?: EdgeNodeBox) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const dist = Math.hypot(dx, dy)
+  if (!Number.isFinite(dist) || dist <= 0.001) return { a2: a, b2: b }
+
+  const fallbackInset = () => {
+    const maxInset = Math.max(0, dist / 2 - 0.25)
+    const inset = Math.min(6.8, maxInset)
+    const ux = dx / dist
+    const uy = dy / dist
+    return {
+      a2: { x: a.x + ux * inset, y: a.y + uy * inset },
+      b2: { x: b.x - ux * inset, y: b.y - uy * inset },
+    }
+  }
+
+  let a2 = a
+  let b2 = b
+  if (box && Number.isFinite(box.halfW) && Number.isFinite(box.halfH) && box.halfW > 0 && box.halfH > 0) {
+    a2 = edgePointFromBox(a, { x: dx, y: dy }, box)
+    b2 = edgePointFromBox(b, { x: -dx, y: -dy }, box)
+
+    const checkDx = b2.x - a2.x
+    const checkDy = b2.y - a2.y
+    const checkD = Math.hypot(checkDx, checkDy)
+    if (!Number.isFinite(checkD) || checkD < 0.6) {
+      const fallback = fallbackInset()
+      a2 = fallback.a2
+      b2 = fallback.b2
+    }
+  } else {
+    const fallback = fallbackInset()
+    a2 = fallback.a2
+    b2 = fallback.b2
+  }
+
+  return { a2, b2 }
+}
+
 function edgePath(
   a: { x: number; y: number },
   b: { x: number; y: number },
@@ -1257,7 +1297,14 @@ export function RelationsPage() {
             : 0.18
 
     const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
-    const dash = tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
+    const dash =
+      tier === 'background'
+        ? '0.6 2.1'
+        : tier === 'secondary'
+          ? '0.35 2.2'
+          : tier === 'path' && heavyGraph
+            ? '1.1 2.1'
+            : undefined
 
     const k = edgeKey(e.from, e.to)
     const showBurst =
@@ -1266,6 +1313,8 @@ export function RelationsPage() {
       Boolean(edgePulse && edgePulse.id === selectedId) &&
       (hoveredId == null || hoveredId === selectedId) &&
       (e.from === selectedId || e.to === selectedId || selectedRootPathEdgeKeySet.has(k))
+    const ends =
+      !heavyGraph && !crowdedFocus && !opts?.unmasked && (connected || inRootPath) ? edgeEnds(a, b, graphNodeBox) : null
     const edgeDist = Math.hypot(b.x - a.x, b.y - a.y)
     const showLabel =
       hasFocus &&
@@ -1356,6 +1405,24 @@ export function RelationsPage() {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        ) : null}
+        {ends ? (
+          <>
+            <circle
+              cx={ends.a2.x}
+              cy={ends.a2.y}
+              r={showBurst ? 0.38 : connected ? 0.34 : 0.32}
+              fill={showBurst ? 'hsl(var(--accent2) / 0.92)' : connected ? 'hsl(var(--accent) / 0.72)' : 'hsl(var(--accent2) / 0.70)'}
+              opacity={showBurst ? 0.95 : 0.82}
+            />
+            <circle
+              cx={ends.b2.x}
+              cy={ends.b2.y}
+              r={showBurst ? 0.38 : connected ? 0.34 : 0.32}
+              fill={showBurst ? 'hsl(var(--accent2) / 0.92)' : connected ? 'hsl(var(--accent) / 0.72)' : 'hsl(var(--accent2) / 0.70)'}
+              opacity={showBurst ? 0.95 : 0.82}
+            />
+          </>
         ) : null}
 
         {label ? (
