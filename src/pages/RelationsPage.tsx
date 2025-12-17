@@ -156,6 +156,12 @@ function edgePath(
   const dist = Math.hypot(dx, dy)
   if (!Number.isFinite(dist) || dist <= 0.001) return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
 
+  const s1 = seed ? hash01(seed) : 0.5
+  const s2 = seed ? hash01(`${seed}.m`) : 0.5
+  const s3 = seed ? hash01(`${seed}.c1`) : 0.5
+  const s4 = seed ? hash01(`${seed}.c2`) : 0.5
+  const signed = s1 * 2 - 1
+
   const fallbackInset = () => {
     const maxInset = Math.max(0, dist / 2 - 0.25)
     const inset = Math.min(6.8, maxInset)
@@ -169,6 +175,7 @@ function edgePath(
 
   let a2 = a
   let b2 = b
+  let close = false
 
   if (box && Number.isFinite(box.halfW) && Number.isFinite(box.halfH) && box.halfW > 0 && box.halfH > 0) {
     a2 = edgePointFromBox(a, { x: dx, y: dy }, box)
@@ -177,11 +184,7 @@ function edgePath(
     const checkDx = b2.x - a2.x
     const checkDy = b2.y - a2.y
     const checkD = Math.hypot(checkDx, checkDy)
-    if (!Number.isFinite(checkD) || checkD < 0.6) {
-      const fallback = fallbackInset()
-      a2 = fallback.a2
-      b2 = fallback.b2
-    }
+    close = !Number.isFinite(checkD) || checkD < 2.2
   } else {
     const fallback = fallbackInset()
     a2 = fallback.a2
@@ -196,23 +199,45 @@ function edgePath(
   const px = -u2y
   const py = u2x
 
-  const s1 = seed ? hash01(seed) : 0.5
-  const s2 = seed ? hash01(`${seed}.m`) : 0.5
-  const s3 = seed ? hash01(`${seed}.c1`) : 0.5
-  const s4 = seed ? hash01(`${seed}.c2`) : 0.5
-  const signed = s1 * 2 - 1
+  if (close) {
+    const base = box ? box.halfW + box.halfH : 12
+    const loop = Math.min(18, Math.max(7.4, base * 0.65)) * (0.85 + s2 * 0.35)
+    const bend = signed * loop
+
+    const mx = (a.x + b.x) * 0.5 + (-dy / dist) * bend
+    const my = (a.y + b.y) * 0.5 + (dx / dist) * bend
+
+    const c1 = {
+      x: a2.x + (mx - a2.x) * (0.62 + s3 * 0.08),
+      y: a2.y + (my - a2.y) * (0.62 + s3 * 0.08),
+    }
+    const c2 = {
+      x: b2.x + (mx - b2.x) * (0.62 + s4 * 0.08),
+      y: b2.y + (my - b2.y) * (0.62 + s4 * 0.08),
+    }
+    return `M ${a2.x} ${a2.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b2.x} ${b2.y}`
+  }
+
   const magnitude = Math.min(13, Math.max(3.2, d2 * 0.2)) * (0.65 + s2 * 0.55)
   const bend = signed * magnitude
 
   const bend1 = bend * (0.72 + s3 * 0.46)
   const bend2 = bend * (0.72 + s4 * 0.46)
 
-  const c1 = { x: a2.x + ddx * 0.33 + px * bend1, y: a2.y + ddy * 0.33 + py * bend1 }
-  const c2 = { x: a2.x + ddx * 0.66 + px * bend2, y: a2.y + ddy * 0.66 + py * bend2 }
+  const t1 = 0.3 + s3 * 0.07
+  const t2 = 0.7 - s4 * 0.07
+  const c1 = { x: a2.x + ddx * t1 + px * bend1, y: a2.y + ddy * t1 + py * bend1 }
+  const c2 = { x: a2.x + ddx * t2 + px * bend2, y: a2.y + ddy * t2 + py * bend2 }
   return `M ${a2.x} ${a2.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b2.x} ${b2.y}`
 }
 
-function edgeLabelPos(a: { x: number; y: number }, b: { x: number; y: number }, seed?: string, box?: EdgeNodeBox) {
+function edgeLabelPos(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  seed?: string,
+  box?: EdgeNodeBox,
+  opts?: { t?: number; perp?: number },
+) {
   const dx = b.x - a.x
   const dy = b.y - a.y
   const dist = Math.hypot(dx, dy)
@@ -234,10 +259,13 @@ function edgeLabelPos(a: { x: number; y: number }, b: { x: number; y: number }, 
   const py = ux
 
   const signed = (seed ? hash01(seed) : 0.5) * 2 - 1
-  const offset = Math.min(4.2, Math.max(2.0, d2 * 0.07)) * signed
+  const perpScale = typeof opts?.perp === 'number' && Number.isFinite(opts.perp) ? opts.perp : 1
+  const offset = Math.min(4.2, Math.max(2.0, d2 * 0.07)) * signed * perpScale
 
-  const mx = (a2.x + b2.x) * 0.5
-  const my = (a2.y + b2.y) * 0.5
+  const clamp01 = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+  const t = clamp01(typeof opts?.t === 'number' && Number.isFinite(opts.t) ? opts.t : 0.5, 0.34, 0.66)
+  const mx = a2.x + ddx * t
+  const my = a2.y + ddy * t
   return { x: mx + px * offset, y: my + py * offset }
 }
 
@@ -1074,14 +1102,19 @@ export function RelationsPage() {
     return set
   }, [spotlightRootPathNodeIds])
 
-  const spotlightRootPathLabeledEdgeKeySet = useMemo(() => {
-    const set = new Set<string>()
+  const spotlightRootPathLabelMeta = useMemo(() => {
     const max = 4
-    const n = Math.max(0, Math.min(max, spotlightRootPathNodeIds.length - 1))
-    for (let i = 0; i < n; i++) {
-      set.add(edgeKey(spotlightRootPathNodeIds[i], spotlightRootPathNodeIds[i + 1]))
+    const count = Math.max(0, Math.min(max, spotlightRootPathNodeIds.length - 1))
+    const set = new Set<string>()
+    const orderByKey = new Map<string, number>()
+
+    for (let i = 0; i < count; i++) {
+      const k = edgeKey(spotlightRootPathNodeIds[i], spotlightRootPathNodeIds[i + 1])
+      set.add(k)
+      orderByKey.set(k, i)
     }
-    return set
+
+    return { set, orderByKey, count }
   }, [spotlightRootPathNodeIds])
 
   const visibleEdgesOrdered = useMemo(() => {
@@ -1116,6 +1149,198 @@ export function RelationsPage() {
 
     return [...background, ...secondary, ...path, ...primary]
   }, [spotlightClusterIdSet, spotlightId, spotlightRootPathEdgeKeySet, visibleEdges])
+
+  const hideBackgroundEdges = Boolean(spotlightId && (heavyGraph || visibleEdges.length > 64 || crowdedFocus))
+
+  const edgeRenderBuckets = useMemo(() => {
+    const threshold = Math.max(12, Math.min(22, (graphNodeBox.halfW + graphNodeBox.halfH) * 0.9))
+    const masked: Array<(typeof visibleEdgesOrdered)[number]> = []
+    const unmasked: Array<(typeof visibleEdgesOrdered)[number]> = []
+
+    for (const item of visibleEdgesOrdered) {
+      const a = nodeById.get(item.e.from)?.pos
+      const b = nodeById.get(item.e.to)?.pos
+      if (!a || !b) continue
+      const dist = Math.hypot(b.x - a.x, b.y - a.y)
+      if (dist < threshold) unmasked.push(item)
+      else masked.push(item)
+    }
+
+    return { threshold, masked, unmasked }
+  }, [graphNodeBox.halfH, graphNodeBox.halfW, nodeById, visibleEdgesOrdered])
+
+  const renderSvgEdge = (
+    item: (typeof visibleEdgesOrdered)[number],
+    opts?: { unmasked?: boolean },
+  ) => {
+    const { e, tier } = item
+    const a = nodeById.get(e.from)?.pos
+    const b = nodeById.get(e.to)?.pos
+    if (!a || !b) return null
+
+    const hasFocus = Boolean(spotlightId)
+    if (hasFocus && hideBackgroundEdges && tier === 'background') return null
+
+    const connected = tier === 'primary'
+    const inRootPath = tier === 'path'
+
+    const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
+
+    const transition = reduceMotion ? undefined : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
+    const showGlow = !reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus
+    const showFlow = !reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))
+
+    const idleOpacity = heavyGraph ? 0.1 : 0.16
+    const baseOpacityRaw =
+      !hasFocus
+        ? idleOpacity
+        : tier === 'primary'
+          ? crowdedFocus
+            ? 0.74
+            : 0.9
+          : tier === 'path'
+            ? heavyGraph
+              ? 0.28
+              : 0.32
+          : tier === 'secondary'
+            ? heavyGraph
+              ? 0.07
+              : 0.12
+            : heavyGraph
+              ? 0.01
+              : 0.018
+    const baseOpacity = opts?.unmasked && hasFocus ? Math.min(1, baseOpacityRaw * 1.08) : baseOpacityRaw
+
+    const baseStroke =
+      tier === 'primary'
+        ? crowdedFocus
+          ? 'hsl(var(--accent) / 0.62)'
+          : 'hsl(var(--accent) / 0.78)'
+        : tier === 'path'
+          ? 'hsl(var(--accent2) / 0.66)'
+        : tier === 'secondary'
+          ? 'hsl(var(--muted) / 0.62)'
+          : 'hsl(var(--muted) / 0.50)'
+    const baseStrokeWidth =
+      tier === 'primary'
+        ? 0.52
+        : tier === 'path'
+          ? heavyGraph
+            ? 0.32
+            : 0.34
+        : tier === 'secondary'
+          ? heavyGraph
+            ? 0.2
+            : 0.22
+          : heavyGraph
+            ? 0.16
+            : 0.18
+
+    const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
+    const dash = tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
+
+    const k = edgeKey(e.from, e.to)
+    const edgeDist = Math.hypot(b.x - a.x, b.y - a.y)
+    const showLabel =
+      hasFocus &&
+      !reduceMotion &&
+      !heavyGraph &&
+      tier === 'path' &&
+      !crowdedFocus &&
+      edgeDist >= 12 &&
+      spotlightRootPathLabelMeta.set.has(k)
+    const labelText = showLabel ? e.label : ''
+    const labelOrder = spotlightRootPathLabelMeta.orderByKey.get(k) ?? 0
+    const labelCount = spotlightRootPathLabelMeta.count || 1
+    const labelT = 0.5 + (labelOrder - (labelCount - 1) / 2) * 0.06
+    const label = showLabel && labelText ? edgeLabelPos(a, b, `${e.id}.lbl`, graphNodeBox, { t: labelT }) : null
+    const labelW = showLabel && labelText ? Math.min(28, Math.max(10, labelText.length * 2.2 + 7)) : 0
+    const labelH = 6
+
+    return (
+      <g key={e.id}>
+        {showGlow ? (
+          <path
+            d={d}
+            style={{
+              opacity: 0.12,
+              stroke: 'hsl(var(--accent2) / 0.72)',
+              strokeWidth: 0.9,
+              transition,
+              filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
+            }}
+            vectorEffect="non-scaling-stroke"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
+        <path
+          d={d}
+          style={{
+            opacity: baseOpacity,
+            stroke: baseStroke,
+            strokeWidth: baseStrokeWidth,
+            transition,
+            strokeDasharray: dash,
+            filter: showGlow
+              ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
+              : showPathGlow
+                ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
+                : undefined,
+          }}
+          vectorEffect="non-scaling-stroke"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {showFlow ? (
+          <path
+            d={d}
+            className="xuantian-edge-flow"
+            style={{
+              opacity: 0.82,
+              stroke: 'hsl(var(--accent2) / 0.70)',
+              strokeWidth: baseStrokeWidth + 0.08,
+              strokeDasharray: '1.2 2.1',
+              transition,
+              filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
+            }}
+            vectorEffect="non-scaling-stroke"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
+
+        {label ? (
+          <g transform={`translate(${label.x} ${label.y})`} style={{ opacity: 0.92, transition }}>
+            <rect
+              x={-labelW / 2}
+              y={-labelH / 2}
+              width={labelW}
+              height={labelH}
+              rx={2.4}
+              ry={2.4}
+              fill="hsl(var(--bg) / 0.72)"
+              stroke="hsl(var(--border) / 0.70)"
+              strokeWidth={0.28}
+            />
+            <text
+              x="0"
+              y="0.55"
+              textAnchor="middle"
+              fontSize="2.35"
+              fill="hsl(var(--fg) / 0.86)"
+              style={{ letterSpacing: 0.15 }}
+            >
+              {labelText}
+            </text>
+          </g>
+        ) : null}
+      </g>
+    )
+  }
 
   const selectedRootPathNodeIds = useMemo(() => {
     return shortestPathNodeIds(relationAdjacency, selectedId, 'xuan')
@@ -1458,11 +1683,20 @@ export function RelationsPage() {
             </Chip>
           </div>
 
-          {onlyRelated ? (
-            <div className="mt-2 text-xs leading-6 text-muted/75">
-              聚焦已开启：谱面与线索簿只保留“当前节点”及其牵连，方便把线索走完。
-            </div>
-          ) : null}
+          <AnimatePresence initial={false}>
+            {onlyRelated ? (
+              <motion.div
+                key="onlyRelatedHint"
+                className="mt-2 text-xs leading-6 text-muted/75"
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+                transition={reduceMotion ? { duration: 0.12 } : { duration: 0.2, ease: EASE_OUT }}
+              >
+                聚焦已开启：谱面与线索簿只保留“当前节点”及其牵连，方便把线索走完。
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
 
           <div className="mt-5">
             <motion.div layout={enableClueListMotion ? 'position' : undefined} className="grid gap-2">
@@ -1661,7 +1895,7 @@ export function RelationsPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                      className="max-w-[320px] rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass"
+                      className="max-w-[320px] rounded-xl border border-border/60 bg-[linear-gradient(180deg,hsl(var(--card)/.98),hsl(var(--card)/.92))] px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass backdrop-blur-xl2 [transform:translateZ(0)]"
                     >
                       {hoveredId && hoveredId !== selectedId ? (
                         <>
@@ -1679,7 +1913,7 @@ export function RelationsPage() {
                           高密度：远处背景线已收起（不影响直连与回轩路）
                         </div>
                       ) : null}
-                      <div className="mt-2 flex flex-wrap items-center gap-1">
+                      <div className="mt-2 hidden flex-wrap items-center gap-1 sm:flex">
                         <span className="rounded-full border border-[hsl(var(--accent)/.26)] bg-[hsl(var(--accent)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
                           当前
                         </span>
@@ -1712,7 +1946,7 @@ export function RelationsPage() {
                     </motion.div>
                   </AnimatePresence>
                 ) : (
-                  <div className="max-w-[320px] rounded-xl border border-border/60 bg-white/6 px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass">
+                  <div className="max-w-[320px] rounded-xl border border-border/60 bg-[linear-gradient(180deg,hsl(var(--card)/.98),hsl(var(--card)/.92))] px-3 py-2 text-[11px] leading-5 text-muted/80 shadow-glass backdrop-blur-xl2 [transform:translateZ(0)]">
                     <div className="text-fg/90">当前：{nodeById.get(selectedId)?.title ?? selectedId}</div>
                     <div className="mt-1 text-muted/70">
                       直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
@@ -1727,7 +1961,10 @@ export function RelationsPage() {
                 style={graphTransforming ? { willChange: 'transform' } : undefined}
               >
                 <svg
-                  className="pointer-events-none absolute inset-0"
+                  className={cn(
+                    'pointer-events-none absolute inset-0 transition-opacity duration-300',
+                    !reduceMotion && !graphEntered ? 'opacity-0' : 'opacity-100',
+                  )}
                   viewBox="0 0 100 100"
                   preserveAspectRatio="none"
                 >
@@ -1735,8 +1972,8 @@ export function RelationsPage() {
                     <mask id="xuantian-edge-mask">
                       <rect x="0" y="0" width="100" height="100" fill="white" />
                       {visibleNodes.map((n) => {
-                        const halfW = graphNodeBox.halfW + 0.35
-                        const halfH = graphNodeBox.halfH + 0.25
+                        const halfW = graphNodeBox.halfW + 0.85
+                        const halfH = graphNodeBox.halfH + 0.55
                         return (
                           <rect
                             key={`mask:${n.id}`}
@@ -1754,175 +1991,11 @@ export function RelationsPage() {
                   </defs>
 
                   <g mask="url(#xuantian-edge-mask)">
-                    {visibleEdgesOrdered.map(({ e, tier }) => {
-                      const a = nodeById.get(e.from)?.pos
-                      const b = nodeById.get(e.to)?.pos
-                      if (!a || !b) return null
-
-                      const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
-
-                      const hasFocus = Boolean(spotlightId)
-                      if (hasFocus && heavyGraph && tier === 'background') return null
-
-                      const connected = tier === 'primary'
-                      const inRootPath = tier === 'path'
-
-                      const transition = reduceMotion
-                        ? undefined
-                        : 'opacity 260ms ease, stroke 260ms ease, stroke-width 260ms ease'
-                      const showGlow =
-                        !reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus
-                      const showFlow = !reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))
-
-                      const idleOpacity = heavyGraph ? 0.1 : 0.16
-                      const baseOpacity =
-                        !hasFocus
-                          ? idleOpacity
-                          : tier === 'primary'
-                            ? crowdedFocus
-                              ? 0.74
-                              : 0.9
-                            : tier === 'path'
-                              ? heavyGraph
-                                ? 0.28
-                                : 0.32
-                            : tier === 'secondary'
-                              ? heavyGraph
-                                ? 0.07
-                                : 0.12
-                              : heavyGraph
-                                ? 0.01
-                                : 0.018
-                      const baseStroke =
-                        tier === 'primary'
-                          ? crowdedFocus
-                            ? 'hsl(var(--accent) / 0.62)'
-                            : 'hsl(var(--accent) / 0.78)'
-                          : tier === 'path'
-                            ? 'hsl(var(--accent2) / 0.66)'
-                          : tier === 'secondary'
-                            ? 'hsl(var(--muted) / 0.62)'
-                            : 'hsl(var(--muted) / 0.50)'
-                      const baseStrokeWidth =
-                        tier === 'primary'
-                          ? 0.5
-                          : tier === 'path'
-                            ? heavyGraph
-                              ? 0.32
-                              : 0.34
-                            : tier === 'secondary'
-                              ? heavyGraph
-                                ? 0.20
-                                : 0.22
-                              : heavyGraph
-                                ? 0.16
-                                : 0.18
-
-                      const showPathGlow = !reduceMotion && !heavyGraph && hasFocus && tier === 'path'
-                      const dash =
-                        tier === 'background' ? '0.6 2.1' : tier === 'path' && heavyGraph ? '1.1 2.1' : undefined
-
-                      const k = edgeKey(e.from, e.to)
-                      const showLabel =
-                        hasFocus &&
-                        !reduceMotion &&
-                        !heavyGraph &&
-                        tier === 'path' &&
-                        !crowdedFocus &&
-                        spotlightRootPathLabeledEdgeKeySet.has(k)
-                      const labelText = showLabel ? e.label : ''
-                      const label = showLabel && labelText ? edgeLabelPos(a, b, `${e.id}.lbl`, graphNodeBox) : null
-                      const labelW = showLabel && labelText ? Math.min(28, Math.max(10, labelText.length * 2.2 + 7)) : 0
-                      const labelH = 6
-
-                      return (
-                        <g key={e.id}>
-                          {showGlow ? (
-                            <path
-                              d={d}
-                              style={{
-                                opacity: 0.12,
-                                stroke: 'hsl(var(--accent2) / 0.72)',
-                                strokeWidth: 0.9,
-                                transition,
-                                filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.22))',
-                              }}
-                              vectorEffect="non-scaling-stroke"
-                              fill="none"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          ) : null}
-                          <path
-                            d={d}
-                            style={{
-                              opacity: baseOpacity,
-                              stroke: baseStroke,
-                              strokeWidth: baseStrokeWidth,
-                              transition,
-                              strokeDasharray: dash,
-                              filter: showGlow
-                                ? 'drop-shadow(0 0 8px hsl(var(--accent) / 0.18))'
-                                : showPathGlow
-                                  ? 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.14))'
-                                  : undefined,
-                            }}
-                            vectorEffect="non-scaling-stroke"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          {showFlow ? (
-                            <path
-                              d={d}
-                              className="xuantian-edge-flow"
-                              style={{
-                                opacity: 0.82,
-                                stroke: 'hsl(var(--accent2) / 0.70)',
-                                strokeWidth: baseStrokeWidth + 0.08,
-                                strokeDasharray: '1.2 2.1',
-                                transition,
-                                filter: 'drop-shadow(0 0 10px hsl(var(--accent2) / 0.18))',
-                              }}
-                              vectorEffect="non-scaling-stroke"
-                              fill="none"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          ) : null}
-
-                          {label ? (
-                            <g
-                              transform={`translate(${label.x} ${label.y})`}
-                              style={{ opacity: 0.92, transition }}
-                            >
-                              <rect
-                                x={-labelW / 2}
-                                y={-labelH / 2}
-                                width={labelW}
-                                height={labelH}
-                                rx={2.4}
-                                ry={2.4}
-                                fill="hsl(var(--bg) / 0.72)"
-                                stroke="hsl(var(--border) / 0.70)"
-                                strokeWidth={0.28}
-                              />
-                              <text
-                                x="0"
-                                y="0.55"
-                                textAnchor="middle"
-                                fontSize="2.35"
-                                fill="hsl(var(--fg) / 0.86)"
-                                style={{ letterSpacing: 0.15 }}
-                              >
-                                {labelText}
-                              </text>
-                            </g>
-                          ) : null}
-                        </g>
-                      )
-                    })}
+                    {edgeRenderBuckets.masked.map((item) => renderSvgEdge(item))}
                   </g>
+                  {edgeRenderBuckets.unmasked.length ? (
+                    <g>{edgeRenderBuckets.unmasked.map((item) => renderSvgEdge(item, { unmasked: true }))}</g>
+                  ) : null}
                 </svg>
 
                 {visibleNodes.map((n, idx) => {

@@ -12,6 +12,7 @@
   <p>
     ⟡ <a href="https://tur1412.github.io/Blog/">在线洞天</a>
     · <a href="#vol-map">卷目</a>
+    · <a href="#xuan-bio">人物志</a>
     · <a href="#vol-0">卷首</a>
     · <a href="#vol-1">卷一·地界</a>
     · <a href="#vol-2">卷二·手感</a>
@@ -39,6 +40,16 @@
 > 2. 不写编程教程，不写无关杂谈；宁可少，也不乱。
 > 3. 不夸大、不粉饰：要像真事——能落地、可对照、可追溯。
 
+> [!TIP]
+> **人物志·轩天帝（轩少）**
+>
+> 名号在公文里写“天帝”，私下多称“轩少”。此卷写的不是“吹出来的厉害”，而是能对照、能复查、能落地的行止：
+>
+> - **守诺**：欠的是汤钱就还汤钱，不让“便宜”从人情里钻出来（断桥旧约）。
+> - **立界**：争端不靠嗓门压下去，靠次序、轮次与界石把事写清（清泉立界）。
+> - **回访**：救急不是一阵风；风过之后，药单、账目与流程要还能用（北境救荒 / 巡访回访）。
+> - **端秤**：胜负要分清，但人心不必踩碎；能束强者的规矩，才算规矩（白露誓账）。
+
 > [!NOTE]
 > **站内术语（不是噱头，是路标）**
 >
@@ -52,6 +63,33 @@
 > | 批注馆 | 把落笔的对照汇总 | 适合回看：哪条线最稳 |
 > | 札记 | 即写即存的个人经卷 | 看完一段就落一笔，久了成心法 |
 > | 藏品 | 旧物与其来处 | 可整理次序，像摆回“合适的位置” |
+
+<a id="xuan-bio"></a>
+
+## 人物志 · 轩天帝（轩少）
+
+<table>
+  <tr>
+    <td width="33%">
+      <strong>霜月入山</strong><br/>
+      <sub>玄历一七四年 · 霜月</sub><br/>
+      <sub>门外旧灯，照见尘与冻裂；入门不靠异象，靠规矩与耐心。</sub><br/><br/>
+      <a href="https://tur1412.github.io/Blog/#/chronicles/frost-moon-lantern">直达此章</a>
+    </td>
+    <td width="33%">
+      <strong>断桥旧约</strong><br/>
+      <sub>玄历一八〇年 · 雨水</sub><br/>
+      <sub>欠账不大，却最容易走偏：该还的还，该修的修，不借名头。</sub><br/><br/>
+      <a href="https://tur1412.github.io/Blog/#/chronicles/broken-bridge-old-promise">直达此章</a>
+    </td>
+    <td width="33%">
+      <strong>白露誓账</strong><br/>
+      <sub>玄历一八六年 · 白露</sub><br/>
+      <sub>把誓词翻出来逐条对照：能约束强者的纸，才配叫规矩。</sub><br/><br/>
+      <a href="https://tur1412.github.io/Blog/#/chronicles/white-dew-oath-ledger">直达此章</a>
+    </td>
+  </tr>
+</table>
 
 <a id="vol-map"></a>
 
