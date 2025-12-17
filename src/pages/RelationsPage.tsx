@@ -1086,19 +1086,35 @@ export function RelationsPage() {
 
   const visibleEdgesOrdered = useMemo(() => {
     const hasFocus = Boolean(spotlightId)
-    return visibleEdges
-      .map((e, idx) => {
-        if (!hasFocus || !spotlightId) {
-          return { e, idx, tier: 'background' as const, rank: 0 }
-        }
-        const connected = e.from === spotlightId || e.to === spotlightId
-        const inCluster = spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
-        const inRootPath = spotlightRootPathEdgeKeySet.has(edgeKey(e.from, e.to))
-        const tier = connected ? 'primary' : inRootPath ? 'path' : inCluster ? 'secondary' : 'background'
-        const rank = tier === 'background' ? 0 : tier === 'secondary' ? 1 : tier === 'path' ? 2 : 3
-        return { e, idx, tier, rank }
-      })
-      .sort((a, b) => a.rank - b.rank || a.idx - b.idx)
+    if (!hasFocus || !spotlightId) {
+      return visibleEdges.map((e) => ({ e, tier: 'background' as const }))
+    }
+
+    const background: Array<{ e: (typeof visibleEdges)[number]; tier: 'background' }> = []
+    const secondary: Array<{ e: (typeof visibleEdges)[number]; tier: 'secondary' }> = []
+    const path: Array<{ e: (typeof visibleEdges)[number]; tier: 'path' }> = []
+    const primary: Array<{ e: (typeof visibleEdges)[number]; tier: 'primary' }> = []
+
+    for (const e of visibleEdges) {
+      const connected = e.from === spotlightId || e.to === spotlightId
+      const inRootPath = spotlightRootPathEdgeKeySet.has(edgeKey(e.from, e.to))
+      if (connected) {
+        primary.push({ e, tier: 'primary' })
+        continue
+      }
+      if (inRootPath) {
+        path.push({ e, tier: 'path' })
+        continue
+      }
+      const inCluster = spotlightClusterIdSet.has(e.from) && spotlightClusterIdSet.has(e.to)
+      if (inCluster) {
+        secondary.push({ e, tier: 'secondary' })
+        continue
+      }
+      background.push({ e, tier: 'background' })
+    }
+
+    return [...background, ...secondary, ...path, ...primary]
   }, [spotlightClusterIdSet, spotlightId, spotlightRootPathEdgeKeySet, visibleEdges])
 
   const selectedRootPathNodeIds = useMemo(() => {
