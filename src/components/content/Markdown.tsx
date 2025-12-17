@@ -333,6 +333,7 @@ function buildComponents(opts: { idPrefix: string }): Components {
         <Link
           to={h}
           onPointerEnter={() => prefetchRoute(h)}
+          onPointerDown={() => prefetchRoute(h)}
           onFocus={() => prefetchRoute(h)}
           className="focus-ring tap"
         >

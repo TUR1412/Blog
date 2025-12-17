@@ -22,6 +22,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
     <NavLink
       to={to}
       onPointerEnter={() => prefetchRoute(to)}
+      onPointerDown={() => prefetchRoute(to)}
       onFocus={() => prefetchRoute(to)}
       className={({ isActive }) =>
         cn(

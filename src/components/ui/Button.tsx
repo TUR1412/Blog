@@ -52,6 +52,7 @@ export function ButtonLink({
     <Link
       to={to}
       onPointerEnter={() => prefetchRoute(to)}
+      onPointerDown={() => prefetchRoute(to)}
       onFocus={() => prefetchRoute(to)}
       className={cn(classes(variant), className)}
     >

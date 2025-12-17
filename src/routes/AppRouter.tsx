@@ -84,11 +84,11 @@ export function AppRouter() {
     const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
 
     if (ric) {
-      const id = ric(() => prefetchCoreRoutes({ includeNotes: true }), { timeout: 2000 })
+      const id = ric(() => prefetchCoreRoutes({ includeNotes: true }), { timeout: 900 })
       return () => cic?.(id)
     }
 
-    const t = window.setTimeout(() => prefetchCoreRoutes({ includeNotes: true }), 1200)
+    const t = window.setTimeout(() => prefetchCoreRoutes({ includeNotes: true }), 680)
     return () => window.clearTimeout(t)
   }, [])
 
