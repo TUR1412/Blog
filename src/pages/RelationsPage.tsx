@@ -1505,12 +1505,27 @@ export function RelationsPage() {
                 {visibleNodes.map((n, idx) => {
                   const active = n.id === selectedId
                   const spotlight = n.id === spotlightId
+                  const directRelated = Boolean(spotlightId && spotlightRelatedIdSet.has(n.id))
+                  const inRootPath = Boolean(spotlightId && spotlightRootPathNodeIdSet.has(n.id))
                   const related =
                     spotlightId && !spotlight
-                      ? spotlightRelatedIdSet.has(n.id) || spotlightRootPathNodeIdSet.has(n.id) || n.id === 'xuan'
+                      ? directRelated || inRootPath || n.id === 'xuan'
                       : true
 
-                const dim = spotlightId ? !spotlight && !related : false
+                  const dim = spotlightId ? !spotlight && !related : false
+                  const roleBadge = active
+                    ? '当前'
+                    : spotlightId
+                      ? spotlight
+                        ? '焦点'
+                        : n.id === 'xuan'
+                          ? '根'
+                          : directRelated
+                            ? '牵连'
+                            : inRootPath
+                              ? '回轩路'
+                              : null
+                      : null
 
                 if (reduceMotion || heavyGraph) {
                   const z = active || spotlight ? 60 : related ? 40 : 20
@@ -1552,13 +1567,22 @@ export function RelationsPage() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <div className="truncate text-xs font-semibold text-fg">{n.title}</div>
-                              {active ? (
-                                <span className="shrink-0 rounded-full border border-[hsl(var(--accent)/.30)] bg-[hsl(var(--accent)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
-                                  当前
-                                </span>
-                              ) : related && spotlightId ? (
-                                <span className="shrink-0 rounded-full border border-border/70 bg-[hsl(var(--fg)/.04)] px-2 py-0.5 text-[10px] text-muted/80">
-                                  牵连
+                              {roleBadge ? (
+                                <span
+                                  className={cn(
+                                    'shrink-0 rounded-full border px-2 py-0.5 text-[10px]',
+                                    roleBadge === '当前'
+                                      ? 'border-[hsl(var(--accent)/.30)] bg-[hsl(var(--accent)/.10)] text-fg/90'
+                                      : roleBadge === '焦点'
+                                        ? 'border-[hsl(var(--accent2)/.26)] bg-[hsl(var(--accent2)/.10)] text-fg/90'
+                                        : roleBadge === '根'
+                                          ? 'border-[hsl(var(--fg)/.18)] bg-[hsl(var(--fg)/.06)] text-fg/90'
+                                          : roleBadge === '回轩路'
+                                            ? 'border-[hsl(var(--accent2)/.20)] bg-[hsl(var(--accent2)/.08)] text-fg/90'
+                                            : 'border-border/70 bg-[hsl(var(--fg)/.04)] text-muted/80',
+                                  )}
+                                >
+                                  {roleBadge}
                                 </span>
                               ) : null}
                             </div>
@@ -1613,13 +1637,22 @@ export function RelationsPage() {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <div className="truncate text-xs font-semibold text-fg">{n.title}</div>
-                            {active ? (
-                              <span className="shrink-0 rounded-full border border-[hsl(var(--accent)/.30)] bg-[hsl(var(--accent)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
-                                当前
-                              </span>
-                            ) : related && spotlightId ? (
-                              <span className="shrink-0 rounded-full border border-border/70 bg-[hsl(var(--fg)/.04)] px-2 py-0.5 text-[10px] text-muted/80">
-                                牵连
+                            {roleBadge ? (
+                              <span
+                                className={cn(
+                                  'shrink-0 rounded-full border px-2 py-0.5 text-[10px]',
+                                  roleBadge === '当前'
+                                    ? 'border-[hsl(var(--accent)/.30)] bg-[hsl(var(--accent)/.10)] text-fg/90'
+                                    : roleBadge === '焦点'
+                                      ? 'border-[hsl(var(--accent2)/.26)] bg-[hsl(var(--accent2)/.10)] text-fg/90'
+                                      : roleBadge === '根'
+                                        ? 'border-[hsl(var(--fg)/.18)] bg-[hsl(var(--fg)/.06)] text-fg/90'
+                                        : roleBadge === '回轩路'
+                                          ? 'border-[hsl(var(--accent2)/.20)] bg-[hsl(var(--accent2)/.08)] text-fg/90'
+                                          : 'border-border/70 bg-[hsl(var(--fg)/.04)] text-muted/80',
+                                )}
+                              >
+                                {roleBadge}
                               </span>
                             ) : null}
                           </div>
