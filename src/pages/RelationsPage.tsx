@@ -1648,6 +1648,11 @@ export function RelationsPage() {
                       <div className="mt-1 text-muted/70">
                         直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
                       </div>
+                      {spotlightId && heavyGraph ? (
+                        <div className="mt-1 text-[10px] text-muted/65">
+                          高密度：远处背景线已收起（不影响直连与回轩路）
+                        </div>
+                      ) : null}
                       <div className="mt-2 flex flex-wrap items-center gap-1">
                         <span className="rounded-full border border-[hsl(var(--accent)/.26)] bg-[hsl(var(--accent)/.10)] px-2 py-0.5 text-[10px] text-fg/90">
                           当前
