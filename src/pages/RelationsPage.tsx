@@ -1209,6 +1209,7 @@ export function RelationsPage() {
   }, [selectedRootPathNodeIds])
 
   const hideBackgroundEdges = Boolean(spotlightId && (heavyGraph || visibleEdges.length > 64 || crowdedFocus))
+  const hideSecondaryEdges = Boolean(spotlightId && (heavyGraph || crowdedFocus))
 
   const edgeRenderBuckets = useMemo(() => {
     const threshold = Math.max(12, Math.min(22, (graphNodeBox.halfW + graphNodeBox.halfH) * 0.9))
@@ -1241,6 +1242,7 @@ export function RelationsPage() {
 
     const connected = tier === 'primary'
     const inRootPath = tier === 'path'
+    const hideSecondary = Boolean(hasFocus && tier === 'secondary' && hideSecondaryEdges)
 
     const d = edgePathById.get(e.id) ?? edgePath(a, b, e.id, graphNodeBox)
 
@@ -1269,7 +1271,10 @@ export function RelationsPage() {
             : heavyGraph
               ? 0.01
               : 0.018
-    const baseOpacity = opts?.unmasked && hasFocus ? Math.min(1, baseOpacityRaw * 1.08) : baseOpacityRaw
+    let baseOpacity = baseOpacityRaw
+    if (hasFocus && tier === 'secondary') baseOpacity *= heavyGraph ? 0.78 : 0.72
+    if (hideSecondary) baseOpacity = 0
+    if (opts?.unmasked && hasFocus) baseOpacity = Math.min(1, baseOpacity * 1.08)
 
     const baseStroke =
       tier === 'primary'
@@ -2019,9 +2024,13 @@ export function RelationsPage() {
                       <div className="mt-1 text-muted/70">
                         直连 {spotlightEdgeCount} · 回轩路 {Math.max(0, spotlightRootPathNodeIds.length - 1)} 跳
                       </div>
-                      {spotlightId && heavyGraph ? (
+                      {spotlightId && (hideBackgroundEdges || hideSecondaryEdges) ? (
                         <div className="mt-1 text-[10px] text-muted/65">
-                          高密度：远处背景线已收起（不影响直连与回轩路）
+                          {hideBackgroundEdges && hideSecondaryEdges
+                            ? '高密度：背景线与次要牵连线已收声（不影响直连与回轩路）'
+                            : hideBackgroundEdges
+                              ? '高密度：远处背景线已收起（不影响直连与回轩路）'
+                              : '高密度：次要牵连线已收声（不影响直连与回轩路）'}
                         </div>
                       ) : null}
                       <div className="mt-2 hidden flex-wrap items-center gap-1 sm:flex">
