@@ -34,8 +34,8 @@ function LazyEnter({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
       className="relative"
-      initial={reduceMotion ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={reduceMotion ? { duration: 0.12 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
@@ -50,10 +50,10 @@ function RouteTransition({ children }: { children: React.ReactNode }) {
     <motion.div
       className="relative transform-gpu"
       style={enable ? { willChange: 'transform, opacity' } : undefined}
-      initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.996 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.998 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.996 }}
-      transition={reduceMotion ? { duration: 0.14 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.998 }}
+      transition={reduceMotion ? { duration: 0.14 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
     >
       {enable ? (
         <motion.div
@@ -61,7 +61,7 @@ function RouteTransition({ children }: { children: React.ReactNode }) {
           className="pointer-events-none absolute left-0 right-0 top-0 h-[2px] origin-left bg-[linear-gradient(90deg,transparent,hsl(var(--accent)/.70),hsl(var(--accent2)/.60),transparent)] opacity-0"
           initial={{ opacity: 0, scaleX: 0.62 }}
           animate={{ opacity: [0, 1, 0], scaleX: [0.62, 1, 1] }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.46, ease: [0.22, 1, 0.36, 1] }}
         />
       ) : null}
       {children}

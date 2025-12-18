@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { chronicleIndex } from '../../content/chronicleIndex'
 import { cn } from '../../lib/cn'
-import { prefetchRoute } from '../../routes/prefetch'
+import { prefetchIntent } from '../../routes/prefetch'
 
 type CommandItem = {
   id: string
@@ -248,7 +248,7 @@ function CommandPaletteModal({
 
   useEffect(() => {
     const it = filtered[activeIndex]
-    if (it?.prefetchTo) prefetchRoute(it.prefetchTo)
+    if (it?.prefetchTo) prefetchIntent(it.prefetchTo)
   }, [activeIndex, filtered])
 
   useEffect(() => {
@@ -368,11 +368,11 @@ function CommandPaletteModal({
                        }
                        onMouseEnter={() => {
                          setActiveIndex(idx)
-                         if (it.prefetchTo) prefetchRoute(it.prefetchTo)
+                         if (it.prefetchTo) prefetchIntent(it.prefetchTo)
                        }}
                        onFocus={() => {
                          setActiveIndex(idx)
-                         if (it.prefetchTo) prefetchRoute(it.prefetchTo)
+                         if (it.prefetchTo) prefetchIntent(it.prefetchTo)
                        }}
                        onClick={() => {
                          it.run()

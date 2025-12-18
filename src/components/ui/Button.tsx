@@ -1,7 +1,7 @@
 import { ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
-import { prefetchRoute } from '../../routes/prefetch'
+import { prefetchIntent } from '../../routes/prefetch'
 
 type Variant = 'primary' | 'ghost' | 'outline'
 
@@ -51,9 +51,9 @@ export function ButtonLink({
   return (
     <Link
       to={to}
-      onPointerEnter={() => prefetchRoute(to)}
-      onPointerDown={() => prefetchRoute(to)}
-      onFocus={() => prefetchRoute(to)}
+      onPointerEnter={() => prefetchIntent(to)}
+      onPointerDown={() => prefetchIntent(to)}
+      onFocus={() => prefetchIntent(to)}
       className={cn(classes(variant), className)}
     >
       {children}

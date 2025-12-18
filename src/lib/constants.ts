@@ -1,5 +1,5 @@
-export const APP_VERSION = '2025.12.18.70'
-export const ASSET_VERSION = '20251218-70'
+export const APP_VERSION = '2025.12.18.71'
+export const ASSET_VERSION = '20251218-71'
 
 export const STORAGE_KEYS = {
   notes: 'xuantian.notes.v1',

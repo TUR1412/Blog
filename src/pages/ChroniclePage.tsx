@@ -12,7 +12,7 @@ import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
-import { prefetchRoute } from '../routes/prefetch'
+import { prefetchIntent } from '../routes/prefetch'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 type ReadingLast = {
@@ -255,9 +255,9 @@ export function ChroniclePage() {
           <div className="mt-6">
             <Link
               to="/chronicles"
-              onPointerEnter={() => prefetchRoute('/chronicles')}
-              onPointerDown={() => prefetchRoute('/chronicles')}
-              onFocus={() => prefetchRoute('/chronicles')}
+              onPointerEnter={() => prefetchIntent('/chronicles')}
+              onPointerDown={() => prefetchIntent('/chronicles')}
+              onFocus={() => prefetchIntent('/chronicles')}
               className="focus-ring tap inline-flex items-center gap-2 text-sm"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -334,9 +334,9 @@ export function ChroniclePage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Link
                 to="/chronicles"
-                onPointerEnter={() => prefetchRoute('/chronicles')}
-                onPointerDown={() => prefetchRoute('/chronicles')}
-                onFocus={() => prefetchRoute('/chronicles')}
+                onPointerEnter={() => prefetchIntent('/chronicles')}
+                onPointerDown={() => prefetchIntent('/chronicles')}
+                onFocus={() => prefetchIntent('/chronicles')}
                 className="focus-ring tap inline-flex items-center gap-2 text-sm text-muted/80 hover:text-fg"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -564,9 +564,9 @@ function ButtonLinkToNotes() {
   return (
     <Link
       to="/notes"
-      onPointerEnter={() => prefetchRoute('/notes')}
-      onPointerDown={() => prefetchRoute('/notes')}
-      onFocus={() => prefetchRoute('/notes')}
+      onPointerEnter={() => prefetchIntent('/notes')}
+      onPointerDown={() => prefetchIntent('/notes')}
+      onFocus={() => prefetchIntent('/notes')}
       className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-2 text-sm font-medium text-fg/90 hover:bg-white/10"
     >
       去打开札记

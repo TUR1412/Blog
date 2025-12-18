@@ -33,7 +33,7 @@ import { STORAGE_KEYS } from '../lib/constants'
 import { findAllMatchRanges } from '../lib/find'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
-import { prefetchRoute } from '../routes/prefetch'
+import { prefetchIntent } from '../routes/prefetch'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 type KindFilter = 'all' | RelationKind
@@ -2787,9 +2787,9 @@ export function RelationsPage() {
                     {selected.chronicleSlug ? (
                       <Link
                         to={`/chronicles/${selected.chronicleSlug}`}
-                        onPointerEnter={() => prefetchRoute(`/chronicles/${selected.chronicleSlug}`)}
-                        onPointerDown={() => prefetchRoute(`/chronicles/${selected.chronicleSlug}`)}
-                        onFocus={() => prefetchRoute(`/chronicles/${selected.chronicleSlug}`)}
+                        onPointerEnter={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`)}
+                        onPointerDown={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`)}
+                        onFocus={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`)}
                         className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
                       >
                         <BookOpen className="h-4 w-4" />
@@ -2801,9 +2801,9 @@ export function RelationsPage() {
                     {selected.timelineId ? (
                       <Link
                         to={`/grotto?id=${selected.timelineId}`}
-                        onPointerEnter={() => prefetchRoute(`/grotto?id=${selected.timelineId}`)}
-                        onPointerDown={() => prefetchRoute(`/grotto?id=${selected.timelineId}`)}
-                        onFocus={() => prefetchRoute(`/grotto?id=${selected.timelineId}`)}
+                        onPointerEnter={() => prefetchIntent(`/grotto?id=${selected.timelineId}`)}
+                        onPointerDown={() => prefetchIntent(`/grotto?id=${selected.timelineId}`)}
+                        onFocus={() => prefetchIntent(`/grotto?id=${selected.timelineId}`)}
                         className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
                       >
                         <MapIcon className="h-4 w-4" />

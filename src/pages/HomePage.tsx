@@ -13,7 +13,7 @@ import { STORAGE_KEYS } from '../lib/constants'
 import { hapticTap } from '../lib/haptics'
 import { readJson, writeString } from '../lib/storage'
 import { useCommandPalette } from '../providers/command/CommandPaletteProvider'
-import { prefetchRoute } from '../routes/prefetch'
+import { prefetchIntent } from '../routes/prefetch'
 
 type Burst = { id: string; x: number; y: number }
 type ReadingLast = {
@@ -279,9 +279,9 @@ export function HomePage() {
                   <Link
                     key={c.slug}
                     to={`/chronicles/${c.slug}`}
-                    onPointerEnter={() => prefetchRoute(`/chronicles/${c.slug}`)}
-                    onPointerDown={() => prefetchRoute(`/chronicles/${c.slug}`)}
-                    onFocus={() => prefetchRoute(`/chronicles/${c.slug}`)}
+                    onPointerEnter={() => prefetchIntent(`/chronicles/${c.slug}`)}
+                    onPointerDown={() => prefetchIntent(`/chronicles/${c.slug}`)}
+                    onFocus={() => prefetchIntent(`/chronicles/${c.slug}`)}
                     className={cn(
                       'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-4 py-4',
                       'hover:bg-white/7',

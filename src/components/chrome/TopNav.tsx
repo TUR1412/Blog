@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Search } from 'lucide-react'
 import { NavLink, Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
-import { prefetchRoute } from '../../routes/prefetch'
+import { prefetchIntent } from '../../routes/prefetch'
 import { useCommandPalette } from '../../providers/command/CommandPaletteProvider'
 
 const NAV = [
@@ -20,9 +20,9 @@ function NavItem({ to, label }: { to: string; label: string }) {
   return (
     <NavLink
       to={to}
-      onPointerEnter={() => prefetchRoute(to)}
-      onPointerDown={() => prefetchRoute(to)}
-      onFocus={() => prefetchRoute(to)}
+      onPointerEnter={() => prefetchIntent(to)}
+      onPointerDown={() => prefetchIntent(to)}
+      onFocus={() => prefetchIntent(to)}
       className={({ isActive }) =>
         cn(
           'focus-ring tap relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm',

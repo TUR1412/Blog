@@ -52,6 +52,16 @@ export function prefetchMarkdown() {
   void import('../components/content/Markdown')
 }
 
+function shouldPrefetchMarkdownForPath(path: string) {
+  return path === '/grotto' || path === '/relations' || path === '/annotations' || path === '/notes'
+}
+
+export function prefetchIntent(to: string) {
+  prefetchRoute(to)
+  const path = normalizePath(to)
+  if (shouldPrefetchMarkdownForPath(path)) prefetchMarkdown()
+}
+
 export function prefetchCoreRoutes(opts?: {
   includeNotes?: boolean
   priority?: PrefetchPriority
