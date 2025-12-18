@@ -1,10 +1,9 @@
 import { motion } from 'framer-motion'
-import { Moon, Search, Sun } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { NavLink, Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { prefetchRoute } from '../../routes/prefetch'
 import { useCommandPalette } from '../../providers/command/CommandPaletteProvider'
-import { useTheme } from '../../providers/theme/ThemeProvider'
 
 const NAV = [
   { to: '/', label: '洞天' },
@@ -50,7 +49,6 @@ function NavItem({ to, label }: { to: string; label: string }) {
 
 export function TopNav() {
   const { open } = useCommandPalette()
-  const { theme, toggleTheme } = useTheme()
 
   return (
     <header className="fixed left-0 top-0 z-[60] w-full">
@@ -89,19 +87,6 @@ export function TopNav() {
             <span className="hidden rounded-lg border border-border/70 bg-white/5 px-2 py-1 text-xs text-muted/80 sm:inline">
               Ctrl/⌘ K
             </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className={cn(
-              'focus-ring tap inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-fg/90',
-              'hover:bg-white/10',
-            )}
-            aria-label={theme === 'dark' ? '切换浅色' : '切换深色'}
-            title={theme === 'dark' ? '切换浅色' : '切换深色'}
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
         </div>
       </div>

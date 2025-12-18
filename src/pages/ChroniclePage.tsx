@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { ArrowLeft, Bookmark, BookmarkCheck, Copy, Maximize2, Minimize2, Waypoints } from 'lucide-react'
+import { ArrowLeft, Bookmark, BookmarkCheck, Copy, Waypoints } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
@@ -47,7 +47,6 @@ export function ChroniclePage() {
     readJson<ReadingLast | null>(STORAGE_KEYS.readingLast, null),
   )
   const [resumeDismissed, setResumeDismissed] = useState(false)
-  const [immersive, setImmersive] = useLocalStorageState<boolean>(STORAGE_KEYS.readingImmersive, false)
 
   const [bookmarks, setBookmarks] = useLocalStorageState<string[]>(STORAGE_KEYS.bookmarks, [])
 
@@ -72,12 +71,6 @@ export function ChroniclePage() {
     })
     return map
   }, [chronicle])
-
-  useEffect(() => {
-    const root = document.documentElement
-    root.classList.toggle('reading-immersive', immersive)
-    return () => root.classList.remove('reading-immersive')
-  }, [immersive])
 
   useEffect(() => {
     let rafId: number | null = null
@@ -335,24 +328,8 @@ export function ChroniclePage() {
         />
       </div>
 
-      {immersive ? (
-        <div className="fixed right-4 top-4 z-[80]">
-          <div className="glass flex items-center gap-2 rounded-xl2 px-3 py-2">
-            <div className="text-xs text-muted/80">{Math.max(0, Math.min(100, progress)).toFixed(0)}%</div>
-            <button
-              type="button"
-              onClick={() => setImmersive(false)}
-              className="focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-xs font-medium text-fg/90 hover:bg-white/10"
-            >
-              <Minimize2 className="h-4 w-4" />
-              退出沉浸
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       <div className="grid gap-4 lg:grid-cols-12">
-        <div className={immersive ? 'lg:col-span-12' : 'lg:col-span-8'}>
+        <div className="lg:col-span-8">
           <Card className="p-7 md:p-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Link
@@ -381,10 +358,6 @@ export function ChroniclePage() {
                 >
                   {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
                   {isBookmarked ? '已收藏' : '收藏'}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setImmersive((v) => !v)}>
-                  {immersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                  {immersive ? '退出沉浸' : '沉浸'}
                 </Button>
                 <Button type="button" variant="ghost" onClick={appendToNotes}>
                   <BookMarkToNotesIcon />
@@ -470,17 +443,13 @@ export function ChroniclePage() {
           </Card>
         </div>
 
-        <AnimatePresence initial={false}>
-          {!immersive ? (
-            <motion.aside
-              key="chronicleAside"
-              className="lg:col-span-4"
-              initial={reduceMotion ? false : { opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 12 }}
-              transition={reduceMotion ? { duration: 0.12 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <div className="sticky top-24 space-y-4">
+        <motion.aside
+          className="lg:col-span-4"
+          initial={reduceMotion ? false : { opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={reduceMotion ? { duration: 0.12 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="sticky top-24 space-y-4">
               {resumeHint ? (
                 <Card className="p-5">
                   <SectionHeading
@@ -576,10 +545,8 @@ export function ChroniclePage() {
                   ) : null}
                 </AnimatePresence>
               </Card>
-              </div>
-            </motion.aside>
-          ) : null}
-        </AnimatePresence>
+          </div>
+        </motion.aside>
       </div>
     </>
   )

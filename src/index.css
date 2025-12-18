@@ -71,22 +71,24 @@
   --stroke: rgba(255, 255, 255, 0.10);
 }
 
-html.theme-light {
-  --bg: 46 86% 96%;
-  --fg: 231 30% 12%;
-  --muted: 230 14% 38%;
-  --card: 0 0% 100%;
-  --border: 230 20% 86%;
-  --ring: 196 94% 40%;
-  --accent: 196 94% 40%;
-  --accent2: 284 70% 48%;
-  --good: 145 58% 34%;
-  --warn: 42 88% 46%;
-  --bad: 0 74% 44%;
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: 46 86% 96%;
+    --fg: 231 30% 12%;
+    --muted: 230 14% 38%;
+    --card: 0 0% 100%;
+    --border: 230 20% 86%;
+    --ring: 196 94% 40%;
+    --accent: 196 94% 40%;
+    --accent2: 284 70% 48%;
+    --good: 145 58% 34%;
+    --warn: 42 88% 46%;
+    --bad: 0 74% 44%;
 
-  --glass: rgba(0, 0, 0, 0.04);
-  --glass2: rgba(0, 0, 0, 0.02);
-  --stroke: rgba(0, 0, 0, 0.08);
+    --glass: rgba(0, 0, 0, 0.04);
+    --glass2: rgba(0, 0, 0, 0.02);
+    --stroke: rgba(0, 0, 0, 0.08);
+  }
 }
 
 @layer base {
@@ -98,8 +100,10 @@ html.theme-light {
     -moz-osx-font-smoothing: grayscale;
   }
 
-  html.theme-light {
-    color-scheme: light;
+  @media (prefers-color-scheme: light) {
+    html {
+      color-scheme: light;
+    }
   }
 
   body {
@@ -120,23 +124,6 @@ html.theme-light {
 
   ::selection {
     background: hsl(var(--accent) / 0.28);
-  }
-
-  html.reading-immersive header {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-12px);
-    transition:
-      opacity 180ms ease,
-      transform 220ms ease;
-  }
-
-  html.reading-immersive footer {
-    display: none;
-  }
-
-  html.reading-immersive main#content {
-    padding-top: 1.25rem;
   }
 }
 
@@ -192,10 +179,12 @@ html.theme-light {
     animation: xuantian-node-pulse 560ms cubic-bezier(0.22, 1, 0.36, 1) 1;
   }
 
-  html.theme-light .xuantian-node-pulse {
-    box-shadow:
-      0 0 0 4px hsl(var(--accent2) / 0.10),
-      0 16px 40px rgba(0, 0, 0, 0.10);
+  @media (prefers-color-scheme: light) {
+    .xuantian-node-pulse {
+      box-shadow:
+        0 0 0 4px hsl(var(--accent2) / 0.10),
+        0 16px 40px rgba(0, 0, 0, 0.10);
+    }
   }
 
   /* 经卷观：首段落款（“开卷一字起势”） */
@@ -214,8 +203,10 @@ html.theme-light {
     text-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
   }
 
-  html.theme-light .xuantian-md > p:first-of-type::first-letter {
-    text-shadow: 0 18px 50px rgba(0, 0, 0, 0.14);
+  @media (prefers-color-scheme: light) {
+    .xuantian-md > p:first-of-type::first-letter {
+      text-shadow: 0 18px 50px rgba(0, 0, 0, 0.14);
+    }
   }
 
   /* 经卷观：检索命中（札记/批注馆/洞府批注） */
@@ -241,17 +232,19 @@ html.theme-light {
       0 14px 48px rgba(0, 0, 0, 0.28);
   }
 
-  html.theme-light .xuantian-md mark[data-x-hit] {
-    border-color: hsl(var(--border) / 0.75);
-    background: linear-gradient(90deg, hsl(var(--accent) / 0.18), hsl(var(--accent2) / 0.14));
-    color: hsl(var(--fg) / 0.95);
-  }
+  @media (prefers-color-scheme: light) {
+    .xuantian-md mark[data-x-hit] {
+      border-color: hsl(var(--border) / 0.75);
+      background: linear-gradient(90deg, hsl(var(--accent) / 0.18), hsl(var(--accent2) / 0.14));
+      color: hsl(var(--fg) / 0.95);
+    }
 
-  html.theme-light .xuantian-md mark[data-x-hit][data-x-active='1'] {
-    border-color: hsl(var(--accent2) / 0.38);
-    box-shadow:
-      0 0 0 4px hsl(var(--accent2) / 0.10),
-      0 12px 40px rgba(0, 0, 0, 0.12);
+    .xuantian-md mark[data-x-hit][data-x-active='1'] {
+      border-color: hsl(var(--accent2) / 0.38);
+      box-shadow:
+        0 0 0 4px hsl(var(--accent2) / 0.10),
+        0 12px 40px rgba(0, 0, 0, 0.12);
+    }
   }
 
   /* 经卷观：锚点跳转“落印”提示（ToC/# 内链） */
@@ -266,9 +259,11 @@ html.theme-light {
       box-shadow 180ms ease;
   }
 
-  html.theme-light .xuantian-md [data-x-flash] {
-    outline-color: hsl(var(--accent2) / 0.26);
-    background: hsl(var(--accent2) / 0.08);
-    box-shadow: 0 0 0 4px hsl(var(--accent2) / 0.10);
+  @media (prefers-color-scheme: light) {
+    .xuantian-md [data-x-flash] {
+      outline-color: hsl(var(--accent2) / 0.26);
+      background: hsl(var(--accent2) / 0.08);
+      box-shadow: 0 0 0 4px hsl(var(--accent2) / 0.10);
+    }
   }
 }

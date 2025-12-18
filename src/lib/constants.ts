@@ -1,8 +1,7 @@
-export const APP_VERSION = '2025.12.18.66'
-export const ASSET_VERSION = '20251218-66'
+export const APP_VERSION = '2025.12.18.67'
+export const ASSET_VERSION = '20251218-67'
 
 export const STORAGE_KEYS = {
-  theme: 'xuantian.theme',
   notes: 'xuantian.notes.v1',
   notesMeta: 'xuantian.notesMeta.v1',
   notesView: 'xuantian.notes.view.v1',
@@ -11,7 +10,6 @@ export const STORAGE_KEYS = {
   treasureOrder: 'xuantian.treasures.order.v1',
   bookmarks: 'xuantian.bookmarks.v1',
   readingLast: 'xuantian.reading.last.v1',
-  readingImmersive: 'xuantian.reading.immersive.v1',
   grottoSelected: 'xuantian.grotto.selected.v1',
   grottoLayer: 'xuantian.grotto.layer.v1',
   grottoTone: 'xuantian.grotto.tone.v1',
