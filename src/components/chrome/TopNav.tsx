@@ -20,9 +20,9 @@ function NavItem({ to, label }: { to: string; label: string }) {
   return (
     <NavLink
       to={to}
-      onPointerEnter={() => prefetchIntent(to)}
-      onPointerDown={() => prefetchIntent(to)}
-      onFocus={() => prefetchIntent(to)}
+      onPointerEnter={() => prefetchIntent(to, 'hover')}
+      onPointerDown={() => prefetchIntent(to, 'press')}
+      onFocus={() => prefetchIntent(to, 'focus')}
       className={({ isActive }) =>
         cn(
           'focus-ring tap relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm',

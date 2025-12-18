@@ -248,7 +248,7 @@ function CommandPaletteModal({
 
   useEffect(() => {
     const it = filtered[activeIndex]
-    if (it?.prefetchTo) prefetchIntent(it.prefetchTo)
+    if (it?.prefetchTo) prefetchIntent(it.prefetchTo, 'focus')
   }, [activeIndex, filtered])
 
   useEffect(() => {
@@ -348,7 +348,7 @@ function CommandPaletteModal({
                 <motion.div layout={enableListMotion ? 'position' : undefined} className="grid gap-1">
                   <AnimatePresence initial={false} mode={enableListMotion ? 'popLayout' : 'sync'}>
                     {filtered.map((it, idx) => (
-                    <motion.button
+                     <motion.button
                       key={it.id}
                       data-cmd-index={idx}
                       type="button"
@@ -368,17 +368,20 @@ function CommandPaletteModal({
                        }
                        onMouseEnter={() => {
                          setActiveIndex(idx)
-                         if (it.prefetchTo) prefetchIntent(it.prefetchTo)
+                         if (it.prefetchTo) prefetchIntent(it.prefetchTo, 'hover')
                        }}
                        onFocus={() => {
                          setActiveIndex(idx)
-                         if (it.prefetchTo) prefetchIntent(it.prefetchTo)
+                         if (it.prefetchTo) prefetchIntent(it.prefetchTo, 'focus')
+                       }}
+                       onPointerDown={() => {
+                         if (it.prefetchTo) prefetchIntent(it.prefetchTo, 'press')
                        }}
                        onClick={() => {
                          it.run()
                          onClose()
                        }}
-                     >
+                      >
                       {idx === activeIndex ? (
                         enableActiveMotion ? (
                           <motion.span

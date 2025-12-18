@@ -279,9 +279,9 @@ export function HomePage() {
                   <Link
                     key={c.slug}
                     to={`/chronicles/${c.slug}`}
-                    onPointerEnter={() => prefetchIntent(`/chronicles/${c.slug}`)}
-                    onPointerDown={() => prefetchIntent(`/chronicles/${c.slug}`)}
-                    onFocus={() => prefetchIntent(`/chronicles/${c.slug}`)}
+                    onPointerEnter={() => prefetchIntent(`/chronicles/${c.slug}`, 'hover')}
+                    onPointerDown={() => prefetchIntent(`/chronicles/${c.slug}`, 'press')}
+                    onFocus={() => prefetchIntent(`/chronicles/${c.slug}`, 'focus')}
                     className={cn(
                       'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-4 py-4',
                       'hover:bg-white/7',

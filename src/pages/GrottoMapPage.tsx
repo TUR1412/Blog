@@ -1187,9 +1187,9 @@ export function GrottoMapPage() {
                       {selected.chronicleSlug ? (
                         <Link
                           to={`/chronicles/${selected.chronicleSlug}`}
-                          onPointerEnter={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`)}
-                          onPointerDown={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`)}
-                          onFocus={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`)}
+                          onPointerEnter={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`, 'hover')}
+                          onPointerDown={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`, 'press')}
+                          onFocus={() => prefetchIntent(`/chronicles/${selected.chronicleSlug}`, 'focus')}
                           className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-3 text-sm font-medium text-fg/90 hover:bg-white/10"
                         >
                           <BookOpen className="h-4 w-4" />

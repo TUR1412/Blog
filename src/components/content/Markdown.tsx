@@ -338,9 +338,9 @@ function buildComponents(opts: { idPrefix: string }): Components {
       return (
         <Link
           to={h}
-          onPointerEnter={() => prefetchIntent(h)}
-          onPointerDown={() => prefetchIntent(h)}
-          onFocus={() => prefetchIntent(h)}
+          onPointerEnter={() => prefetchIntent(h, 'hover')}
+          onPointerDown={() => prefetchIntent(h, 'press')}
+          onFocus={() => prefetchIntent(h, 'focus')}
           className="focus-ring tap"
         >
           {children}

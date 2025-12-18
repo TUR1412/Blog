@@ -51,9 +51,9 @@ export function ButtonLink({
   return (
     <Link
       to={to}
-      onPointerEnter={() => prefetchIntent(to)}
-      onPointerDown={() => prefetchIntent(to)}
-      onFocus={() => prefetchIntent(to)}
+      onPointerEnter={() => prefetchIntent(to, 'hover')}
+      onPointerDown={() => prefetchIntent(to, 'press')}
+      onFocus={() => prefetchIntent(to, 'focus')}
       className={cn(classes(variant), className)}
     >
       {children}

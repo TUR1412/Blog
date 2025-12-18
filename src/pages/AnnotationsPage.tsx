@@ -1530,9 +1530,9 @@ export function AnnotationsPage() {
                         {it.chronicleSlug ? (
                           <Link
                             to={`/chronicles/${it.chronicleSlug}`}
-                            onPointerEnter={() => prefetchIntent(`/chronicles/${it.chronicleSlug}`)}
-                            onPointerDown={() => prefetchIntent(`/chronicles/${it.chronicleSlug}`)}
-                            onFocus={() => prefetchIntent(`/chronicles/${it.chronicleSlug}`)}
+                            onPointerEnter={() => prefetchIntent(`/chronicles/${it.chronicleSlug}`, 'hover')}
+                            onPointerDown={() => prefetchIntent(`/chronicles/${it.chronicleSlug}`, 'press')}
+                            onFocus={() => prefetchIntent(`/chronicles/${it.chronicleSlug}`, 'focus')}
                             className="focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-2 text-sm font-medium text-fg/90 hover:bg-white/10"
                           >
                             <BookOpen className="h-4 w-4" />
@@ -1544,9 +1544,9 @@ export function AnnotationsPage() {
                           <Button
                             type="button"
                             variant="ghost"
-                            onPointerEnter={() => prefetchIntent(`/relations?id=${relationJumpId}`)}
-                            onPointerDown={() => prefetchIntent(`/relations?id=${relationJumpId}`)}
-                            onFocus={() => prefetchIntent(`/relations?id=${relationJumpId}`)}
+                            onPointerEnter={() => prefetchIntent(`/relations?id=${relationJumpId}`, 'hover')}
+                            onPointerDown={() => prefetchIntent(`/relations?id=${relationJumpId}`, 'press')}
+                            onFocus={() => prefetchIntent(`/relations?id=${relationJumpId}`, 'focus')}
                             onClick={() => {
                               navigate(`/relations?id=${relationJumpId}`)
                               hapticTap()
@@ -1562,9 +1562,9 @@ export function AnnotationsPage() {
                           <Button
                             type="button"
                             variant="ghost"
-                            onPointerEnter={() => prefetchIntent(`/grotto?id=${grottoJumpId}`)}
-                            onPointerDown={() => prefetchIntent(`/grotto?id=${grottoJumpId}`)}
-                            onFocus={() => prefetchIntent(`/grotto?id=${grottoJumpId}`)}
+                            onPointerEnter={() => prefetchIntent(`/grotto?id=${grottoJumpId}`, 'hover')}
+                            onPointerDown={() => prefetchIntent(`/grotto?id=${grottoJumpId}`, 'press')}
+                            onFocus={() => prefetchIntent(`/grotto?id=${grottoJumpId}`, 'focus')}
                             onClick={() => {
                               navigate(`/grotto?id=${grottoJumpId}`)
                               hapticTap()

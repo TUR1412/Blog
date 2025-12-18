@@ -1,6 +1,7 @@
 type Importer = () => Promise<unknown>
 
 const imported = new Set<string>()
+const idleScheduled = new Set<string>()
 let markdownPrefetched = false
 
 type PrefetchPriority = 'light' | 'all'
@@ -46,6 +47,29 @@ export function prefetchRoute(to: string) {
   void importer()
 }
 
+export function prefetchRouteIdle(to: string) {
+  const path = normalizePath(to)
+  const key = safeKey(path)
+  if (!path) return
+  if (imported.has(key)) return
+  if (idleScheduled.has(key)) return
+  idleScheduled.add(key)
+
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
+    .requestIdleCallback
+
+  const run = () => {
+    idleScheduled.delete(key)
+    prefetchRoute(path)
+  }
+
+  if (ric) {
+    void ric(run, { timeout: 1800 })
+    return
+  }
+  window.setTimeout(run, 240)
+}
+
 export function prefetchMarkdown() {
   if (markdownPrefetched) return
   markdownPrefetched = true
@@ -56,10 +80,13 @@ function shouldPrefetchMarkdownForPath(path: string) {
   return path === '/grotto' || path === '/relations' || path === '/annotations' || path === '/notes'
 }
 
-export function prefetchIntent(to: string) {
-  prefetchRoute(to)
+export type PrefetchIntentKind = 'hover' | 'press' | 'focus'
+
+export function prefetchIntent(to: string, kind: PrefetchIntentKind = 'hover') {
   const path = normalizePath(to)
-  if (shouldPrefetchMarkdownForPath(path)) prefetchMarkdown()
+  if (kind === 'hover') prefetchRouteIdle(to)
+  else prefetchRoute(to)
+  if (kind !== 'hover' && shouldPrefetchMarkdownForPath(path)) prefetchMarkdown()
 }
 
 export function prefetchCoreRoutes(opts?: {

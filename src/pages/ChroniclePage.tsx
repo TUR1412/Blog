@@ -255,9 +255,9 @@ export function ChroniclePage() {
           <div className="mt-6">
             <Link
               to="/chronicles"
-              onPointerEnter={() => prefetchIntent('/chronicles')}
-              onPointerDown={() => prefetchIntent('/chronicles')}
-              onFocus={() => prefetchIntent('/chronicles')}
+              onPointerEnter={() => prefetchIntent('/chronicles', 'hover')}
+              onPointerDown={() => prefetchIntent('/chronicles', 'press')}
+              onFocus={() => prefetchIntent('/chronicles', 'focus')}
               className="focus-ring tap inline-flex items-center gap-2 text-sm"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -334,9 +334,9 @@ export function ChroniclePage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Link
                 to="/chronicles"
-                onPointerEnter={() => prefetchIntent('/chronicles')}
-                onPointerDown={() => prefetchIntent('/chronicles')}
-                onFocus={() => prefetchIntent('/chronicles')}
+                onPointerEnter={() => prefetchIntent('/chronicles', 'hover')}
+                onPointerDown={() => prefetchIntent('/chronicles', 'press')}
+                onFocus={() => prefetchIntent('/chronicles', 'focus')}
                 className="focus-ring tap inline-flex items-center gap-2 text-sm text-muted/80 hover:text-fg"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -564,9 +564,9 @@ function ButtonLinkToNotes() {
   return (
     <Link
       to="/notes"
-      onPointerEnter={() => prefetchIntent('/notes')}
-      onPointerDown={() => prefetchIntent('/notes')}
-      onFocus={() => prefetchIntent('/notes')}
+      onPointerEnter={() => prefetchIntent('/notes', 'hover')}
+      onPointerDown={() => prefetchIntent('/notes', 'press')}
+      onFocus={() => prefetchIntent('/notes', 'focus')}
       className="focus-ring tap inline-flex w-full items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-4 py-2 text-sm font-medium text-fg/90 hover:bg-white/10"
     >
       去打开札记
