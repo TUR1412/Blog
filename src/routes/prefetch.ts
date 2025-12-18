@@ -1,6 +1,7 @@
 type Importer = () => Promise<unknown>
 
 const imported = new Set<string>()
+let markdownPrefetched = false
 
 type PrefetchPriority = 'light' | 'all'
 type PrefetchGuard = () => boolean
@@ -43,6 +44,12 @@ export function prefetchRoute(to: string) {
   imported.add(key)
 
   void importer()
+}
+
+export function prefetchMarkdown() {
+  if (markdownPrefetched) return
+  markdownPrefetched = true
+  void import('../components/content/Markdown')
 }
 
 export function prefetchCoreRoutes(opts?: {

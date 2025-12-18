@@ -3,7 +3,7 @@ import { Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Card } from '../components/ui/Card'
 import { HomePage } from '../pages/HomePage'
-import { prefetchCoreRoutes } from './prefetch'
+import { prefetchCoreRoutes, prefetchMarkdown, prefetchRoute } from './prefetch'
 
 const ChroniclesPage = lazy(() =>
   import('../pages/ChroniclesPage').then((m) => ({ default: m.ChroniclesPage })),
@@ -172,6 +172,13 @@ export function AppRouter() {
       if (avoidPrefetch) return
       if (document.visibilityState && document.visibilityState !== 'visible') return
       prefetchCoreRoutes({ includeNotes: true, priority: 'light', guard: () => !avoidPrefetch })
+      scheduleIdle(() => prefetchMarkdown(), { timeout: 3200, fallbackDelay: 1800 })
+
+      const likelyGraph =
+        window.matchMedia?.('(min-width: 768px)').matches ??
+        // matchMedia 不可用时按“桌面”为真：不强行预取，只在空闲时触发
+        true
+      if (likelyGraph) scheduleIdle(() => prefetchRoute('/relations'), { timeout: 4400, fallbackDelay: 2600 })
     }, { timeout: 2200, fallbackDelay: 1500 })
 
     const startPrefetch = () => {
