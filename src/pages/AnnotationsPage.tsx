@@ -1027,7 +1027,7 @@ export function AnnotationsPage() {
           <Badge className="mb-4">批注馆</Badge>
           <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">把分寸摊开，才知道路走稳了没有</h2>
           <p className="mt-3 max-w-[92ch] text-sm leading-7 text-muted/85">
-            洞府图的“路标批注”，与关系谱的“节点批注”，都汇在这里：不为热闹，只为复盘。你写下的每一句，都能定位回原处，也能一键并入札记。
+            洞府图的“路标批注”，与关系谱的“节点批注”，都汇在这里：不为热闹，只为复盘。写下的每一句，都能定位回原处，也能一键并入札记。
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
@@ -1590,7 +1590,7 @@ export function AnnotationsPage() {
               <div className="rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
                 <div className="text-sm font-semibold text-fg">暂无批注</div>
                 <div className="mt-2 text-xs leading-6 text-muted/80">
-                  若你刚开始写，先去洞府图或关系谱落笔一两句；写下分寸，才算把路走稳。
+                  若刚开始写，先去洞府图或关系谱落笔一两句；写下分寸，才算把路走稳。
                 </div>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <ButtonLink to="/grotto" variant="ghost">

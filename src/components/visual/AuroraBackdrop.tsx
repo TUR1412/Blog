@@ -77,7 +77,12 @@ export function AuroraBackdrop() {
       </div>
 
       <div
-        className="absolute inset-0 opacity-[0.12] mix-blend-overlay"
+        className={
+          enhanced
+            ? 'absolute inset-0 opacity-[0.12] mix-blend-overlay'
+            : // 首屏更克制：避免 mix-blend 触发更重的合成开销
+              'absolute inset-0 opacity-[0.08]'
+        }
         style={{
           backgroundImage: `url(${noiseUrl})`,
           backgroundRepeat: 'repeat',

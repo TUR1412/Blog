@@ -3,7 +3,7 @@ import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, ScrollText, Searc
 import React, { createContext, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { chronicleIndex } from '../../content/chronicleIndex'
+import type { ChronicleMeta } from '../../content/chronicleIndex'
 import { cn } from '../../lib/cn'
 import { prefetchIntent } from '../../routes/prefetch'
 
@@ -102,6 +102,18 @@ function CommandPaletteModal({
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [chapterIndex, setChapterIndex] = useState<ChronicleMeta[] | null>(null)
+
+  useEffect(() => {
+    let disposed = false
+    void import('../../content/chronicleIndex').then((m) => {
+      if (disposed) return
+      setChapterIndex(m.chronicleIndex)
+    })
+    return () => {
+      disposed = true
+    }
+  }, [])
 
   const items = useMemo<CommandItem[]>(() => {
     const withSearch = (it: Omit<CommandItem, 'search'>): CommandItem => {
@@ -199,7 +211,7 @@ function CommandPaletteModal({
       },
     ]
 
-    const chapters: Omit<CommandItem, 'search'>[] = chronicleIndex.map((c) => ({
+    const chapters: Omit<CommandItem, 'search'>[] = (chapterIndex ?? []).map((c) => ({
       id: `chronicle-${c.slug}`,
       title: c.title,
       subtitle: c.dateText,
@@ -210,7 +222,7 @@ function CommandPaletteModal({
     }))
 
     return [...routes, ...chapters].map(withSearch)
-  }, [navigate])
+  }, [chapterIndex, navigate])
 
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase()
@@ -335,6 +347,12 @@ function CommandPaletteModal({
                 <span>收镜</span>
               </div>
             </div>
+
+            {chapterIndex == null ? (
+              <div className="border-b border-white/5 px-4 py-2 text-[11px] text-muted/70">
+                章名索引归拢中……（先用“洞府图 / 关系谱 / 札记”等入口也可直达）
+              </div>
+            ) : null}
 
             <div
               ref={listRef}

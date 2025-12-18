@@ -44,6 +44,9 @@ export function NotesPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const flashTimerRef = useRef<number | null>(null)
+  const saveDebounceRef = useRef<number | null>(null)
+  const saveIdleRef = useRef<number | null>(null)
+  const lastSaveToastAtRef = useRef(0)
   const anchorFlashTimerRef = useRef<number | null>(null)
   const lastFlashedIdRef = useRef('')
   const [text, setText] = useState(() => readString(STORAGE_KEYS.notes, ''))
@@ -77,6 +80,12 @@ export function NotesPage() {
   useEffect(() => {
     return () => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
+      if (saveDebounceRef.current) window.clearTimeout(saveDebounceRef.current)
+      if (saveIdleRef.current != null) {
+        const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
+        cic?.(saveIdleRef.current)
+        saveIdleRef.current = null
+      }
       if (anchorFlashTimerRef.current) window.clearTimeout(anchorFlashTimerRef.current)
       anchorFlashTimerRef.current = null
     }
@@ -302,17 +311,56 @@ export function NotesPage() {
   }, [toc, view])
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
+      .requestIdleCallback
+    const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
+
+    if (saveDebounceRef.current != null) window.clearTimeout(saveDebounceRef.current)
+    if (saveIdleRef.current != null) {
+      cic?.(saveIdleRef.current)
+      saveIdleRef.current = null
+    }
+
+    const flush = () => {
       writeString(STORAGE_KEYS.notes, text)
+      const now = Date.now()
       setMeta((prev) => {
-        const next: NotesMeta = { ...prev, updatedAt: Date.now() }
+        const next: NotesMeta = { ...prev, updatedAt: now }
         writeJson(STORAGE_KEYS.notesMeta, next)
         return next
       })
-      flashMessage('已落笔。')
-    }, 260)
 
-    return () => window.clearTimeout(t)
+      // 轻提示：不刷屏、不打断输入节奏。
+      if (now - lastSaveToastAtRef.current > 2400) {
+        lastSaveToastAtRef.current = now
+        flashMessage('墨已落。')
+      }
+    }
+
+    const scheduleFlush = () => {
+      if (ric) {
+        saveIdleRef.current = ric(() => {
+          saveIdleRef.current = null
+          flush()
+        }, { timeout: 900 })
+        return
+      }
+      flush()
+    }
+
+    // 先等“停笔一口气”，再落盘；落盘走空闲，尽量不抢输入帧。
+    saveDebounceRef.current = window.setTimeout(scheduleFlush, 520)
+
+    return () => {
+      if (saveDebounceRef.current != null) {
+        window.clearTimeout(saveDebounceRef.current)
+        saveDebounceRef.current = null
+      }
+      if (saveIdleRef.current != null) {
+        cic?.(saveIdleRef.current)
+        saveIdleRef.current = null
+      }
+    }
   }, [text])
 
   useEffect(() => {
@@ -465,7 +513,7 @@ export function NotesPage() {
         <Badge className="mb-4">札记</Badge>
         <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">修行札记</h2>
         <p className="mt-3 max-w-[80ch] text-sm leading-7 text-muted/85">
-          你写下的每一句，都会即时存入本地。这里不追求花哨文采，只追求“记得住、用得上”。
+          写下的每一句，都会即时存入本地。这里不追求花哨文采，只追求“记得住、用得上”。
         </p>
       </Card>
 
@@ -556,7 +604,7 @@ export function NotesPage() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={12}
-                placeholder="写点真话：你今天守住了什么？你今天差点偏到哪里？"
+                placeholder="写点真话：今日守住了什么？今日差点偏到哪里？"
                 className={cn(
                   'mt-4 w-full rounded-xl border border-border/70 bg-white/4 px-4 py-4',
                   'text-sm leading-7 text-fg placeholder:text-muted/70',

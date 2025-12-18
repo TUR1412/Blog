@@ -38,7 +38,7 @@ export function TreasuryPage() {
         <Badge className="mb-4">藏品</Badge>
         <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">法宝与旧物</h2>
         <p className="mt-3 max-w-[82ch] text-sm leading-7 text-muted/85">
-          这里不摆“惊天神器”，只放与轩少行止相合的物件：旧茶盏、灯芯、药单册、公议印……你可以拖拽排序，
+          这里不摆“惊天神器”，只放与轩少行止相合的物件：旧茶盏、灯芯、药单册、公议印……可拖拽排序，
           像把旧物摆回心里合适的位置。
         </p>
       </Card>

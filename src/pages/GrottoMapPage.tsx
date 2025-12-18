@@ -656,7 +656,7 @@ export function GrottoMapPage() {
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-fg">洞府四层（筛选只为看清次序）</div>
                 <div className="mt-1">
-                  立身 · 立名 · 立规 · 立秤。分层不是“比高低”，只是把关口按章法排好：你会更容易看见他是如何一步步把分寸写进规矩里。
+                  立身 · 立名 · 立规 · 立秤。分层不是“比高低”，只是把关口按章法排好：会更容易看见他是如何一步步把分寸写进规矩里。
                 </div>
               </div>
             </div>
@@ -973,7 +973,7 @@ export function GrottoMapPage() {
                             </div>
                             <div>
                               <div className="text-sm font-semibold text-fg">路标批注</div>
-                              <div className="text-xs text-muted/70">写一句你自己的分寸（自动保存）。</div>
+                              <div className="text-xs text-muted/70">写一句自己的分寸（自动保存）。</div>
                             </div>
                           </div>
                         </div>
@@ -1240,7 +1240,7 @@ export function GrottoMapPage() {
                     </div>
 
                     <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
-                      读法建议：先看“节点详记”，再去读对应纪事，最后把你自己的分寸写进札记——久了就成心法。
+                      读法建议：先看“节点详记”，再去读对应纪事，最后把自己的分寸写进札记——久了就成心法。
                     </div>
 
                     <AnimatePresence>
@@ -1279,7 +1279,7 @@ export function GrottoMapPage() {
         <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.20),transparent_62%)] blur-3xl" />
         <div className="pointer-events-none absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.18),transparent_62%)] blur-3xl" />
 
-        <SectionHeading title="批注总览" subtitle="把你写下的分寸摊开，看一眼就知道路走到哪。" />
+        <SectionHeading title="批注总览" subtitle="把写下的分寸摊开，看一眼就知道路走到哪。" />
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <div
@@ -1391,7 +1391,7 @@ export function GrottoMapPage() {
         )}
 
         <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
-          小提示：这里的筛选沿用上方“洞府层/气象”。你可以先把路缩到一层，再把批注逐条并入札记——久了就成心法。
+          小提示：这里的筛选沿用上方“洞府层/气象”。可以先把路缩到一层，再把批注逐条并入札记——久了就成心法。
         </div>
       </Card>
     </div>

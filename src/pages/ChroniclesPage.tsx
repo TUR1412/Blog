@@ -255,7 +255,7 @@ export function ChroniclesPage() {
             title={`共 ${filtered.length} 篇`}
             subtitle={
               onlyBookmarks
-                ? '仅显示你收藏的篇章（本地保存）。'
+                ? '仅显示已收藏的篇章（本地保存）。'
                 : selectedTag === '全部'
                   ? '按时间顺序陈列。'
                   : `当前标签：${selectedTag}`
@@ -303,7 +303,7 @@ export function ChroniclesPage() {
               <div className="rounded-xl border border-border/60 bg-white/4 px-5 py-10 text-center">
                 <div className="text-sm font-semibold text-fg">暂无收藏</div>
                 <div className="mt-2 text-xs leading-6 text-muted/80">
-                  在任意篇章点“收藏”，这里就会出现你的标记；并支持拖拽排序与一键取消。
+                  在任意篇章点“收藏”，这里就会出现标记；并支持拖拽排序与一键取消。
                 </div>
                 <div className="mt-5 flex justify-center">
                   <ButtonLink to="/chronicles" variant="ghost" className="px-4 py-2">

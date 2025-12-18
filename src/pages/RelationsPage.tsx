@@ -466,11 +466,11 @@ export function RelationsPage() {
   const [graphNodeBox, setGraphNodeBox] = useState<EdgeNodeBox>({ halfW: 9.2, halfH: 3.8, pad: 1.0 })
   const graphMaskBox = useMemo(() => {
     const padRaw = typeof graphNodeBox.pad === 'number' && Number.isFinite(graphNodeBox.pad) ? graphNodeBox.pad : 1.0
-    const pad = Math.max(0.6, Math.min(1.5, padRaw))
-    const eps = 0.12
+    // 掩膜要“比节点更大一圈”，否则高密度时线条会在卡片边缘透出来。
+    const pad = Math.max(0.9, Math.min(2.2, padRaw + 0.35))
     return {
-      halfW: graphNodeBox.halfW + Math.max(0.7, pad - eps),
-      halfH: graphNodeBox.halfH + Math.max(0.55, pad - eps),
+      halfW: graphNodeBox.halfW + Math.max(1.05, pad),
+      halfH: graphNodeBox.halfH + Math.max(0.82, pad * 0.9),
       rx: 2.25,
       ry: 2.25,
     }
@@ -1398,8 +1398,8 @@ export function RelationsPage() {
             : 0.9
           : tier === 'path'
             ? heavyGraph
-              ? 0.28
-              : 0.32
+              ? 0.32
+              : 0.42
           : tier === 'secondary'
             ? heavyGraph
               ? 0.07
@@ -1430,8 +1430,8 @@ export function RelationsPage() {
         ? 0.52
         : tier === 'path'
           ? heavyGraph
-            ? 0.32
-            : 0.34
+            ? 0.36
+            : 0.42
         : tier === 'secondary'
           ? heavyGraph
             ? 0.2
@@ -1835,7 +1835,7 @@ export function RelationsPage() {
           <h2 className="text-2xl font-semibold tracking-tight text-fg sm:text-3xl">一张网，不为夸饰，只为对照</h2>
           <p className="mt-3 max-w-[88ch] text-sm leading-7 text-muted/85">
             这里把“人、誓词、旧物、关口与地点”连成一张谱：不是为了显得玄，而是为了把次序看清。
-            你点一处，就能看见它牵连到哪几处；牵连越清楚，故事就越像真事。
+            点一处，就能看见它牵连到哪几处；牵连越清楚，故事就越像真事。
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
@@ -2620,7 +2620,7 @@ export function RelationsPage() {
                           </div>
                           <div>
                             <div className="text-sm font-semibold text-fg">节点批注</div>
-                            <div className="text-xs text-muted/70">写一句你自己的对照（自动保存）。</div>
+                            <div className="text-xs text-muted/70">写一句自己的对照（自动保存）。</div>
                           </div>
                         </div>
                       </div>
@@ -3099,7 +3099,7 @@ export function RelationsPage() {
         <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent)/.22),transparent_62%)] blur-3xl" />
         <div className="pointer-events-none absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,hsl(var(--accent2)/.18),transparent_62%)] blur-3xl" />
 
-        <SectionHeading title="批注总览" subtitle="把你写下的对照摊开：哪条线最稳，哪条线最虚，一眼便知。" />
+        <SectionHeading title="批注总览" subtitle="把写下的对照摊开：哪条线最稳，哪条线最虚，一眼便知。" />
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <div
@@ -3264,7 +3264,7 @@ export function RelationsPage() {
         )}
 
         <div className="mt-5 rounded-xl border border-border/60 bg-white/4 px-4 py-4 text-xs leading-6 text-muted/80">
-          小提示：这里沿用“类别/只看牵连”的筛选。你可以先聚焦，再把批注逐条并入札记——久了就成心法。
+          小提示：这里沿用“类别/只看牵连”的筛选。可以先聚焦，再把批注逐条并入札记——久了就成心法。
         </div>
       </Card>
     </div>

@@ -1,13 +1,13 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../components/ui/Badge'
 import { Button, ButtonLink } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { SectionHeading } from '../components/ui/SectionHeading'
-import { chronicleIndex } from '../content/chronicleIndex'
-import { timeline, timelineLayerLabel } from '../content/timeline'
+import type { ChronicleMeta } from '../content/chronicleIndex'
+import type { TimelineEvent } from '../content/timeline'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { hapticTap } from '../lib/haptics'
@@ -24,6 +24,14 @@ type ReadingLast = {
   anchorSnippet?: string
   progress: number
   updatedAt: number
+}
+
+function homeTimelineLayerLabel(layer: number) {
+  if (layer === 1) return '立身'
+  if (layer === 2) return '立名'
+  if (layer === 3) return '立规'
+  if (layer === 4) return '立秤'
+  return '未定'
 }
 
 function SparkBurstLayer({ bursts }: { bursts: Burst[] }) {
@@ -61,7 +69,8 @@ function SparkBurstLayer({ bursts }: { bursts: Burst[] }) {
 export function HomePage() {
   const { open } = useCommandPalette()
   const reduceMotion = useReducedMotion() ?? false
-  const featured = useMemo(() => chronicleIndex.slice(-3).reverse(), [])
+  const [featured, setFeatured] = useState<ChronicleMeta[] | null>(null)
+  const [timelineHead, setTimelineHead] = useState<TimelineEvent[] | null>(null)
   const [qi, setQi] = useState(72)
   const [bursts, setBursts] = useState<Burst[]>([])
   const [quoteIndex, setQuoteIndex] = useState(0)
@@ -69,6 +78,36 @@ export function HomePage() {
     readJson<ReadingLast | null>(STORAGE_KEYS.readingLast, null),
   )
   const [bookmarks] = useState<string[]>(() => readJson<string[]>(STORAGE_KEYS.bookmarks, []))
+
+  useEffect(() => {
+    let disposed = false
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
+      .requestIdleCallback
+    const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
+
+    let idleId: number | null = null
+    let timeoutId: number | null = null
+
+    const run = () => {
+      void Promise.all([import('../content/chronicleIndex'), import('../content/timeline')]).then(([c, t]) => {
+        if (disposed) return
+        setFeatured(c.chronicleIndex.slice(-3).reverse())
+        setTimelineHead(t.timeline.slice(0, 5))
+      })
+    }
+
+    if (ric) {
+      idleId = ric(run, { timeout: 1400 })
+    } else {
+      timeoutId = window.setTimeout(run, 520)
+    }
+
+    return () => {
+      disposed = true
+      if (idleId != null) cic?.(idleId)
+      if (timeoutId != null) window.clearTimeout(timeoutId)
+    }
+  }, [])
 
   const quotes = useMemo(
     () => [
@@ -106,7 +145,7 @@ export function HomePage() {
               </h1>
               <p className="mt-3 max-w-[62ch] text-sm leading-7 text-muted/85 sm:text-base">
                 这是一卷“像真事”的记录：不写夸饰，不写旁门，只记他的行止、分寸与规矩。
-                若你愿意慢一点读，许多细节会自己发光。
+                若愿意慢一点读，许多细节会自己发光。
               </p>
 
               <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -177,7 +216,7 @@ export function HomePage() {
                     <div className="text-xs text-muted/70">收藏 {bookmarks.length}</div>
                   </div>
                   <div className="mt-2 text-xs leading-6 text-muted/70">
-                    你收藏的篇章会留在本地；在“纪事”里可一键只看收藏。
+                    收藏的篇章留在本地；在“纪事”里可一键只看收藏。
                   </div>
                   <div className="mt-3">
                     <ButtonLink to="/chronicles?only=bookmarks" variant="ghost" className="w-full">
@@ -275,36 +314,70 @@ export function HomePage() {
           <Card className="lg:col-span-7">
             <SectionHeading title="近三篇纪事" subtitle="从“像真事”的细节里入门。" />
             <div className="grid gap-2">
-                {featured.map((c, idx) => (
-                  <Link
-                    key={c.slug}
-                    to={`/chronicles/${c.slug}`}
-                    onPointerEnter={() => prefetchIntent(`/chronicles/${c.slug}`, 'hover')}
-                    onPointerDown={() => prefetchIntent(`/chronicles/${c.slug}`, 'press')}
-                    onFocus={() => prefetchIntent(`/chronicles/${c.slug}`, 'focus')}
-                    className={cn(
-                      'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-4 py-4',
-                      'hover:bg-white/7',
-                    )}
+              <AnimatePresence initial={false} mode={reduceMotion ? 'sync' : 'wait'}>
+                {featured ? (
+                  <motion.div
+                    key="featured-ready"
+                    className="grid gap-2"
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                    transition={reduceMotion ? { duration: 0.12 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
                   >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-fg">
-                        {idx + 1}. {c.title}
+                    {featured.map((c, idx) => (
+                      <Link
+                        key={c.slug}
+                        to={`/chronicles/${c.slug}`}
+                        onPointerEnter={() => prefetchIntent(`/chronicles/${c.slug}`, 'hover')}
+                        onPointerDown={() => prefetchIntent(`/chronicles/${c.slug}`, 'press')}
+                        onFocus={() => prefetchIntent(`/chronicles/${c.slug}`, 'focus')}
+                        className={cn(
+                          'focus-ring tap group rounded-xl border border-border/60 bg-white/4 px-4 py-4',
+                          'hover:bg-white/7',
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-fg">
+                              {idx + 1}. {c.title}
+                            </div>
+                            <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">{c.excerpt}</div>
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted/70">
+                              <span>{c.dateText}</span>
+                              <span className="opacity-50">·</span>
+                              <span>{c.tags.join(' · ')}</span>
+                            </div>
+                          </div>
+                          <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted/70 transition-transform group-hover:translate-x-0.5" />
+                        </div>
+                      </Link>
+                    ))}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="featured-skeleton"
+                    className="grid gap-2"
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                    transition={reduceMotion ? { duration: 0.12 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {Array.from({ length: 3 }).map((_, idx) => (
+                      <div
+                        key={`featured-skel-${idx}`}
+                        className="rounded-xl border border-border/60 bg-white/4 px-4 py-4"
+                      >
+                        <div className="h-4 w-[76%] rounded-lg bg-white/10 animate-pulse" />
+                        <div className="mt-3 grid gap-2">
+                          <div className="h-3 w-full rounded-lg bg-white/6 animate-pulse" />
+                          <div className="h-3 w-[92%] rounded-lg bg-white/6 animate-pulse" />
+                        </div>
+                        <div className="mt-3 h-3 w-[62%] rounded-lg bg-white/6 animate-pulse" />
                       </div>
-                      <div className="mt-1 line-clamp-2 text-xs leading-6 text-muted/80">
-                        {c.excerpt}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted/70">
-                        <span>{c.dateText}</span>
-                        <span className="opacity-50">·</span>
-                        <span>{c.tags.join(' · ')}</span>
-                      </div>
-                    </div>
-                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted/70 transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </Link>
-              ))}
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
@@ -318,18 +391,54 @@ export function HomePage() {
           <Card className="lg:col-span-5">
             <SectionHeading title="年表摘记" subtitle="只取几个关键节点，不夸大，不虚浮。" />
             <div className="grid gap-3">
-              {timeline.slice(0, 5).map((t) => (
-                <div key={t.id} className="rounded-xl border border-border/60 bg-white/4 px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted/70">
-                    <span>{t.when}</span>
-                    <span className="rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
-                      {timelineLayerLabel(t.layer)}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
-                  <div className="mt-1 text-xs leading-6 text-muted/80">{t.detail}</div>
-                </div>
-              ))}
+              <AnimatePresence initial={false} mode={reduceMotion ? 'sync' : 'wait'}>
+                {timelineHead ? (
+                  <motion.div
+                    key="timeline-ready"
+                    className="grid gap-3"
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                    transition={reduceMotion ? { duration: 0.12 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {timelineHead.map((t) => (
+                      <div key={t.id} className="rounded-xl border border-border/60 bg-white/4 px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted/70">
+                          <span>{t.when}</span>
+                          <span className="rounded-full border border-border/70 bg-white/5 px-2 py-0.5 text-[11px] text-muted/80">
+                            {homeTimelineLayerLabel(t.layer)}
+                          </span>
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-fg">{t.title}</div>
+                        <div className="mt-1 text-xs leading-6 text-muted/80">{t.detail}</div>
+                      </div>
+                    ))}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="timeline-skeleton"
+                    className="grid gap-3"
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                    transition={reduceMotion ? { duration: 0.12 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <div
+                        key={`timeline-skel-${idx}`}
+                        className="rounded-xl border border-border/60 bg-white/4 px-4 py-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-[54%] rounded-lg bg-white/6 animate-pulse" />
+                          <div className="h-5 w-14 rounded-full bg-white/6 animate-pulse" />
+                        </div>
+                        <div className="mt-3 h-4 w-[72%] rounded-lg bg-white/10 animate-pulse" />
+                        <div className="mt-3 h-3 w-full rounded-lg bg-white/6 animate-pulse" />
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-xs text-muted/70">年表可看“人物志”，也可走“洞府图”。</div>
@@ -349,7 +458,7 @@ export function HomePage() {
             <div className="rounded-xl border border-border/60 bg-white/4 px-4 py-4">
               <div className="text-sm font-semibold text-fg">修行札记</div>
               <div className="mt-1 text-xs leading-6 text-muted/80">
-                你写下的内容会即时存入本地，不怕误刷新。把“你看到的分寸”记下来，久了就成心法。
+                札记即时存入本地，不怕误刷新。把“看到的分寸”记下来，久了就成心法。
               </div>
               <div className="mt-3">
                 <ButtonLink to="/notes" variant="ghost" className="w-full">

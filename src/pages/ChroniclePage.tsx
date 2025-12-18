@@ -251,7 +251,7 @@ export function ChroniclePage() {
     return (
           <div className="mx-auto max-w-[820px]">
         <Card className="p-8">
-          <SectionHeading title="此篇不在卷中" subtitle="可能是旧地址，也可能是你走错了门。" />
+          <SectionHeading title="此篇不在卷中" subtitle="可能是旧地址，也可能是走错了门。" />
           <div className="mt-6">
             <Link
               to="/chronicles"
@@ -438,7 +438,7 @@ export function ChroniclePage() {
             </div>
 
             <div className="mt-10 rounded-xl border border-border/60 bg-white/4 px-5 py-5 text-sm leading-7 text-muted/85">
-              这卷文字只求“像真事”：写得稳、写得细。若你愿意，也可以把自己读到的那一点分寸写进札记里。
+              这卷文字只求“像真事”：写得稳、写得细。若愿意，也可以把读到的那一点分寸写进札记里。
             </div>
           </Card>
         </div>

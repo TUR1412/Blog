@@ -3,7 +3,7 @@ import { Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { Suspense, lazy, useEffect, useRef } from 'react'
 import { Card } from '../components/ui/Card'
 import { HomePage } from '../pages/HomePage'
-import { prefetchCoreRoutes, prefetchMarkdown, prefetchRoute } from './prefetch'
+import { prefetchCoreRoutes } from './prefetch'
 
 const ChroniclesPage = lazy(() =>
   import('../pages/ChroniclesPage').then((m) => ({ default: m.ChroniclesPage })),
@@ -175,34 +175,10 @@ export function AppRouter() {
       prefetchCoreRoutes({ includeNotes: true, priority: 'all', guard: guardAll })
     }
 
-    const runMarkdown = () => {
-      if (avoidPrefetch) return
-      if (!guardLight()) {
-        scheduleIdle(runMarkdown, { timeout: 3200, fallbackDelay: 1800 })
-        return
-      }
-      prefetchMarkdown()
-    }
-
-    // 轻量暖身：只预取“很轻”的页，避免首屏阅读期被预取打断（仍尊重 saveData/2g）
-    scheduleIdle(() => {
-      if (avoidPrefetch) return
-      if (document.visibilityState && document.visibilityState !== 'visible') return
-      if (hasInteractedRef.current) return
-      prefetchCoreRoutes({ includeNotes: true, priority: 'light', guard: () => !avoidPrefetch })
-
-      const likelyGraph =
-        window.matchMedia?.('(min-width: 768px)').matches ??
-        // matchMedia 不可用时按“桌面”为真：不强行预取，只在空闲时触发
-        true
-      if (likelyGraph) scheduleIdle(() => prefetchRoute('/relations'), { timeout: 4400, fallbackDelay: 2600 })
-    }, { timeout: 3200, fallbackDelay: 2200 })
-
     const startPrefetch = () => {
       if (prefetchStartedRef.current) return
       prefetchStartedRef.current = true
       scheduleIdle(runLight, { timeout: 3200, fallbackDelay: 2200 })
-      scheduleIdle(runMarkdown, { timeout: 5200, fallbackDelay: 2600 })
       scheduleIdle(runAll, { timeout: 6800, fallbackDelay: 9800 })
     }
 

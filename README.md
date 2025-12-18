@@ -32,6 +32,13 @@
   <img src="public/readme-divider-light.svg#gh-light-mode-only" alt="玄纹分隔（昼）" style="max-width: 980px; width: 100%; height: auto;" />
 </p>
 
+> [!IMPORTANT]
+> **卷印（读者只看这几行也够）**
+>
+> - 此卷只写“修仙纪事与人物志”：只围绕“轩天帝（轩少）”的行止与章法。
+> - 此卷不走“传奇爽文”路：名号可以响，细则必须清；胜负可以分，人心不能碎。
+> - 此卷追求“观感与手感同等锋利”：转场不硬切，互动不闪失，落笔可回访。
+
 > [!NOTE]
 > **开卷一句（给“读”也给“写”）**
 >
@@ -73,6 +80,11 @@
 > | 札记 | 即写即存的个人经卷 | 看完一段就落一笔，久了成心法 |
 > | 藏品 | 旧物与其来处 | 可整理次序，像摆回“合适的位置” |
 
+<p align="center">
+  <img src="public/readme-divider-dark.svg#gh-dark-mode-only" alt="玄纹分隔（夜）" style="max-width: 980px; width: 100%; height: auto;" />
+  <img src="public/readme-divider-light.svg#gh-light-mode-only" alt="玄纹分隔（昼）" style="max-width: 980px; width: 100%; height: auto;" />
+</p>
+
 <a id="xuan-bio"></a>
 
 ## 人物志 · 轩天帝（轩少）
@@ -99,6 +111,11 @@
     </td>
   </tr>
 </table>
+
+> [!TIP]
+> **人物志读法（两步，不费劲）**
+> 1. 先读“纪事”看来龙去脉：细节越稳，名号越不虚。
+> 2. 再回“关系谱/洞府图”对照：线是牵连，路是先后；看清楚，才像真事。
 
 <a id="vol-map"></a>
 
