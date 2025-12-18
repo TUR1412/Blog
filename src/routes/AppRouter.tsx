@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef } from 'react'
 import { Card } from '../components/ui/Card'
 import { HomePage } from '../pages/HomePage'
 import { prefetchCoreRoutes, prefetchMarkdown, prefetchRoute } from './prefetch'
@@ -29,17 +29,31 @@ const NotFoundPage = lazy(() =>
   import('../pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
-function RouteTransition({ children, enableMotion }: { children: React.ReactNode; enableMotion: boolean }) {
+function LazyEnter({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion()
-  const enable = Boolean(enableMotion && !reduceMotion)
   return (
     <motion.div
       className="relative"
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+function RouteTransition({ children }: { children: React.ReactNode }) {
+  const reduceMotion = useReducedMotion()
+  const enable = !reduceMotion
+  return (
+    <motion.div
+      className="relative transform-gpu"
       style={enable ? { willChange: 'transform, opacity' } : undefined}
-      initial={!enable ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-      transition={reduceMotion ? { duration: 0.12 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.996 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.996 }}
+      transition={reduceMotion ? { duration: 0.14 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
     >
       {enable ? (
         <motion.div
@@ -79,14 +93,8 @@ function PageFallback() {
 export function AppRouter() {
   const location = useLocation()
   const navType = useNavigationType()
-  const [enableMotion, setEnableMotion] = useState(false)
   const pendingScrollTopRef = useRef(0)
   const prevScrollKeyRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setEnableMotion(true), 0)
-    return () => window.clearTimeout(t)
-  }, [])
 
   useEffect(() => {
     const key = `xuantian.scroll.v1:${location.pathname}${location.search}`
@@ -214,19 +222,20 @@ export function AppRouter() {
   return (
     <AnimatePresence
       mode="wait"
-      initial={false}
       onExitComplete={() => {
         window.scrollTo({ top: pendingScrollTopRef.current || 0, left: 0, behavior: 'auto' })
       }}
     >
-      <RouteTransition key={location.pathname} enableMotion={enableMotion}>
+      <RouteTransition key={location.pathname}>
         <Routes location={location}>
           <Route path="/" element={<HomePage />} />
           <Route
             path="/chronicles"
             element={
               <Suspense fallback={<PageFallback />}>
-                <ChroniclesPage />
+                <LazyEnter>
+                  <ChroniclesPage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -234,7 +243,9 @@ export function AppRouter() {
             path="/chronicles/:slug"
             element={
               <Suspense fallback={<PageFallback />}>
-                <ChroniclePage />
+                <LazyEnter>
+                  <ChroniclePage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -242,7 +253,9 @@ export function AppRouter() {
             path="/grotto"
             element={
               <Suspense fallback={<PageFallback />}>
-                <GrottoMapPage />
+                <LazyEnter>
+                  <GrottoMapPage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -250,7 +263,9 @@ export function AppRouter() {
             path="/about"
             element={
               <Suspense fallback={<PageFallback />}>
-                <AboutPage />
+                <LazyEnter>
+                  <AboutPage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -258,7 +273,9 @@ export function AppRouter() {
             path="/relations"
             element={
               <Suspense fallback={<PageFallback />}>
-                <RelationsPage />
+                <LazyEnter>
+                  <RelationsPage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -266,7 +283,9 @@ export function AppRouter() {
             path="/treasury"
             element={
               <Suspense fallback={<PageFallback />}>
-                <TreasuryPage />
+                <LazyEnter>
+                  <TreasuryPage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -274,7 +293,9 @@ export function AppRouter() {
             path="/notes"
             element={
               <Suspense fallback={<PageFallback />}>
-                <NotesPage />
+                <LazyEnter>
+                  <NotesPage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -282,7 +303,9 @@ export function AppRouter() {
             path="/annotations"
             element={
               <Suspense fallback={<PageFallback />}>
-                <AnnotationsPage />
+                <LazyEnter>
+                  <AnnotationsPage />
+                </LazyEnter>
               </Suspense>
             }
           />
@@ -290,7 +313,9 @@ export function AppRouter() {
             path="*"
             element={
               <Suspense fallback={<PageFallback />}>
-                <NotFoundPage />
+                <LazyEnter>
+                  <NotFoundPage />
+                </LazyEnter>
               </Suspense>
             }
           />

@@ -135,6 +135,23 @@
     backdrop-filter: blur(theme('backdropBlur.lg'));
   }
 
+  /* Slab：保留层级与光感，但不启用 backdrop-filter（用于大量卡片，降负更顺）。 */
+  .slab {
+    background: linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    border: 1px solid hsl(var(--border) / 0.72);
+    box-shadow: 0 20px 70px rgba(0, 0, 0, 0.28);
+    transition:
+      border-color 180ms ease,
+      box-shadow 200ms ease,
+      transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @media (prefers-color-scheme: light) {
+    .slab {
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.12);
+    }
+  }
+
   .focus-ring {
     outline: none;
   }
