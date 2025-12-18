@@ -1,5 +1,5 @@
-export const APP_VERSION = '2025.12.17.64'
-export const ASSET_VERSION = '20251217-64'
+export const APP_VERSION = '2025.12.18.65'
+export const ASSET_VERSION = '20251218-65'
 
 export const STORAGE_KEYS = {
   theme: 'xuantian.theme',

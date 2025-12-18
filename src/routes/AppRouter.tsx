@@ -167,6 +167,13 @@ export function AppRouter() {
       prefetchCoreRoutes({ includeNotes: true, priority: 'all', guard: guardAll })
     }
 
+    // 轻量暖身：让移动端“第一次点进去卡一下”的概率更低（仍尊重 saveData/2g）
+    scheduleIdle(() => {
+      if (avoidPrefetch) return
+      if (document.visibilityState && document.visibilityState !== 'visible') return
+      prefetchCoreRoutes({ includeNotes: true, priority: 'light', guard: () => !avoidPrefetch })
+    }, { timeout: 2200, fallbackDelay: 1500 })
+
     const startPrefetch = () => {
       if (prefetchStartedRef.current) return
       prefetchStartedRef.current = true

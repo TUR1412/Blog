@@ -27,12 +27,21 @@
   </p>
 </div>
 
----
+<p align="center">
+  <img src="public/readme-divider-dark.svg#gh-dark-mode-only" alt="玄纹分隔（夜）" style="max-width: 980px; width: 100%; height: auto;" />
+  <img src="public/readme-divider-light.svg#gh-light-mode-only" alt="玄纹分隔（昼）" style="max-width: 980px; width: 100%; height: auto;" />
+</p>
 
 > [!NOTE]
 > **开卷一句（给“读”也给“写”）**
 >
 > 此卷将“对照”当骨，将“分寸”当刃：不靠声势取信，靠可复核的章法立身。
+
+> [!TIP]
+> **一眼定调（别急着热闹）**
+>
+> 这不是“传奇爽文”的路数；更像一本被翻得起毛边的旧经：每一段事，都能在另一段事里对照回去。
+> 名号只是署名，规矩才是骨架；胜负分明，人心不碎。
 
 > [!IMPORTANT]
 > **卷规三条（写给读者，也写给写卷的人）**

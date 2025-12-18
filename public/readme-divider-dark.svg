@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="140" viewBox="0 0 1600 140" role="img" aria-label="玄纹分隔（夜）">
+  <defs>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d7ff" stop-opacity="0" />
+      <stop offset="0.18" stop-color="#34d7ff" stop-opacity="0.92" />
+      <stop offset="0.52" stop-color="#b56bff" stop-opacity="0.72" />
+      <stop offset="0.86" stop-color="#ffffff" stop-opacity="0.14" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.08" />
+    </linearGradient>
+  </defs>
+
+  <path d="M120 70 H1480" stroke="url(#line)" stroke-width="2" stroke-linecap="round" />
+  <path d="M120 70 H1480" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1" stroke-linecap="round" />
+
+  <g transform="translate(800 70)">
+    <rect x="-62" y="-30" width="124" height="60" rx="18" fill="#ffffff" fill-opacity="0.05" stroke="url(#stroke)" />
+    <circle cx="0" cy="0" r="18" fill="none" stroke="#ffffff" stroke-opacity="0.18" />
+    <text
+      x="0"
+      y="10"
+      text-anchor="middle"
+      font-size="34"
+      font-weight="700"
+      fill="#ffffff"
+      fill-opacity="0.92"
+      font-family="ui-serif, 'Iowan Old Style', 'Songti SC', 'STSong', 'SimSun', serif"
+    >
+      玄
+    </text>
+  </g>
+
+  <g opacity="0.22">
+    <circle cx="248" cy="50" r="1.2" fill="#ffffff" />
+    <circle cx="300" cy="92" r="1.1" fill="#ffffff" />
+    <circle cx="1360" cy="52" r="1.2" fill="#ffffff" />
+    <circle cx="1410" cy="94" r="1.1" fill="#ffffff" />
+  </g>
+</svg>

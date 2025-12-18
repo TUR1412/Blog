@@ -12,7 +12,7 @@ import {
   Waypoints,
   X,
 } from 'lucide-react'
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { DEFAULT_MARKDOWN_HIGHLIGHT_OPTIONS, type MarkdownHighlightOptions, Markdown } from '../components/content/Markdown'
 import { Badge } from '../components/ui/Badge'
@@ -445,6 +445,7 @@ export function RelationsPage() {
   )
   const [annoActiveHitIndex, setAnnoActiveHitIndex] = useState(0)
   const flashTimerRef = useRef<number | null>(null)
+  const densityHintKeyRef = useRef('')
   const [flash, setFlash] = useState<string | null>(null)
   const keyboardNavRef = useRef(false)
   const [annoDraftById, setAnnoDraftById] = useState<Record<string, string>>({})
@@ -455,15 +456,33 @@ export function RelationsPage() {
   const [edgePulse, setEdgePulse] = useState<{ id: string; at: number } | null>(null)
   const edgePulseTimerRef = useRef<number | null>(null)
   const [previewEdge, setPreviewEdge] = useState<{ edgeId: string; anchorId: string } | null>(null)
+  const setPreviewEdgeDeferred = useCallback(
+    (next: { edgeId: string; anchorId: string } | null) => {
+      startTransition(() => setPreviewEdge(next))
+    },
+    [setPreviewEdge],
+  )
 
   const [graphNodeBox, setGraphNodeBox] = useState<EdgeNodeBox>({ halfW: 9.2, halfH: 3.8, pad: 1.0 })
+  const graphMaskBox = useMemo(() => {
+    const padRaw = typeof graphNodeBox.pad === 'number' && Number.isFinite(graphNodeBox.pad) ? graphNodeBox.pad : 1.0
+    const pad = Math.max(0.6, Math.min(1.5, padRaw))
+    const eps = 0.12
+    return {
+      halfW: graphNodeBox.halfW + Math.max(0.7, pad - eps),
+      halfH: graphNodeBox.halfH + Math.max(0.55, pad - eps),
+      rx: 2.25,
+      ry: 2.25,
+    }
+  }, [graphNodeBox.halfH, graphNodeBox.halfW, graphNodeBox.pad])
 
   const scheduleHoveredId = useCallback((next: string | null) => {
     hoveredNextRef.current = next
     if (hoveredRafRef.current != null) return
     hoveredRafRef.current = window.requestAnimationFrame(() => {
       hoveredRafRef.current = null
-      setHoveredId(hoveredNextRef.current)
+      const resolved = hoveredNextRef.current
+      startTransition(() => setHoveredId(resolved))
     })
   }, [])
 
@@ -1292,6 +1311,38 @@ export function RelationsPage() {
   const hideBackgroundEdges = Boolean(spotlightId && (heavyGraph || visibleEdges.length > 64 || crowdedFocus))
   const hideSecondaryEdges = Boolean(spotlightId && (heavyGraph || crowdedFocus))
 
+  useEffect(() => {
+    const edgeCount = edgesByNodeId.get(selectedId)?.length ?? 0
+    const crowded = edgeCount >= 10
+    const hideSecondary = Boolean(heavyGraph || crowded)
+    const hideBackground = Boolean(heavyGraph || crowded || visibleEdges.length > 64)
+
+    if (!hideSecondary && !hideBackground) {
+      densityHintKeyRef.current = ''
+      return
+    }
+
+    const key = `${selectedId}:${hideBackground ? 1 : 0}:${hideSecondary ? 1 : 0}`
+    if (densityHintKeyRef.current === key) return
+    densityHintKeyRef.current = key
+
+    let timerId: number | null = null
+
+    if (hideSecondary) {
+      timerId = window.setTimeout(() => {
+        flashMessage('高密度：次要牵连线已收声（按住 Alt/Space 或触屏长按空白处临时显影）')
+      }, 0)
+    } else if (hideBackground) {
+      timerId = window.setTimeout(() => {
+        flashMessage('高密度：远处背景线已收起（不影响直连与回轩路）')
+      }, 0)
+    }
+
+    return () => {
+      if (timerId != null) window.clearTimeout(timerId)
+    }
+  }, [edgesByNodeId, flashMessage, heavyGraph, selectedId, visibleEdges])
+
   const edgeRenderBuckets = useMemo(() => {
     const threshold = Math.max(12, Math.min(22, (graphNodeBox.halfW + graphNodeBox.halfH) * 0.9))
     const masked: Array<(typeof visibleEdgesOrdered)[number]> = []
@@ -1335,7 +1386,7 @@ export function RelationsPage() {
     const previewing = Boolean(previewEdgeId)
     const showPreview = Boolean(!reduceMotion && !heavyGraph && isPreview)
     const showGlow = (!reduceMotion && !heavyGraph && hasFocus && (connected || inRootPath) && !crowdedFocus) || showPreview
-    const showFlow = (!reduceMotion && hasFocus && (inRootPath || (connected && !crowdedFocus))) || showPreview
+    const showFlow = (!reduceMotion && !heavyGraph && hasFocus && (inRootPath || (connected && !crowdedFocus))) || showPreview
 
     const idleOpacity = heavyGraph ? 0.1 : 0.16
     const baseOpacityRaw =
@@ -2033,7 +2084,7 @@ export function RelationsPage() {
                   if (!viewport) return
 
                   scheduleHoveredId(null)
-                  setPreviewEdge(null)
+                  setPreviewEdgeDeferred(null)
                   setRevealSecondaryTouchHeld(false)
 
                   const pointerId = e.pointerId
@@ -2255,45 +2306,46 @@ export function RelationsPage() {
                 className="absolute inset-0 origin-top-left"
                 style={graphTransforming ? { willChange: 'transform' } : undefined}
               >
-                <svg
-                  className={cn(
-                    'pointer-events-none absolute inset-0 transition-opacity duration-300',
-                    !reduceMotion && !graphEntered ? 'opacity-0' : 'opacity-100',
-                  )}
-                  viewBox="0 0 100 100"
-                  preserveAspectRatio="none"
-                >
-                  <defs>
-                    <mask id="xuantian-edge-mask">
-                      <rect x="0" y="0" width="100" height="100" fill="white" />
-                      {visibleNodes.map((n) => {
-                        const halfW = graphNodeBox.halfW + 0.85
-                        const halfH = graphNodeBox.halfH + 0.55
-                        return (
+                <div className="absolute inset-0 z-0">
+                  <svg
+                    className={cn(
+                      'pointer-events-none absolute inset-0 transition-opacity duration-300',
+                      !reduceMotion && !graphEntered ? 'opacity-0' : 'opacity-100',
+                    )}
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <defs>
+                      <mask
+                        id="xuantian-edge-mask"
+                        maskUnits="userSpaceOnUse"
+                        maskContentUnits="userSpaceOnUse"
+                      >
+                        <rect x="0" y="0" width="100" height="100" fill="white" />
+                        {visibleNodes.map((n) => (
                           <rect
                             key={`mask:${n.id}`}
-                            x={n.pos.x - halfW}
-                            y={n.pos.y - halfH}
-                            width={halfW * 2}
-                            height={halfH * 2}
-                            rx={2.2}
-                            ry={2.2}
+                            x={n.pos.x - graphMaskBox.halfW}
+                            y={n.pos.y - graphMaskBox.halfH}
+                            width={graphMaskBox.halfW * 2}
+                            height={graphMaskBox.halfH * 2}
+                            rx={graphMaskBox.rx}
+                            ry={graphMaskBox.ry}
                             fill="black"
                           />
-                        )
-                      })}
-                    </mask>
-                  </defs>
+                        ))}
+                      </mask>
+                    </defs>
 
-                  <g mask="url(#xuantian-edge-mask)">
-                    {edgeRenderBuckets.masked.map((item) => renderSvgEdge(item))}
-                  </g>
-                  {edgeRenderBuckets.unmasked.length ? (
-                    <g>{edgeRenderBuckets.unmasked.map((item) => renderSvgEdge(item, { unmasked: true }))}</g>
-                  ) : null}
-                </svg>
+                    <g mask="url(#xuantian-edge-mask)">{edgeRenderBuckets.masked.map((item) => renderSvgEdge(item))}</g>
+                    {edgeRenderBuckets.unmasked.length ? (
+                      <g>{edgeRenderBuckets.unmasked.map((item) => renderSvgEdge(item, { unmasked: true }))}</g>
+                    ) : null}
+                  </svg>
+                </div>
 
-                {visibleNodes.map((n, idx) => {
+                <div className="absolute inset-0 z-10">
+                  {visibleNodes.map((n, idx) => {
                   const active = n.id === selectedId
                   const spotlight = n.id === spotlightId
                   const directRelated = Boolean(spotlightId && spotlightRelatedIdSet.has(n.id))
@@ -2500,7 +2552,8 @@ export function RelationsPage() {
                     </div>
                   </motion.button>
                 )
-                })}
+                  })}
+                </div>
               </div>
 
               <div
@@ -2811,23 +2864,23 @@ export function RelationsPage() {
                                   type="button"
                                   variants={LIST_ITEM}
                                   onClick={() => selectId(other.id)}
-                                  onPointerEnter={() => {
-                                    if (graphPanning) return
-                                    setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
-                                    scheduleHoveredId(other.id)
-                                  }}
-                                  onPointerLeave={() => {
-                                    setPreviewEdge(null)
-                                    scheduleHoveredId(null)
-                                  }}
-                                  onFocus={() => {
-                                    setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
-                                    scheduleHoveredId(other.id)
-                                  }}
-                                  onBlur={() => {
-                                    setPreviewEdge(null)
-                                    scheduleHoveredId(null)
-                                  }}
+                                   onPointerEnter={() => {
+                                     if (graphPanning) return
+                                     setPreviewEdgeDeferred({ edgeId: e.id, anchorId: selectedId })
+                                     scheduleHoveredId(other.id)
+                                   }}
+                                   onPointerLeave={() => {
+                                     setPreviewEdgeDeferred(null)
+                                     scheduleHoveredId(null)
+                                   }}
+                                   onFocus={() => {
+                                     setPreviewEdgeDeferred({ edgeId: e.id, anchorId: selectedId })
+                                     scheduleHoveredId(other.id)
+                                   }}
+                                   onBlur={() => {
+                                     setPreviewEdgeDeferred(null)
+                                     scheduleHoveredId(null)
+                                   }}
                                   className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
                                 >
                                   <div className="min-w-0">
@@ -2850,23 +2903,23 @@ export function RelationsPage() {
                                 key={e.id}
                                 type="button"
                                 onClick={() => selectId(other.id)}
-                                onPointerEnter={() => {
-                                  if (graphPanning) return
-                                  setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
-                                  scheduleHoveredId(other.id)
-                                }}
-                                onPointerLeave={() => {
-                                  setPreviewEdge(null)
-                                  scheduleHoveredId(null)
-                                }}
-                                onFocus={() => {
-                                  setPreviewEdge({ edgeId: e.id, anchorId: selectedId })
-                                  scheduleHoveredId(other.id)
-                                }}
-                                onBlur={() => {
-                                  setPreviewEdge(null)
-                                  scheduleHoveredId(null)
-                                }}
+                                 onPointerEnter={() => {
+                                   if (graphPanning) return
+                                   setPreviewEdgeDeferred({ edgeId: e.id, anchorId: selectedId })
+                                   scheduleHoveredId(other.id)
+                                 }}
+                                 onPointerLeave={() => {
+                                   setPreviewEdgeDeferred(null)
+                                   scheduleHoveredId(null)
+                                 }}
+                                 onFocus={() => {
+                                   setPreviewEdgeDeferred({ edgeId: e.id, anchorId: selectedId })
+                                   scheduleHoveredId(other.id)
+                                 }}
+                                 onBlur={() => {
+                                   setPreviewEdgeDeferred(null)
+                                   scheduleHoveredId(null)
+                                 }}
                                 className="focus-ring tap flex w-full items-start justify-between gap-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
                               >
                                 <div className="min-w-0">
@@ -2914,25 +2967,25 @@ export function RelationsPage() {
                                 <button
                                   type="button"
                                   onClick={() => selectId(id)}
-                                  onPointerEnter={() => {
-                                    if (graphPanning) return
-                                    if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
-                                    else setPreviewEdge(null)
-                                    scheduleHoveredId(id)
-                                  }}
-                                  onPointerLeave={() => {
-                                    setPreviewEdge(null)
-                                    scheduleHoveredId(null)
-                                  }}
-                                  onFocus={() => {
-                                    if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
-                                    else setPreviewEdge(null)
-                                    scheduleHoveredId(id)
-                                  }}
-                                  onBlur={() => {
-                                    setPreviewEdge(null)
-                                    scheduleHoveredId(null)
-                                  }}
+                                   onPointerEnter={() => {
+                                     if (graphPanning) return
+                                     if (edgeId) setPreviewEdgeDeferred({ edgeId, anchorId: selectedId })
+                                     else setPreviewEdgeDeferred(null)
+                                     scheduleHoveredId(id)
+                                   }}
+                                   onPointerLeave={() => {
+                                     setPreviewEdgeDeferred(null)
+                                     scheduleHoveredId(null)
+                                   }}
+                                   onFocus={() => {
+                                     if (edgeId) setPreviewEdgeDeferred({ edgeId, anchorId: selectedId })
+                                     else setPreviewEdgeDeferred(null)
+                                     scheduleHoveredId(id)
+                                   }}
+                                   onBlur={() => {
+                                     setPreviewEdgeDeferred(null)
+                                     scheduleHoveredId(null)
+                                   }}
                                   className={cn(
                                     'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
                                     id === 'xuan'
@@ -2965,25 +3018,25 @@ export function RelationsPage() {
                                  <button
                                    type="button"
                                    onClick={() => selectId(id)}
-                                   onPointerEnter={() => {
-                                     if (graphPanning) return
-                                      if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
-                                      else setPreviewEdge(null)
-                                     scheduleHoveredId(id)
-                                   }}
-                                   onPointerLeave={() => {
-                                      setPreviewEdge(null)
-                                     scheduleHoveredId(null)
-                                   }}
-                                   onFocus={() => {
-                                      if (edgeId) setPreviewEdge({ edgeId, anchorId: selectedId })
-                                      else setPreviewEdge(null)
-                                     scheduleHoveredId(id)
-                                   }}
-                                   onBlur={() => {
-                                      setPreviewEdge(null)
-                                     scheduleHoveredId(null)
-                                   }}
+                                    onPointerEnter={() => {
+                                      if (graphPanning) return
+                                       if (edgeId) setPreviewEdgeDeferred({ edgeId, anchorId: selectedId })
+                                       else setPreviewEdgeDeferred(null)
+                                      scheduleHoveredId(id)
+                                    }}
+                                    onPointerLeave={() => {
+                                       setPreviewEdgeDeferred(null)
+                                      scheduleHoveredId(null)
+                                    }}
+                                    onFocus={() => {
+                                       if (edgeId) setPreviewEdgeDeferred({ edgeId, anchorId: selectedId })
+                                       else setPreviewEdgeDeferred(null)
+                                      scheduleHoveredId(id)
+                                    }}
+                                    onBlur={() => {
+                                       setPreviewEdgeDeferred(null)
+                                      scheduleHoveredId(null)
+                                    }}
                                    className={cn(
                                      'focus-ring tap inline-flex items-center rounded-full border px-3 py-1 text-xs',
                                      id === 'xuan'
