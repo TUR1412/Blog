@@ -408,9 +408,18 @@ export function RelationsPage() {
     startX: number
     startY: number
   } | null>(null)
+  const graphHoldRef = useRef<{
+    pointerId: number
+    startClientX: number
+    startClientY: number
+    timerId: number | null
+    fired: boolean
+  } | null>(null)
   const graphRafRef = useRef<number | null>(null)
   const [graphPanning, setGraphPanning] = useState(false)
-  const [revealSecondaryHeld, setRevealSecondaryHeld] = useState(false)
+  const [revealSecondaryKeyHeld, setRevealSecondaryKeyHeld] = useState(false)
+  const [revealSecondaryTouchHeld, setRevealSecondaryTouchHeld] = useState(false)
+  const revealSecondaryHeld = revealSecondaryKeyHeld || revealSecondaryTouchHeld
   const [storedSelected, setStoredSelected] = useLocalStorageState<string>(
     STORAGE_KEYS.relationsSelected,
     'xuan',
@@ -467,6 +476,14 @@ export function RelationsPage() {
 
   useEffect(() => {
     return () => {
+      const hold = graphHoldRef.current
+      if (hold?.timerId != null) window.clearTimeout(hold.timerId)
+      graphHoldRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
       if (pulseTimerRef.current != null) window.clearTimeout(pulseTimerRef.current)
       if (edgePulseTimerRef.current != null) window.clearTimeout(edgePulseTimerRef.current)
     }
@@ -483,7 +500,7 @@ export function RelationsPage() {
     }
 
     const setReveal = (next: boolean) => {
-      setRevealSecondaryHeld((prev) => (prev === next ? prev : next))
+      setRevealSecondaryKeyHeld((prev) => (prev === next ? prev : next))
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -2001,35 +2018,69 @@ export function RelationsPage() {
                 }}
                 onPointerLeave={() => {
                   graphHoveringRef.current = false
-                  setRevealSecondaryHeld((prev) => (prev ? false : prev))
+                  setRevealSecondaryKeyHeld(false)
+                  setRevealSecondaryTouchHeld(false)
+                  const hold = graphHoldRef.current
+                  if (hold?.timerId != null) window.clearTimeout(hold.timerId)
+                  graphHoldRef.current = null
                 }}
                 onPointerDown={(e) => {
                   if (e.button !== 0) return
                   const target = e.target as HTMLElement | null
                   if (target?.closest('button, a, input, textarea, select, [data-graph-no-pan]')) return
 
-                const viewport = graphViewportRef.current
-                if (!viewport) return
+                  const viewport = graphViewportRef.current
+                  if (!viewport) return
 
-                scheduleHoveredId(null)
+                  scheduleHoveredId(null)
+                  setPreviewEdge(null)
+                  setRevealSecondaryTouchHeld(false)
 
-                graphPanRef.current = {
-                  pointerId: e.pointerId,
-                  startClientX: e.clientX,
-                  startClientY: e.clientY,
-                  startX: graphViewRef.current.x,
-                  startY: graphViewRef.current.y,
-                }
+                  const pointerId = e.pointerId
+                  if (e.pointerType === 'touch') {
+                    const prevHold = graphHoldRef.current
+                    if (prevHold?.timerId != null) window.clearTimeout(prevHold.timerId)
+                    graphHoldRef.current = {
+                      pointerId,
+                      startClientX: e.clientX,
+                      startClientY: e.clientY,
+                      fired: false,
+                      timerId: window.setTimeout(() => {
+                        setRevealSecondaryTouchHeld(true)
+                        const cur = graphHoldRef.current
+                        if (cur && cur.pointerId === pointerId) {
+                          graphHoldRef.current = { ...cur, fired: true, timerId: null }
+                        }
+                      }, 260),
+                    }
+                  }
 
-                setGraphPanning(true)
-                try {
-                  viewport.setPointerCapture(e.pointerId)
-                } catch {
-                  // ignore
-                }
-                e.preventDefault()
+                  graphPanRef.current = {
+                    pointerId: e.pointerId,
+                    startClientX: e.clientX,
+                    startClientY: e.clientY,
+                    startX: graphViewRef.current.x,
+                    startY: graphViewRef.current.y,
+                  }
+
+                  setGraphPanning(true)
+                  try {
+                    viewport.setPointerCapture(e.pointerId)
+                  } catch {
+                    // ignore
+                  }
+                  e.preventDefault()
               }}
               onPointerMove={(e) => {
+                const hold = graphHoldRef.current
+                if (hold && hold.pointerId === e.pointerId && hold.timerId != null && !hold.fired) {
+                  const dx = e.clientX - hold.startClientX
+                  const dy = e.clientY - hold.startClientY
+                  if (Math.hypot(dx, dy) > 7) {
+                    window.clearTimeout(hold.timerId)
+                    graphHoldRef.current = { ...hold, timerId: null }
+                  }
+                }
                 const pan = graphPanRef.current
                 if (!pan) return
                 if (pan.pointerId !== e.pointerId) return
@@ -2039,6 +2090,12 @@ export function RelationsPage() {
                 scheduleApplyGraphView()
               }}
               onPointerUp={(e) => {
+                const hold = graphHoldRef.current
+                if (hold && hold.pointerId === e.pointerId) {
+                  if (hold.timerId != null) window.clearTimeout(hold.timerId)
+                  graphHoldRef.current = null
+                }
+                setRevealSecondaryTouchHeld(false)
                 const pan = graphPanRef.current
                 if (!pan) return
                 if (pan.pointerId !== e.pointerId) return
@@ -2051,6 +2108,12 @@ export function RelationsPage() {
                 }
               }}
               onPointerCancel={(e) => {
+                const hold = graphHoldRef.current
+                if (hold && hold.pointerId === e.pointerId) {
+                  if (hold.timerId != null) window.clearTimeout(hold.timerId)
+                  graphHoldRef.current = null
+                }
+                setRevealSecondaryTouchHeld(false)
                 const pan = graphPanRef.current
                 if (!pan) return
                 if (pan.pointerId !== e.pointerId) return
@@ -2137,8 +2200,10 @@ export function RelationsPage() {
                           {hideSecondaryEdges ? (
                             <div className="mt-1 text-[10px] text-muted/60">
                               {revealSecondaryHeld
-                                ? '临时显影：次要牵连已显（松开 Alt/Space 即退场）'
-                                : '想看次要牵连：鼠标在谱面上按住 Alt 或 Space 临时显影'}
+                                ? revealSecondaryTouchHeld && !revealSecondaryKeyHeld
+                                  ? '临时显影：次要牵连已显（松开手指即退场）'
+                                  : '临时显影：次要牵连已显（松开 Alt/Space 即退场）'
+                                : '想看次要牵连：鼠标按住 Alt/Space；触屏长按空白处，临时显影'}
                             </div>
                           ) : null}
                         </div>
