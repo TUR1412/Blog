@@ -175,24 +175,34 @@ export function AppRouter() {
       prefetchCoreRoutes({ includeNotes: true, priority: 'all', guard: guardAll })
     }
 
-    // 轻量暖身：让移动端“第一次点进去卡一下”的概率更低（仍尊重 saveData/2g）
+    const runMarkdown = () => {
+      if (avoidPrefetch) return
+      if (!guardLight()) {
+        scheduleIdle(runMarkdown, { timeout: 3200, fallbackDelay: 1800 })
+        return
+      }
+      prefetchMarkdown()
+    }
+
+    // 轻量暖身：只预取“很轻”的页，避免首屏阅读期被预取打断（仍尊重 saveData/2g）
     scheduleIdle(() => {
       if (avoidPrefetch) return
       if (document.visibilityState && document.visibilityState !== 'visible') return
+      if (hasInteractedRef.current) return
       prefetchCoreRoutes({ includeNotes: true, priority: 'light', guard: () => !avoidPrefetch })
-      scheduleIdle(() => prefetchMarkdown(), { timeout: 3200, fallbackDelay: 1800 })
 
       const likelyGraph =
         window.matchMedia?.('(min-width: 768px)').matches ??
         // matchMedia 不可用时按“桌面”为真：不强行预取，只在空闲时触发
         true
       if (likelyGraph) scheduleIdle(() => prefetchRoute('/relations'), { timeout: 4400, fallbackDelay: 2600 })
-    }, { timeout: 2200, fallbackDelay: 1500 })
+    }, { timeout: 3200, fallbackDelay: 2200 })
 
     const startPrefetch = () => {
       if (prefetchStartedRef.current) return
       prefetchStartedRef.current = true
       scheduleIdle(runLight, { timeout: 3200, fallbackDelay: 2200 })
+      scheduleIdle(runMarkdown, { timeout: 5200, fallbackDelay: 2600 })
       scheduleIdle(runAll, { timeout: 6800, fallbackDelay: 9800 })
     }
 
@@ -222,6 +232,7 @@ export function AppRouter() {
   return (
     <AnimatePresence
       mode="wait"
+      initial={false}
       onExitComplete={() => {
         window.scrollTo({ top: pendingScrollTopRef.current || 0, left: 0, behavior: 'auto' })
       }}
