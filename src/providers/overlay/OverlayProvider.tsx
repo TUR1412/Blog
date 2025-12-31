@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react'
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '../../components/ui/Button'
 import { cn } from '../../lib/cn'
@@ -78,8 +78,19 @@ function ConfirmModal({
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const confirmBtnRef = useRef<HTMLButtonElement | null>(null)
   const prevFocusRef = useRef<HTMLElement | null>(null)
+  const baseId = useId()
+  const titleId = `${baseId}-title`
+  const messageId = `${baseId}-message`
 
   const close = useCallback((v: boolean) => onResolve(v), [onResolve])
+
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [])
 
   useEffect(() => {
     prevFocusRef.current = document.activeElement as HTMLElement | null
@@ -159,7 +170,8 @@ function ConfirmModal({
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          aria-label={req.title}
+          aria-labelledby={titleId}
+          aria-describedby={messageId}
           className={cn(
             'relative w-full max-w-[560px] overflow-hidden rounded-xl2 border p-6 shadow-lift',
             toneFrame,
@@ -171,13 +183,18 @@ function ConfirmModal({
         >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-base font-semibold text-fg">{req.title}</div>
-              <div className="mt-2 whitespace-pre-line text-sm leading-7 text-muted/85">{req.message}</div>
+              <div id={titleId} className="text-base font-semibold text-fg">
+                {req.title}
+              </div>
+              <div id={messageId} className="mt-2 whitespace-pre-line text-sm leading-7 text-muted/85">
+                {req.message}
+              </div>
             </div>
             <button
               type="button"
               className="focus-ring tap inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-white/5 text-muted/80 hover:bg-white/10 hover:text-fg"
               onClick={() => close(false)}
+              aria-label="关闭对话框"
             >
               <X className="h-4 w-4" />
             </button>
@@ -213,13 +230,18 @@ function ToastViewport({
         'pointer-events-none fixed z-[110] flex w-full flex-col gap-2 px-4',
         'bottom-4 left-1/2 -translate-x-1/2 sm:bottom-6 sm:right-6 sm:left-auto sm:translate-x-0 sm:max-w-[420px]',
       )}
+      role="status"
       aria-live="polite"
       aria-relevant="additions"
+      aria-atomic="true"
     >
       <AnimatePresence initial={false}>
         {items.map((t) => (
           <motion.div
             key={t.id}
+            role={t.tone === 'danger' ? 'alert' : undefined}
+            aria-live={t.tone === 'danger' ? 'assertive' : undefined}
+            aria-atomic={t.tone === 'danger' ? 'true' : undefined}
             className={cn(
               'pointer-events-auto flex items-start gap-3 rounded-xl2 border px-4 py-3 shadow-lift',
               toastClasses(t.tone),

@@ -16,6 +16,16 @@
 ### 移除
 - （待记录）
 
+## [0.141.1] - 2025-12-31
+
+### 新增
+- 自动化测试：引入 Vitest + Testing Library，覆盖 `parseSafeLink`、`ThemeProvider`、`OverlayProvider` 的关键路径。
+- CI：GitHub Pages 部署流程在构建前执行 `npm run test:ci`。
+
+### 变更
+- Overlay 无障碍增强：Confirm 使用 `aria-labelledby/aria-describedby`，Toast 增加 `role="status"` 并对 danger toast 使用 `role="alert"`。
+- Confirm 交互增强：打开时锁定页面滚动，避免移动端背景滚动穿透。
+
 ## [0.141.0] - 2025-12-31
 
 ### 新增

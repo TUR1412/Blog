@@ -30,6 +30,7 @@ flowchart TD
 - **路由:** React Router（HashRouter）
 - **样式:** Tailwind CSS 3.4 + Typography
 - **动效:** Framer Motion
+- **测试:** Vitest + Testing Library（React/DOM/UserEvent）
 - **部署:** GitHub Actions → GitHub Pages（产物 `dist/`）
 
 ---

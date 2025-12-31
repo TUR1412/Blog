@@ -244,6 +244,18 @@ npm run build
 npm run preview
 ```
 
+试炼（本地测试，Watch 模式）：
+
+```bash
+npm run test
+```
+
+验阵（CI 测试 + 覆盖率报告）：
+
+```bash
+npm run test:ci
+```
+
 ### 架构一览
 
 ```mermaid
