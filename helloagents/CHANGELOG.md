@@ -16,6 +16,12 @@
 ### 移除
 - （待记录）
 
+## [0.141.3] - 2025-12-31
+
+### 新增
+- CI：缓存 Playwright 浏览器下载（`~/.cache/ms-playwright`），并在失败时上传 `playwright-report/` 与 `test-results/` 工件便于排障。
+- e2e：补齐“主题持久化（刷新不丢）”与“ESC 取消 Confirm”覆盖。
+
 ## [0.141.2] - 2025-12-31
 
 ### 新增
