@@ -16,6 +16,16 @@
 ### 移除
 - （待记录）
 
+## [0.141.2] - 2025-12-31
+
+### 新增
+- e2e 测试：引入 Playwright（Chromium）覆盖导航、主题切换、危险操作 Confirm 流程。
+
+### 变更
+- CI 门禁：GitHub Pages 部署流程在构建后执行 e2e（`npm run test:e2e:ci`）。
+- 仓库规范：新增 `.gitattributes` 统一行尾策略，减少跨平台 CRLF/LF 噪音。
+- 文档：README 补充 e2e 运行说明。
+
 ## [0.141.1] - 2025-12-31
 
 ### 新增

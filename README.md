@@ -256,6 +256,13 @@ npm run test
 npm run test:ci
 ```
 
+巡游（端到端 e2e，需要浏览器驱动）：
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
 ### 架构一览
 
 ```mermaid
