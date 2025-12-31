@@ -244,4 +244,28 @@ npm run build
 npm run preview
 ```
 
+### 架构一览
+
+```mermaid
+flowchart TD
+  U[访客] -->|访问| GH[GitHub Pages]
+  GH --> App[React App]
+
+  subgraph Browser[浏览器运行时]
+    App --> Router[HashRouter + AppRouter]
+    App --> Chrome[AppChrome / TopNav / Footer]
+    App --> Theme[ThemeProvider]
+    App --> Overlay[OverlayProvider]
+    Overlay --> Toast[Toast]
+    Overlay --> Confirm[Confirm]
+    Router --> Pages[各页面 Pages]
+    Pages --> Content[静态内容数据 src/content]
+    Pages --> Local[本地存储 localStorage/sessionStorage]
+  end
+```
+
+### 快捷键与入口
+- **灵镜（检索）**：`Ctrl/⌘ K` 或 `/`
+- **主题**：顶栏「主题」可选 `system / dark / light`（本地记忆）
+
 </details>
