@@ -27,6 +27,7 @@ import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
+import { useOverlay } from '../providers/overlay/OverlayProvider'
 import { prefetchIntent } from '../routes/prefetch'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
@@ -125,6 +126,7 @@ function toneToken(tone: Tone) {
 export function AnnotationsPage() {
   const reduceMotion = useReducedMotion()
   const navigate = useNavigate()
+  const { toast, confirm } = useOverlay()
   const flashTimerRef = useRef<number | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const importRef = useRef<HTMLInputElement | null>(null)
@@ -435,7 +437,7 @@ export function AnnotationsPage() {
 
   const exportScroll = () => {
     if (filtered.length === 0) {
-      window.alert('当前筛选下没有可导出的批注。')
+      toast({ tone: 'warn', title: '暂无可导出', message: '当前筛选下没有可导出的批注。' })
       return
     }
 
@@ -498,7 +500,7 @@ export function AnnotationsPage() {
 
   const exportArchive = () => {
     if (filtered.length === 0) {
-      window.alert('当前筛选下没有可导出的批注。')
+      toast({ tone: 'warn', title: '暂无可导出', message: '当前筛选下没有可导出的批注。' })
       return
     }
 
@@ -523,7 +525,7 @@ export function AnnotationsPage() {
 
   const exportSealedBook = () => {
     if (totalCount === 0) {
-      window.alert('当前没有可导出的批注。')
+      toast({ tone: 'warn', title: '暂无可导出', message: '当前没有可导出的批注。' })
       return
     }
 
@@ -630,7 +632,7 @@ export function AnnotationsPage() {
     flashMessage('已封印整卷。')
   }
 
-  const applyImported = (items: AnnotationsHallExportPayload['items']) => {
+  const applyImported = async (items: AnnotationsHallExportPayload['items']) => {
     const grottoIncoming: GrottoAnnotations = {}
     const relationIncoming: RelationAnnotations = {}
     let skipped = 0
@@ -673,7 +675,7 @@ export function AnnotationsPage() {
     const relationIncomingCount = Object.keys(relationIncoming).length
     const count = grottoIncomingCount + relationIncomingCount
     if (count === 0) {
-      window.alert('导入失败：存档里没有可识别的批注。')
+      toast({ tone: 'danger', title: '导入失败', message: '存档里没有可识别的批注。' })
       return
     }
 
@@ -704,7 +706,12 @@ export function AnnotationsPage() {
       '取消：放弃导入',
     ].filter((x): x is string => typeof x === 'string')
 
-    const proceed = window.confirm(previewLines.join('\n'))
+    const proceed = await confirm({
+      title: '导入预览（批注馆）',
+      message: previewLines.join('\n'),
+      confirmText: '继续导入',
+      cancelText: '取消',
+    })
     if (!proceed) return
 
     stashBackup('导入存档（批注馆）')
@@ -715,7 +722,13 @@ export function AnnotationsPage() {
       '确定：覆盖（只保留导入内容；未包含的批注会被清掉）',
       '取消：合并（保留现有批注；同一条以导入为准）',
     ]
-    const replace = window.confirm(modeLines.join('\n'))
+    const replace = await confirm({
+      title: '导入方式选择',
+      message: modeLines.join('\n'),
+      confirmText: '覆盖',
+      cancelText: '合并',
+      tone: 'danger',
+    })
 
     if (replace) {
       setGrottoAnnotations(grottoIncoming)
@@ -736,20 +749,20 @@ export function AnnotationsPage() {
       const raw = await file.text()
       const data = JSON.parse(raw) as unknown
       if (!data || typeof data !== 'object') {
-        window.alert('导入失败：存档格式不支持。')
+        toast({ tone: 'danger', title: '导入失败', message: '存档格式不支持。' })
         return
       }
 
       const maybe = data as Partial<AnnotationsHallExportPayload> & { items?: unknown }
       if (maybe.kind === 'xuantian.annotations.hall' && maybe.v === 1 && Array.isArray(maybe.items)) {
         const items = maybe.items.filter((x) => x && typeof x === 'object') as AnnotationsHallExportPayload['items']
-        applyImported(items)
+        await applyImported(items)
         return
       }
 
-      window.alert('导入失败：此文件不是“批注馆存档”。')
+      toast({ tone: 'danger', title: '导入失败', message: '此文件不是“批注馆存档”。' })
     } catch {
-      window.alert('导入失败：存档内容有误。')
+      toast({ tone: 'danger', title: '导入失败', message: '存档内容有误。' })
     }
   }
 
@@ -775,7 +788,7 @@ export function AnnotationsPage() {
     })
   }
 
-  const cleanEmptyAnnotations = () => {
+  const cleanEmptyAnnotations = async () => {
     const purify = (raw: Record<string, { text?: unknown; updatedAt?: unknown }>) => {
       const next: Record<string, { text: string; updatedAt: number }> = {}
       let removed = 0
@@ -803,17 +816,18 @@ export function AnnotationsPage() {
       return
     }
 
-    const ok = window.confirm(
-      [
-        '清心诀：剔除空批注',
-        '',
+    const ok = await confirm({
+      title: '清心诀：剔除空批注',
+      message: [
         `洞府：剔除 ${grotto.removed} · 留存 ${grotto.kept}`,
         `关系：剔除 ${relations.removed} · 留存 ${relations.kept}`,
         '',
         '确定：施诀',
         '取消：作罢',
       ].join('\n'),
-    )
+      confirmText: '施诀',
+      cancelText: '作罢',
+    })
     if (!ok) return
 
     stashBackup('清心诀：剔除空批注')
@@ -824,7 +838,7 @@ export function AnnotationsPage() {
     flashMessage(`清心诀已成：剔除 ${totalRemoved} 条空批注（可撤销）。`)
   }
 
-  const clearSourceAnnotations = (source: 'grotto' | 'relations') => {
+  const clearSourceAnnotations = async (source: 'grotto' | 'relations') => {
     const label = source === 'grotto' ? '洞府图' : '关系谱'
     const rawCount = source === 'grotto' ? Object.keys(grottoAnnotations).length : Object.keys(relationAnnotations).length
     const liveCount = source === 'grotto' ? grottoCount : relationCount
@@ -835,17 +849,19 @@ export function AnnotationsPage() {
       return
     }
 
-    const ok = window.confirm(
-      [
-        `清心诀：清空${label}批注`,
-        '',
+    const ok = await confirm({
+      title: `清心诀：清空${label}批注`,
+      message: [
         `有效批注：${liveCount} 条`,
         `本地存量：${rawCount} 条`,
         '',
         '确定：清空（可撤销）',
         '取消：作罢',
       ].join('\n'),
-    )
+      confirmText: '清空',
+      cancelText: '作罢',
+      tone: 'danger',
+    })
     if (!ok) return
 
     stashBackup(`清心诀：清空${label}批注`)
@@ -856,24 +872,25 @@ export function AnnotationsPage() {
     flashMessage(`已清空${label}批注（可撤销）。`)
   }
 
-  const undoLastOperation = () => {
+  const undoLastOperation = async () => {
     if (!undo || undo.kind !== 'xuantian.annotations.hall.undo' || undo.v !== 1) {
       flashMessage('没有可撤销的回退印记。')
       hapticTap()
       return
     }
 
-    const ok = window.confirm(
-      [
-        '回退印记：撤销上次变更',
-        '',
+    const ok = await confirm({
+      title: '回退印记：撤销上次变更',
+      message: [
         `上次变更：${undo.note}`,
         `落印时间：${formatDateTime(undo.savedAt)}`,
         '',
         '确定：撤销',
         '取消：作罢',
       ].join('\n'),
-    )
+      confirmText: '撤销',
+      cancelText: '作罢',
+    })
     if (!ok) return
 
     setGrottoAnnotations(undo.grotto ?? {})
@@ -906,7 +923,7 @@ export function AnnotationsPage() {
     flashMessage('已下载护卷符快照。')
   }
 
-  const restoreFromBackup = () => {
+  const restoreFromBackup = async () => {
     if (!backup || backup.kind !== 'xuantian.annotations.hall.backup' || backup.v !== 1) {
       flashMessage('暂无可用的护卷符快照。')
       hapticTap()
@@ -919,10 +936,9 @@ export function AnnotationsPage() {
     const backupGrottoCount = countValid(backup.grotto as unknown as Record<string, { text?: unknown }>)
     const backupRelationCount = countValid(backup.relations as unknown as Record<string, { text?: unknown }>)
 
-    const ok = window.confirm(
-      [
-        '回魂灯：从护卷符恢复',
-        '',
+    const ok = await confirm({
+      title: '回魂灯：从护卷符恢复',
+      message: [
         '将用护卷符快照覆盖当前批注馆（洞府 + 关系）。',
         `护卷符：${backup.reason} · ${formatDateTime(backup.savedAt)}`,
         '',
@@ -932,7 +948,10 @@ export function AnnotationsPage() {
         '确定：恢复（可撤销）',
         '取消：作罢',
       ].join('\n'),
-    )
+      confirmText: '恢复',
+      cancelText: '作罢',
+      tone: 'danger',
+    })
     if (!ok) return
 
     stashUndo(`回魂灯：恢复前（${backup.reason}）`)
@@ -945,7 +964,7 @@ export function AnnotationsPage() {
   const appendEntryToNotes = (it: AnnotationEntry) => {
     const ann = it.text.trim()
     if (!ann) {
-      window.alert('此处尚未落笔。')
+      toast({ tone: 'warn', message: '此处尚未落笔。' })
       return
     }
 
@@ -995,9 +1014,17 @@ export function AnnotationsPage() {
     hapticTap()
   }
 
-  const clearEntry = (it: AnnotationEntry) => {
-    const ok = window.confirm('确定清空这条批注？')
+  const clearEntry = async (it: AnnotationEntry) => {
+    const ok = await confirm({
+      title: '清空批注',
+      message: '确定清空这条批注？',
+      confirmText: '清空',
+      cancelText: '取消',
+      tone: 'danger',
+    })
     if (!ok) return
+
+    stashUndo('清空单条批注')
 
     if (it.source === 'grotto') {
       setGrottoAnnotations((prev) => {

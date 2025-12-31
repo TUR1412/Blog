@@ -20,7 +20,8 @@ import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { findAllMatchRanges } from '../lib/find'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
-import { readJson, readString, writeJson, writeString } from '../lib/storage'
+import { readJson, readString, writeJson, writeString } from '../lib/storage'   
+import { useOverlay } from '../providers/overlay/OverlayProvider'
 import { prefetchIntent } from '../routes/prefetch'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
@@ -72,6 +73,7 @@ function toneClass(tone: TimelineEvent['tone']) {
 
 export function GrottoMapPage() {
   const reduceMotion = useReducedMotion() ?? false
+  const { toast, confirm } = useOverlay()
   const [searchParams, setSearchParams] = useSearchParams()
   const [storedSelectedId, setStoredSelectedId] = useLocalStorageState<string>(
     STORAGE_KEYS.grottoSelected,
@@ -432,7 +434,7 @@ export function GrottoMapPage() {
 
   const exportAnnotations = () => {
     if (annotationCount === 0) {
-      window.alert('当前没有可导出的路标批注。')
+      toast({ tone: 'warn', title: '暂无可导出', message: '当前没有可导出的路标批注。' })
       return
     }
 
@@ -457,7 +459,7 @@ export function GrottoMapPage() {
 
   const exportAnnotationsScroll = () => {
     if (annotationCount === 0) {
-      window.alert('当前没有可导出的路标批注。')
+      toast({ tone: 'warn', title: '暂无可导出', message: '当前没有可导出的路标批注。' })
       return
     }
 
@@ -502,7 +504,7 @@ export function GrottoMapPage() {
     flashMessage('已导出批注文卷。')
   }
 
-  const applyImportedAnnotations = (incoming: GrottoAnnotations) => {
+  const applyImportedAnnotations = async (incoming: GrottoAnnotations) => {
     const known: GrottoAnnotations = {}
     for (const [id, a] of Object.entries(incoming)) {
       if (!byId.has(id)) continue
@@ -514,11 +516,16 @@ export function GrottoMapPage() {
 
     const count = Object.keys(known).length
     if (count === 0) {
-      window.alert('导入失败：存档里没有可识别的批注。')
+      toast({ tone: 'danger', title: '导入失败', message: '存档里没有可识别的批注。' })
       return
     }
 
-    const replace = window.confirm('导入方式：确定=覆盖现有批注；取消=合并（同一路标以导入为准）。')
+    const replace = await confirm({
+      title: '导入路标批注',
+      message: '导入方式：\n- 确定：覆盖现有批注\n- 取消：合并（同一路标以导入为准）',
+      confirmText: '覆盖',
+      cancelText: '合并',
+    })
     if (replace) {
       setAnnotations(known)
     } else {
@@ -551,7 +558,7 @@ export function GrottoMapPage() {
       }
 
       if (!incoming || typeof incoming !== 'object') {
-        window.alert('导入失败：存档格式不支持。')
+        toast({ tone: 'danger', title: '导入失败', message: '存档格式不支持。' })
         return
       }
 
@@ -573,16 +580,16 @@ export function GrottoMapPage() {
         }
       }
 
-      applyImportedAnnotations(normalized)
+      await applyImportedAnnotations(normalized)
     } catch {
-      window.alert('导入失败：存档内容有误。')
+      toast({ tone: 'danger', title: '导入失败', message: '存档内容有误。' })
     }
   }
 
   const appendAnnotationEntryToNotes = (t: TimelineEvent, annText: string) => {
     const ann = annText.trim()
     if (!ann) {
-      window.alert('此处尚未落笔。')
+      toast({ tone: 'warn', message: '此处尚未落笔。' })
       return
     }
 
@@ -1102,10 +1109,16 @@ export function GrottoMapPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => {
+                          onClick={async () => {
                             if (!selected.id) return
                             if (!annotations[selected.id]) return
-                            const ok = window.confirm('确定清空此处批注？')
+                            const ok = await confirm({
+                              title: '清空路标批注',
+                              message: '确定清空此处批注？',
+                              confirmText: '清空',
+                              cancelText: '取消',
+                              tone: 'danger',
+                            })
                             if (!ok) return
                             setAnnotations((prev) => {
                               const next = { ...prev }

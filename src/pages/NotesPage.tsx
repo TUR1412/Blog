@@ -18,6 +18,7 @@ import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
+import { useOverlay } from '../providers/overlay/OverlayProvider'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
 type NotesView = 'edit' | 'scroll'
@@ -39,6 +40,7 @@ function formatTime(ts: number) {
 
 export function NotesPage() {
   const reduceMotion = useReducedMotion() ?? false
+  const { toast, confirm } = useOverlay()
   const [searchParams, setSearchParams] = useSearchParams()
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -429,12 +431,17 @@ export function NotesPage() {
     URL.revokeObjectURL(url)
   }
 
-  const applyImportedText = (incoming: string) => {
+  const applyImportedText = async (incoming: string) => {
     if (!incoming.trim()) {
-      window.alert('导入失败：文件内容为空。')
+      toast({ tone: 'danger', title: '导入失败', message: '文件内容为空。' })
       return
     }
-    const replace = window.confirm('导入方式：确定=覆盖现有札记；取消=追加到现有札记末尾。')
+    const replace = await confirm({
+      title: '导入札记',
+      message: '导入方式：\n- 确定：覆盖现有札记\n- 取消：追加到现有札记末尾',
+      confirmText: '覆盖',
+      cancelText: '追加',
+    })
     if (replace) {
       setText(incoming)
       setMeta((prev) => {
@@ -466,7 +473,7 @@ export function NotesPage() {
           writeJson(STORAGE_KEYS.notesMeta, next)
           return next
         })
-        applyImportedText(incomingText)
+        await applyImportedText(incomingText)
         flashMessage('已导入。')
         return
       }
@@ -476,10 +483,10 @@ export function NotesPage() {
         writeJson(STORAGE_KEYS.notesMeta, next)
         return next
       })
-      applyImportedText(raw)
+      await applyImportedText(raw)
       flashMessage('已导入。')
     } catch {
-      window.alert('导入失败：无法读取文件内容。')
+      toast({ tone: 'danger', title: '导入失败', message: '无法读取文件内容。' })
     }
   }
 
@@ -492,8 +499,14 @@ export function NotesPage() {
     }
   }
 
-  const clearAll = () => {
-    const ok = window.confirm('确认清空札记？清空后无法恢复（本地存储会被覆盖）。')
+  const clearAll = async () => {
+    const ok = await confirm({
+      title: '清空札记',
+      message: '确认清空札记？清空后无法恢复（本地存储会被覆盖）。',
+      confirmText: '清空',
+      cancelText: '取消',
+      tone: 'danger',
+    })
     if (!ok) return
     setText('')
     writeString(STORAGE_KEYS.notes, '')

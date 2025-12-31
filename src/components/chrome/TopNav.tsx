@@ -1,9 +1,11 @@
-import { motion } from 'framer-motion'
-import { Search } from 'lucide-react'
-import { NavLink, Link } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Monitor, Moon, Search, Sun } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, NavLink } from 'react-router-dom'
 import { cn } from '../../lib/cn'
-import { prefetchIntent } from '../../routes/prefetch'
 import { useCommandPalette } from '../../providers/command/CommandPaletteProvider'
+import { useTheme, type ThemePreference } from '../../providers/theme/ThemeProvider'
+import { prefetchIntent } from '../../routes/prefetch'
 
 const NAV = [
   { to: '/', label: '洞天' },
@@ -47,6 +49,120 @@ function NavItem({ to, label }: { to: string; label: string }) {
   )
 }
 
+function ThemeToggle() {
+  const { theme, effectiveTheme, setTheme } = useTheme()
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const onPointerDown = (e: PointerEvent) => {
+      const root = rootRef.current
+      if (!root) return
+      const target = e.target as Node | null
+      if (!target) return
+      if (root.contains(target)) return
+      setOpen(false)
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  const icon =
+    theme === 'system' ? (
+      <Monitor className="h-4 w-4" />
+    ) : theme === 'dark' ? (
+      <Moon className="h-4 w-4" />
+    ) : (
+      <Sun className="h-4 w-4" />
+    )
+
+  const options: Array<{ value: ThemePreference; label: string; hint?: string; icon: ReactNode }> = [
+    {
+      value: 'system',
+      label: '跟随系统',
+      hint: `当前：${effectiveTheme === 'light' ? '浅色' : '深色'}`,
+      icon: <Monitor className="h-4 w-4" />,
+    },
+    { value: 'dark', label: '深色', icon: <Moon className="h-4 w-4" /> },
+    { value: 'light', label: '浅色', icon: <Sun className="h-4 w-4" /> },
+  ]
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        className={cn(
+          'focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-sm text-fg/90',
+          'hover:bg-white/10',
+        )}
+        aria-label="切换主题"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {icon}
+        <span className="hidden sm:inline">主题</span>
+      </button>
+
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            role="menu"
+            aria-label="主题选择"
+            className="absolute right-0 top-full z-[80] mt-2 w-[220px] overflow-hidden rounded-xl2 border border-border/70 bg-[linear-gradient(180deg,var(--glass),var(--glass2))] shadow-lift backdrop-blur-lg"
+            initial={{ opacity: 0, y: 8, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.99 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="p-2">
+              {options.map((opt) => {
+                const active = theme === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    className={cn(
+                      'focus-ring tap flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm',
+                      active
+                        ? 'border border-white/12 bg-white/10 text-fg'
+                        : 'border border-transparent text-muted/85 hover:bg-white/6 hover:text-fg/90',
+                    )}
+                    onClick={() => {
+                      setTheme(opt.value)
+                      setOpen(false)
+                    }}
+                  >
+                    <span className="text-fg/90">{opt.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block">{opt.label}</span>
+                      {opt.hint ? <span className="block text-xs text-muted/70">{opt.hint}</span> : null}
+                    </span>
+                    {active ? <span className="text-xs text-muted/70">已选</span> : null}
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export function TopNav() {
   const { open } = useCommandPalette()
 
@@ -74,6 +190,7 @@ export function TopNav() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <button
             type="button"
             onClick={open}

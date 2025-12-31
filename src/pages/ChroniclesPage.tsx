@@ -15,11 +15,13 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState'
 import { cn } from '../lib/cn'
 import { STORAGE_KEYS } from '../lib/constants'
 import { readString, writeString } from '../lib/storage'
+import { useOverlay } from '../providers/overlay/OverlayProvider'
 import { prefetchIntent } from '../routes/prefetch'
 
 export function ChroniclesPage() {
   const navigate = useNavigate()
   const reduceMotion = useReducedMotion() ?? false
+  const { toast, confirm } = useOverlay()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const tags = useMemo(() => ['全部', ...getAllTags()], [])
@@ -89,7 +91,7 @@ export function ChroniclesPage() {
     URL.revokeObjectURL(url)
   }
 
-  const applyImportedBookmarks = (nextBookmarks: string[]) => {
+  const applyImportedBookmarks = async (nextBookmarks: string[]) => {
     const known = nextBookmarks.filter((s) => chronicleMap.has(s))
     const unique: string[] = []
     const seen = new Set<string>()
@@ -100,14 +102,19 @@ export function ChroniclesPage() {
     }
 
     if (unique.length === 0) {
-      window.alert('导入失败：文件里没有可识别的收藏条目。')
+      toast({ tone: 'danger', title: '导入失败', message: '文件里没有可识别的收藏条目。' })
       return
     }
 
-    const replace = window.confirm('导入方式：确定=覆盖现有收藏；取消=合并到现有收藏末尾。')
+    const replace = await confirm({
+      title: '导入收藏',
+      message: '导入方式：\n- 确定：覆盖现有收藏\n- 取消：合并到现有收藏末尾',
+      confirmText: '覆盖',
+      cancelText: '合并',
+    })
     if (replace) {
       setBookmarks(unique)
-      window.alert(`已覆盖收藏：${unique.length} 篇。`)
+      toast({ tone: 'success', title: '导入完成', message: `已覆盖收藏：${unique.length} 篇。` })
       return
     }
 
@@ -121,7 +128,7 @@ export function ChroniclesPage() {
       }
       return merged
     })
-    window.alert(`已合并导入：${unique.length} 篇（重复项自动忽略）。`)
+    toast({ tone: 'success', title: '导入完成', message: `已合并导入：${unique.length} 篇（重复项自动忽略）。` })
   }
 
   const importBookmarks = async (file: File) => {
@@ -135,14 +142,14 @@ export function ChroniclesPage() {
           : null
 
       if (!list) {
-        window.alert('导入失败：文件格式不支持。请导入本站导出的收藏文件。')
+        toast({ tone: 'danger', title: '导入失败', message: '文件格式不支持。请导入本站导出的收藏文件。' })
         return
       }
 
       const nextBookmarks = (list as unknown[]).filter((x): x is string => typeof x === 'string')
-      applyImportedBookmarks(nextBookmarks)
+      await applyImportedBookmarks(nextBookmarks)
     } catch {
-      window.alert('导入失败：无法读取文件内容。')
+      toast({ tone: 'danger', title: '导入失败', message: '无法读取文件内容。' })
     }
   }
 
@@ -343,10 +350,17 @@ export function ChroniclesPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      const ok = window.confirm('确认清空所有收藏？此操作会清除本地保存的收藏列表。')
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: '清空收藏',
+                        message: '确认清空所有收藏？此操作会清除本地保存的收藏列表。',
+                        confirmText: '清空',
+                        cancelText: '取消',
+                        tone: 'danger',
+                      })
                       if (!ok) return
                       setBookmarks([])
+                      toast({ tone: 'success', message: '已清空收藏。' })
                     }}
                     className="justify-start"
                   >

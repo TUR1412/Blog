@@ -5,6 +5,7 @@ import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import { cn } from '../../lib/cn'
 import { buildFindRegExp, DEFAULT_FIND_OPTIONS, type FindOptions } from '../../lib/find'
+import { parseSafeLink } from '../../lib/safeUrl'
 import { prefetchIntent } from '../../routes/prefetch'
 
 export type MarkdownHighlightOptions = Partial<FindOptions>
@@ -304,18 +305,18 @@ function buildComponents(opts: { idPrefix: string }): Components {
   const used = new Set<string>()
 
   const linkRenderer: Components['a'] = ({ href, children }) => {
-    const h = typeof href === 'string' ? href : ''
-    const isInternal = h.startsWith('/') && !h.startsWith('//')
-    const isHash = h.startsWith('#')
+    const raw = typeof href === 'string' ? href : ''
+    const safe = parseSafeLink(raw)
+    if (!safe) return <span className="text-muted/70">{children}</span>
 
-    if (isHash) {
+    if (safe.kind === 'hash') {
       return (
         <a
-          href={h}
+          href={safe.href}
           className="focus-ring tap"
           onClick={(e) => {
             e.preventDefault()
-            const id = h.slice(1)
+            const id = safe.href.slice(1)
             if (!id) return
             const el = document.getElementById(id)
             if (!el) return
@@ -334,21 +335,27 @@ function buildComponents(opts: { idPrefix: string }): Components {
       )
     }
 
-    if (isInternal) {
+    if (safe.kind === 'internal') {
       return (
         <Link
-          to={h}
-          onPointerEnter={() => prefetchIntent(h, 'hover')}
-          onPointerDown={() => prefetchIntent(h, 'press')}
-          onFocus={() => prefetchIntent(h, 'focus')}
+          to={safe.href}
+          onPointerEnter={() => prefetchIntent(safe.href, 'hover')}
+          onPointerDown={() => prefetchIntent(safe.href, 'press')}
+          onFocus={() => prefetchIntent(safe.href, 'focus')}
           className="focus-ring tap"
         >
           {children}
         </Link>
       )
     }
+
     return (
-      <a href={h} target="_blank" rel="noreferrer" className="focus-ring tap">
+      <a
+        href={safe.href}
+        target={safe.targetBlank ? '_blank' : undefined}
+        rel={safe.targetBlank ? 'noopener noreferrer' : undefined}
+        className="focus-ring tap"
+      >
         {children}
       </a>
     )

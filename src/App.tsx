@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { AppChrome } from './components/chrome/AppChrome'
 import { AppRouter } from './routes/AppRouter'
 import { CommandPaletteProvider } from './providers/command/CommandPaletteProvider'
+import { OverlayProvider } from './providers/overlay/OverlayProvider'
+import { ThemeProvider } from './providers/theme/ThemeProvider'
 import { initPerf } from './lib/perf'
 
 export default function App() {
@@ -12,11 +14,15 @@ export default function App() {
 
   return (
     <HashRouter>
-      <CommandPaletteProvider>
-        <AppChrome>
-          <AppRouter />
-        </AppChrome>
-      </CommandPaletteProvider>
+      <ThemeProvider>
+        <OverlayProvider>
+          <CommandPaletteProvider>
+            <AppChrome>
+              <AppRouter />
+            </AppChrome>
+          </CommandPaletteProvider>
+        </OverlayProvider>
+      </ThemeProvider>
     </HashRouter>
   )
 }

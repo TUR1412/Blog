@@ -1,11 +1,12 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { BookOpen, BookmarkCheck, Gem, Home, Map, NotebookPen, ScrollText, Search, User, Waypoints } from 'lucide-react'
+import { BookOpen, BookmarkCheck, Gem, Home, Map, Monitor, Moon, NotebookPen, ScrollText, Search, Sun, User, Waypoints } from 'lucide-react'
 import React, { createContext, useContext, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import type { ChronicleMeta } from '../../content/chronicleIndex'
 import { cn } from '../../lib/cn'
 import { prefetchIntent } from '../../routes/prefetch'
+import { useTheme } from '../theme/ThemeProvider'
 
 type CommandItem = {
   id: string
@@ -96,6 +97,7 @@ function CommandPaletteModal({
   onClose: () => void
 }) {
   const navigate = useNavigate()
+  const { theme, setTheme } = useTheme()
   const reduceMotion = useReducedMotion() ?? false
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -116,7 +118,7 @@ function CommandPaletteModal({
   }, [])
 
   const items = useMemo<CommandItem[]>(() => {
-    const withSearch = (it: Omit<CommandItem, 'search'>): CommandItem => {
+    const withSearch = (it: Omit<CommandItem, 'search'>): CommandItem => {      
       return {
         ...it,
         search: {
@@ -126,6 +128,33 @@ function CommandPaletteModal({
         },
       }
     }
+
+    const themeCommands: Omit<CommandItem, 'search'>[] = [
+      {
+        id: 'theme-system',
+        title: '主题：跟随系统',
+        subtitle: theme === 'system' ? '当前已启用' : '使用系统浅色/深色偏好',
+        keywords: ['主题', '系统', 'system', 'theme'],
+        icon: <Monitor className="h-4 w-4" />,
+        run: () => setTheme('system'),
+      },
+      {
+        id: 'theme-dark',
+        title: '主题：深色',
+        subtitle: theme === 'dark' ? '当前已启用' : '更沉，更稳',
+        keywords: ['主题', '深色', 'dark', 'theme'],
+        icon: <Moon className="h-4 w-4" />,
+        run: () => setTheme('dark'),
+      },
+      {
+        id: 'theme-light',
+        title: '主题：浅色',
+        subtitle: theme === 'light' ? '当前已启用' : '更亮，更清',
+        keywords: ['主题', '浅色', 'light', 'theme'],
+        icon: <Sun className="h-4 w-4" />,
+        run: () => setTheme('light'),
+      },
+    ]
 
     const routes: Omit<CommandItem, 'search'>[] = [
       {
@@ -221,8 +250,8 @@ function CommandPaletteModal({
       run: () => navigate(`/chronicles/${c.slug}`),
     }))
 
-    return [...routes, ...chapters].map(withSearch)
-  }, [chapterIndex, navigate])
+    return [...themeCommands, ...routes, ...chapters].map(withSearch)
+  }, [chapterIndex, navigate, setTheme, theme])
 
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase()

@@ -33,6 +33,7 @@ import { STORAGE_KEYS } from '../lib/constants'
 import { findAllMatchRanges } from '../lib/find'
 import { hapticSuccess, hapticTap } from '../lib/haptics'
 import { readJson, readString, writeJson, writeString } from '../lib/storage'
+import { useOverlay } from '../providers/overlay/OverlayProvider'
 import { prefetchIntent } from '../routes/prefetch'
 
 type NotesMeta = { updatedAt: number; lastSource?: string }
@@ -388,6 +389,7 @@ const LIST_ITEM = {
 
 export function RelationsPage() {
   const reduceMotion = useReducedMotion() ?? false
+  const { toast, confirm } = useOverlay()
   const [searchParams, setSearchParams] = useSearchParams()
   const [graphEntered, setGraphEntered] = useState(false)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -1104,7 +1106,7 @@ export function RelationsPage() {
       if (!node) return
       const ann = annText.trim()
       if (!ann) {
-        window.alert('此处尚未落笔。')
+        toast({ tone: 'warn', message: '此处尚未落笔。' })
         return
       }
 
@@ -1135,7 +1137,7 @@ export function RelationsPage() {
       hapticSuccess()
       flashMessage('批注已并入札记。')
     },
-    [flashMessage, nodeById],
+    [flashMessage, nodeById, toast],
   )
 
   const appendSelectedToNotes = useCallback((includeAnnotation: boolean) => {
@@ -1651,7 +1653,7 @@ export function RelationsPage() {
 
   const exportRelationAnnotations = () => {
     if (annotationCount === 0) {
-      window.alert('当前没有可导出的节点批注。')
+      toast({ tone: 'warn', title: '暂无可导出', message: '当前没有可导出的节点批注。' })
       return
     }
 
@@ -1676,7 +1678,7 @@ export function RelationsPage() {
 
   const exportRelationAnnotationsScroll = () => {
     if (annotationCount === 0) {
-      window.alert('当前没有可导出的节点批注。')
+      toast({ tone: 'warn', title: '暂无可导出', message: '当前没有可导出的节点批注。' })
       return
     }
 
@@ -1747,7 +1749,7 @@ export function RelationsPage() {
     flashMessage('已导出批注文卷。')
   }
 
-  const applyImportedAnnotations = (incoming: RelationAnnotations) => {
+  const applyImportedAnnotations = async (incoming: RelationAnnotations) => {
     const known: RelationAnnotations = {}
     for (const [id, a] of Object.entries(incoming)) {
       if (!nodeById.has(id)) continue
@@ -1759,11 +1761,16 @@ export function RelationsPage() {
 
     const count = Object.keys(known).length
     if (count === 0) {
-      window.alert('导入失败：存档里没有可识别的批注。')
+      toast({ tone: 'danger', title: '导入失败', message: '存档里没有可识别的批注。' })
       return
     }
 
-    const replace = window.confirm('导入方式：确定=覆盖现有批注；取消=合并（同一节点以导入为准）。')
+    const replace = await confirm({
+      title: '导入节点批注',
+      message: '导入方式：\n- 确定：覆盖现有批注\n- 取消：合并（同一节点以导入为准）',
+      confirmText: '覆盖',
+      cancelText: '合并',
+    })
     if (replace) {
       setAnnotations(known)
     } else {
@@ -1796,7 +1803,7 @@ export function RelationsPage() {
       }
 
       if (!incoming || typeof incoming !== 'object') {
-        window.alert('导入失败：存档格式不支持。')
+        toast({ tone: 'danger', title: '导入失败', message: '存档格式不支持。' })
         return
       }
 
@@ -1818,9 +1825,9 @@ export function RelationsPage() {
         }
       }
 
-      applyImportedAnnotations(normalized)
+      await applyImportedAnnotations(normalized)
     } catch {
-      window.alert('导入失败：存档内容有误。')
+      toast({ tone: 'danger', title: '导入失败', message: '存档内容有误。' })   
     }
   }
 
@@ -2755,11 +2762,17 @@ export function RelationsPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
+                        onClick={async () => {
                           if (!selected.id) return
                           const has = Boolean(annoDraft.trim() || canonicalAnnotations[selected.id])
                           if (!has) return
-                          const ok = window.confirm('确定清空此处批注？')
+                          const ok = await confirm({
+                            title: '清空节点批注',
+                            message: '确定清空此处批注？',
+                            confirmText: '清空',
+                            cancelText: '取消',
+                            tone: 'danger',
+                          })
                           if (!ok) return
                           setAnnotations((prev) => {
                             const next = { ...prev }
