@@ -15,6 +15,8 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   webServer: {
     command: `npm run preview -- --host 127.0.0.1 --port ${port} --strictPort`,
@@ -29,4 +31,3 @@ export default defineConfig({
     },
   ],
 })
-

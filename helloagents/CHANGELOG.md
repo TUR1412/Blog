@@ -16,6 +16,15 @@
 ### 移除
 - （待记录）
 
+## [0.141.4] - 2025-12-31
+
+### 新增
+- e2e：新增“札记编辑内容可持久化（刷新不丢）”覆盖，验证 localStorage 写入与 reload 后状态一致。
+
+### 变更
+- 测试脚本：`test:e2e:ci` 直接运行 `playwright test`，reporter 由 `playwright.config.ts` 统一控制。
+- Playwright：失败时保留截图与视频（`only-on-failure` / `retain-on-failure`），提升 CI 排障效率。
+
 ## [0.141.3] - 2025-12-31
 
 ### 新增

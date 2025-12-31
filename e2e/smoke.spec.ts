@@ -39,3 +39,20 @@ test('危险操作走 Confirm（可取消）', async ({ page }) => {
   await page.keyboard.press('Escape')
   await expect(dialog).toBeHidden()
 })
+
+test('札记编辑内容可持久化（刷新不丢）', async ({ page }) => {
+  await page.goto('/#/notes?view=edit')
+  await expect(page.getByRole('heading', { name: '修行札记' })).toBeVisible()
+
+  const editor = page.getByPlaceholder(/写点真话/)
+  const stamp = `E2E-${Date.now()}`
+  await editor.fill(`这一行来自 e2e：${stamp}`)
+
+  await page.waitForFunction((needle) => {
+    const raw = window.localStorage.getItem('xuantian.notes.v1') ?? ''
+    return raw.includes(needle)
+  }, stamp)
+
+  await page.reload()
+  await expect(page.getByPlaceholder(/写点真话/)).toHaveValue(new RegExp(stamp))
+})
