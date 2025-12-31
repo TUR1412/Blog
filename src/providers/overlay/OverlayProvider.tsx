@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useId, useMem
 import { createPortal } from 'react-dom'
 import { Button } from '../../components/ui/Button'
 import { cn } from '../../lib/cn'
+import { trapFocusOnTab } from '../../lib/focus'
 
 type ToastTone = 'neutral' | 'success' | 'warn' | 'danger'
 type ToastItem = {
@@ -114,30 +115,7 @@ function ConfirmModal({
       if (e.key !== 'Tab') return
       const root = dialogRef.current
       if (!root) return
-
-      const nodes = Array.from(
-        root.querySelectorAll<HTMLElement>(
-          'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((n) => !n.hasAttribute('disabled') && !n.getAttribute('aria-disabled') && n.offsetParent !== null)
-
-      if (nodes.length <= 1) return
-      const first = nodes[0]
-      const last = nodes[nodes.length - 1]
-      const active = document.activeElement as HTMLElement | null
-
-      if (e.shiftKey) {
-        if (!active || active === first) {
-          e.preventDefault()
-          last.focus()
-        }
-        return
-      }
-
-      if (active === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      trapFocusOnTab(e, root)
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -164,6 +142,8 @@ function ConfirmModal({
           aria-label="关闭"
           className="absolute inset-0 cursor-default bg-black/55 backdrop-blur-xl"
           onClick={() => close(false)}
+          aria-hidden="true"
+          tabIndex={-1}
         />
 
         <motion.div

@@ -7,11 +7,11 @@ let markdownPrefetched = false
 type PrefetchPriority = 'light' | 'all'
 type PrefetchGuard = () => boolean
 
-function safeKey(raw: string) {
+export function safeKey(raw: string) {
   return raw.trim() || '/'
 }
 
-function normalizePath(to: string) {
+export function normalizePath(to: string) {
   const raw = to.trim()
   const noHash = raw.split('#')[0] ?? raw
   const noQuery = (noHash ?? '').split('?')[0] ?? noHash
@@ -76,7 +76,7 @@ export function prefetchMarkdown() {
   void import('../components/content/Markdown')
 }
 
-function shouldPrefetchMarkdownForPath(path: string) {
+export function shouldPrefetchMarkdownForPath(path: string) {
   return path === '/grotto' || path === '/relations' || path === '/annotations' || path === '/notes'
 }
 
@@ -98,16 +98,7 @@ export function prefetchCoreRoutes(opts?: {
   const priority: PrefetchPriority = opts?.priority ?? 'all'
   const guard = opts?.guard
 
-  const lightTargets = ['/chronicles', '/about'] satisfies string[]
-  const restTargets = [
-    '/grotto',
-    '/relations',
-    '/annotations',
-    '/treasury',
-    includeNotes ? '/notes' : null,
-  ].filter((x): x is string => typeof x === 'string')
-
-  const targets = (priority === 'light' ? lightTargets : [...lightTargets, ...restTargets]) satisfies string[]
+  const targets = getCorePrefetchTargets({ includeNotes, priority })
 
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number })
     .requestIdleCallback
@@ -132,4 +123,20 @@ export function prefetchCoreRoutes(opts?: {
   }
 
   run(0)
+}
+
+export function getCorePrefetchTargets(opts?: { includeNotes?: boolean; priority?: PrefetchPriority }) {
+  const includeNotes = opts?.includeNotes ?? false
+  const priority: PrefetchPriority = opts?.priority ?? 'all'
+
+  const lightTargets = ['/chronicles', '/about'] satisfies string[]
+  const restTargets = [
+    '/grotto',
+    '/relations',
+    '/annotations',
+    '/treasury',
+    includeNotes ? '/notes' : null,
+  ].filter((x): x is string => typeof x === 'string')
+
+  return (priority === 'light' ? lightTargets : [...lightTargets, ...restTargets]) satisfies string[]
 }

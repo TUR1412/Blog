@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import type { ChronicleMeta } from '../../content/chronicleIndex'
 import { cn } from '../../lib/cn'
+import { trapFocusOnTab } from '../../lib/focus'
 import { prefetchIntent } from '../../routes/prefetch'
 import { useTheme } from '../theme/ThemeProvider'
 
@@ -99,8 +100,10 @@ function CommandPaletteModal({
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const reduceMotion = useReducedMotion() ?? false
+  const dialogRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const prevFocusRef = useRef<HTMLElement | null>(null)
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -278,8 +281,26 @@ function CommandPaletteModal({
   const enableListMotion = !reduceMotion && filtered.length <= 42
 
   useEffect(() => {
+    prevFocusRef.current = document.activeElement as HTMLElement | null
     const t = window.setTimeout(() => inputRef.current?.focus(), 0)
     return () => window.clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    const el = prevFocusRef.current
+    return () => el?.focus?.()
+  }, [])
+
+  useEffect(() => {
+    const onKeyDownWindow = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      const root = dialogRef.current
+      if (!root) return
+      trapFocusOnTab(e, root)
+    }
+
+    window.addEventListener('keydown', onKeyDownWindow)
+    return () => window.removeEventListener('keydown', onKeyDownWindow)
   }, [])
 
   useEffect(() => {
@@ -334,6 +355,8 @@ function CommandPaletteModal({
             aria-label="关闭"
             className="absolute inset-0 bg-black/40"
             onClick={onClose}
+            aria-hidden="true"
+            tabIndex={-1}
           />
 
           <motion.div
@@ -353,6 +376,7 @@ function CommandPaletteModal({
             role="dialog"
             aria-modal="true"
             aria-label="灵镜检索"
+            ref={dialogRef}
           >
             <div className="flex items-center gap-3 border-b border-border/70 px-4 py-4">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 text-fg/90">
@@ -366,10 +390,13 @@ function CommandPaletteModal({
                   setActiveIndex(0)
                 }}
                 onKeyDown={onKeyDown}
+                aria-label="灵镜检索输入"
                 placeholder="搜一章、搜一事、搜一处去处……（Ctrl/⌘ + K 或 /）"
                 className={cn(
                   'focus-ring w-full bg-transparent text-[15px] text-fg placeholder:text-muted/70',
                 )}
+                autoComplete="off"
+                spellCheck={false}
               />
               <div className="hidden shrink-0 items-center gap-2 text-xs text-muted/80 sm:flex">
                 <span className="rounded-lg border border-border/70 bg-white/5 px-2 py-1">Esc</span>

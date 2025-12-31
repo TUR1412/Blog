@@ -226,11 +226,14 @@ export function HomePage() {
                 </Card>
                 <Card className="p-4 sm:col-span-2 lg:col-span-1">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs text-muted/80">灵气仪（只是隐喻）</div>
+                    <label htmlFor="home-qi" className="text-xs text-muted/80">
+                      灵气仪（只是隐喻）
+                    </label>
                     <div className="text-xs font-medium text-fg/90">{qi}%</div>
                   </div>
                   <input
                     className="mt-3 w-full accent-[hsl(var(--accent))]"
+                    id="home-qi"
                     type="range"
                     min={0}
                     max={100}

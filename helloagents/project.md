@@ -35,7 +35,10 @@
 
 ## 质量门禁
 - `npm run lint`：ESLint 必须通过
+- `npm run test:ci`：Vitest（coverage）必须通过
 - `npm run build`：TypeScript + Vite 生产构建必须通过
+- `npm run budget`：构建产物体积预算（gzip）必须通过（需先 build）
+- `npm run test:e2e`：Playwright e2e（含 a11y 门禁）必须通过（需先安装浏览器驱动）
 - `npm audit --registry https://registry.npmjs.org/`：安全审计（若本机 registry 为镜像源，需显式指定）
 
 ---
@@ -43,4 +46,3 @@
 ## 提交流程（建议）
 - Commit Message：Conventional Commits（`feat:`/`fix:`/`refactor:`/`docs:`/`chore:`）
 - 原子提交：每次提交聚焦单一主题（交互系统 / 主题系统 / 文档 / 依赖升级 等）
-

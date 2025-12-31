@@ -238,6 +238,12 @@ npm run dev
 npm run build
 ```
 
+验秤（体积预算门禁，需先 build）：
+
+```bash
+npm run budget
+```
+
 验卷（构建后预览）：
 
 ```bash
@@ -256,7 +262,7 @@ npm run test
 npm run test:ci
 ```
 
-巡游（端到端 e2e，需要浏览器驱动）：
+巡游（端到端 e2e + a11y 门禁，需要浏览器驱动）：
 
 ```bash
 npx playwright install chromium

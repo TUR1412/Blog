@@ -194,6 +194,7 @@ export function TopNav() {
           <button
             type="button"
             onClick={open}
+            aria-label="打开灵镜检索"
             className={cn(
               'focus-ring tap inline-flex items-center gap-2 rounded-xl border border-border/70 bg-white/5 px-3 py-2 text-sm text-fg/90',
               'hover:bg-white/10',

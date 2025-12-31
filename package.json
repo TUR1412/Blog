@@ -1,11 +1,12 @@
 {
   "name": "xuantian-blog",
   "private": true,
-  "version": "0.141.4",
+  "version": "0.142.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "budget": "node scripts/bundle-budget.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
@@ -29,6 +30,7 @@
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.16",

@@ -66,3 +66,5 @@ sequenceDiagram
 
 | adr_id | title | date | status | affected_modules | details |
 |--------|-------|------|--------|------------------|---------|
+| ADR-001 | 引入 A11y 自动门禁 | 2025-12-31 | ✅已采纳 | providers / e2e | [capstone-delivery](../history/2025-12/202512312233_capstone-delivery/how.md#adr-001-引入-a11y-自动门禁) |
+| ADR-002 | 引入 Bundle Size Budget 门禁 | 2025-12-31 | ✅已采纳 | build / CI | [capstone-delivery](../history/2025-12/202512312233_capstone-delivery/how.md#adr-002-引入-bundle-size-budget-门禁) |

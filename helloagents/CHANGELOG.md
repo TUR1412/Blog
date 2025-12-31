@@ -16,6 +16,18 @@
 ### 移除
 - （待记录）
 
+## [0.142.0] - 2025-12-31
+
+### 新增
+- 质量门禁：新增构建产物体积预算脚本 `npm run budget`，并接入 GitHub Actions（build 后执行）。
+- e2e（A11y）：引入 axe 扫描，对首页/灵镜/札记+Confirm 做 serious/critical 门禁覆盖。
+- 单测：补齐 `routes/prefetch` 的纯函数覆盖（路径规范化与核心预取目标）。
+
+### 变更
+- 可访问性：命令面板与 Confirm 弹层统一 focus trap / 恢复焦点，遮罩按钮 `aria-hidden` 且不进入 Tab 顺序。
+- UI：`Button` 补齐 disabled 状态的视觉与交互兜底（不可点/不误触）。
+- 首页：range slider 增加 label，满足可访问性规则。
+
 ## [0.141.4] - 2025-12-31
 
 ### 新增

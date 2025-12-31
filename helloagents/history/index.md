@@ -9,6 +9,7 @@
 | 时间戳 | 功能名称 | 类型 | 状态 | 方案包路径 |
 |--------|----------|------|------|------------|
 | 202512312021 | uiux-evolution | 重构/功能 | ✅已完成 | [2025-12/202512312021_uiux-evolution](2025-12/202512312021_uiux-evolution/) |
+| 202512312233 | capstone-delivery | 重构/功能 | ✅已完成 | [2025-12/202512312233_capstone-delivery](2025-12/202512312233_capstone-delivery/) |
 
 ---
 
@@ -17,3 +18,4 @@
 ### 2025-12
 
 - [202512312021_uiux-evolution](2025-12/202512312021_uiux-evolution/) - 站内Overlay（Toast/Confirm）+ 主题切换 + 链接安全
+- [202512312233_capstone-delivery](2025-12/202512312233_capstone-delivery/) - A11y 门禁 + 体积预算门禁 + 焦点管理一致性
