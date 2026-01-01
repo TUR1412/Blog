@@ -1,4 +1,4 @@
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Loader2 } from 'lucide-react'
 import { forwardRef } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
@@ -34,11 +34,21 @@ export const Button = forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: Variant
+    loading?: boolean
     className?: string
   }
->(function Button({ children, variant = 'primary', className, ...props }, ref) {
+>(function Button({ children, variant = 'primary', loading = false, className, disabled, ...props }, ref) {
+  const isDisabled = disabled || loading
   return (
-    <button {...props} ref={ref} className={cn(classes(variant), className)}>
+    <button
+      {...props}
+      ref={ref}
+      disabled={isDisabled}
+      aria-busy={loading ? true : undefined}
+      data-loading={loading ? '1' : undefined}
+      className={cn(classes(variant), className)}
+    >
+      {loading ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : null}
       {children}
     </button>
   )

@@ -16,6 +16,13 @@
 ### 移除
 - （待记录）
 
+## [0.142.1] - 2026-01-01
+
+### 变更
+- UI：`glass/slab` 增加 hover/focus-within 的描边与 lift 微交互，整体更“玻璃拟态”、更顺手。
+- UI：`Button` 新增 `loading` 状态（spinner + `aria-busy`），为异步操作提供更明确的反馈。
+- 文档：README 增补项目 Title ASCII 艺术字与 Emoji 功能清单，作为“产品门户”入口更清晰。
+
 ## [0.142.0] - 2025-12-31
 
 ### 新增
